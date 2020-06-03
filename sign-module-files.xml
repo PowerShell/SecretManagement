@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<!-- Config files for Azure DevOps code-signing pipeline. -->
+<SignConfigXML>
+  <job platform="" configuration="" dest="__OUTPATHROOT__\signed" jobname="SecretManagement" approvers="vigarg;gstolt">
+    <file src="__INPATHROOT__\Microsoft.PowerShell.SecretManagement.psd1" signType="AuthenticodeFormer" dest="__OUTPATHROOT__\Microsoft.PowerShell.SecretManagement.psd1" />
+    <file src="__INPATHROOT__\Microsoft.PowerShell.SecretManagement.format.ps1xml" signType="AuthenticodeFormer" dest="__OUTPATHROOT__\Microsoft.PowerShell.SecretManagement.format.ps1xml" />
+    <file src="__INPATHROOT__\Microsoft.PowerShell.SecretManagement.dll" signType="AuthenticodeFormer" dest="__OUTPATHROOT__\Microsoft.PowerShell.SecretManagement.dll" />
+  </job>
+</SignConfigXML>

@@ -1,0 +1,159 @@
+name: $(BuildDefinitionName)-$(date:yyMM).$(date:dd)$(rev:rrr)
+trigger:
+  # Batch merge builds together while a merge build is running
+  batch: true
+  branches:
+    include:
+    - master
+pr:
+  branches:
+    include:
+    - master
+
+stages:
+- stage: Build
+  displayName: Build PowerShell Package
+  jobs:
+  - job: BuildPkg
+    displayName: Build Package
+    pool:
+      name: Package ES CodeHub Lab E
+    steps:
+    - powershell: |
+        $powerShellPath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'powershell'
+        Invoke-WebRequest -Uri https://raw.githubusercontent.com/PowerShell/PowerShell/master/tools/install-powershell.ps1 -outfile ./install-powershell.ps1
+        ./install-powershell.ps1 -Destination $powerShellPath
+        $vstsCommandString = "vso[task.setvariable variable=PATH]$powerShellPath;$env:PATH"
+        Write-Host "sending " + $vstsCommandString
+        Write-Host "##$vstsCommandString"
+      displayName: Install PowerShell Core
+
+    - task: UseDotNet@2
+      displayName: 'Install .NET Core 3.1.100 sdk'
+      inputs:
+        packageType: sdk
+        version: 3.1.100
+
+    - task: PkgESSetupBuild@10
+      displayName: 'Package ES - Setup Build'
+      inputs:
+        productName: PSRemotingTools
+        useDfs: false
+
+    - pwsh: |
+        Get-ChildItem -Path env:
+      displayName: Capture environment for build
+      condition: succeededOrFailed()
+
+    - pwsh: |
+        dir $env:USERPROFILE\Documents\PowerShell\Modules\* -Directory -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -Verbose -ErrorAction SilentlyContinue
+      displayName: Clean PowerShell modules directory
+
+    - pwsh: |
+        Get-Module -Name PowerShellGet -ListAvailable
+        Import-Module -Name PowerShellGet
+      displayName: Import PowerShellGet Module
+
+    - pwsh: |
+        Install-Module -Name "platyPS","Pester" -Force
+      displayName: Install dependencies
+    - pwsh: |
+        Install-Module -Name "PSScriptAnalyzer" -RequiredVersion 1.18.0 -Force
+      displayName: Install PSScriptAnalyzer
+    - pwsh: |
+        Install-Module -Name PSPackageProject -Force
+      displayName: Install PSPackageProject module
+    - pwsh: |
+        $(Build.SourcesDirectory)/build.ps1 -Build -BuildConfiguration Release
+      displayName: Build and publish artifact
+
+    - pwsh: |
+        Install-Module -Name PSPackageProject -Force
+        $config = Get-PSPackageProjectConfiguration
+        $signSrcPath = "$($config.BuildOutputPath)\$($config.ModuleName)"
+        $signOutPath = "$($config.SignedOutputPath)\$($config.ModuleName)"
+        if (! (Test-Path -Path $signOutPath)) {
+          $null = New-Item -Path $signOutPath -ItemType Directory
+        }
+        Write-Host "Signed output path is: $signOutPath"
+        $signXmlPath = "$($config.SourcePath)\..\sign-module-files.xml"
+        # Set signing src path variable
+        $vstsCommandString = "vso[task.setvariable variable=signSrcPath]${signSrcPath}"
+        Write-Host "sending " + $vstsCommandString
+        Write-Host "##$vstsCommandString"
+        # Set signing out path variable
+        $vstsCommandString = "vso[task.setvariable variable=signOutPath]${signOutPath}"
+        Write-Host "sending " + $vstsCommandString
+        Write-Host "##$vstsCommandString"
+        # Set signing xml path
+        $vstsCommandString = "vso[task.setvariable variable=signXmlPath]${signXmlPath}"
+        Write-Host "sending " + $vstsCommandString
+        Write-Host "##$vstsCommandString"
+      displayName: Set up for code signing
+
+    - pwsh: |
+        Get-ChildItem -Path env:
+      displayName: Capture environment for code signing
+      condition: succeededOrFailed()
+
+    - task: PkgESCodeSign@10
+      displayName: Sign build files
+      env:
+        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      inputs:
+        signConfigXml: '$(signXmlPath)'
+        inPathRoot: '$(signSrcPath)'
+        outPathRoot: '$(signOutPath)'
+        binVersion: Production
+        binVersionOverride: ''
+      condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
+
+    - pwsh: |
+        $(Build.SourcesDirectory)/build.ps1 -Publish -Signed
+      displayName: Create signed artifact
+
+- stage: Compliance
+  displayName: Compliance
+  dependsOn: Build
+  jobs:
+  - job: ComplianceJob
+    pool:
+      name: Package ES CodeHub Lab E
+    steps:
+    - template: compliance.yml
+
+- stage: Test
+  displayName: Test Package
+  dependsOn: Build
+  jobs:
+  - template: test.yml
+    parameters:
+      jobName: TestPkgWin
+      displayName: PowerShell Core on Windows
+      imageName: windows-2019
+
+#  - template: test.yml
+#    parameters:
+#      jobName: TestPkgWinPS
+#      displayName: Windows PowerShell on Windows
+#      imageName: windows-2019
+#      powershellExecutable: powershell
+
+#  - template: test.yml
+#    parameters:
+#      jobName: TestPkgUbuntu16
+#      displayName: PowerShell Core on Ubuntu 16.04
+#      imageName: ubuntu-16.04
+
+#  - template: test.yml
+#    parameters:
+#      jobName: TestPkgWinMacOS
+#      displayName: PowerShell Core on macOS
+#      imageName: macOS-10.14
+
+- stage: Release
+  displayName: Release Package
+  condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), eq(variables['Publish'], 'True'))
+  jobs:
+  - template: release.yml
+
