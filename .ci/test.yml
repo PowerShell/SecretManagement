@@ -1,0 +1,57 @@
+parameters:
+  jobName: TestPkgWin
+  imageName: windows-2019
+  displayName: PowerShell Core on Windows
+  powershellExecutable: pwsh
+
+jobs:
+- job: ${{ parameters.jobName }}
+  pool:
+    vmImage: ${{ parameters.imageName }}
+  displayName: ${{ parameters.displayName }}
+  steps:
+  - ${{ parameters.powershellExecutable }}: |
+      Install-Module -Name "platyPS","Pester" -Force
+    displayName: Install dependencies
+
+  - ${{ parameters.powershellExecutable }}: |
+        Install-Module -Name "PSScriptAnalyzer" -RequiredVersion 1.18.0 -Force
+    displayName: Install dependencies
+
+  - ${{ parameters.powershellExecutable }}: |
+      Install-Module -Name PSPackageProject -Force
+    displayName: Install PSPackageProject module
+
+  - task: DownloadBuildArtifacts@0
+    displayName: 'Download artifacts'
+    inputs:
+      buildType: current
+      downloadType: specific
+      itemPattern: '**/*.nupkg'
+      downloadPath: '$(System.ArtifactsDirectory)'
+
+  - ${{ parameters.powershellExecutable }}: |
+      $sourceName = 'pspackageproject-local-repo'
+      Register-PSRepository -Name $sourceName -SourceLocation '$(System.ArtifactsDirectory)' -ErrorAction Ignore
+      $config = Get-PSPackageProjectConfiguration
+      $buildOutputPath = $config.BuildOutputPath
+      $null = New-Item -ItemType Directory -Path $buildOutputPath -Verbose
+      $moduleName = $config.ModuleName
+      Save-Module -Repository $sourceName -Name $moduleName -Path $config.BuildOutputPath
+    displayName: Extract product artifact
+
+  - ${{ parameters.powershellExecutable }}: |
+      Invoke-PSPackageProjectTest -Type Functional
+    displayName: Execute functional tests
+    errorActionPreference: continue
+
+  - ${{ parameters.powershellExecutable }}: |
+      Invoke-PSPackageProjectTest -Type StaticAnalysis
+    displayName: Execute static analysis tests
+    errorActionPreference: continue
+    condition: succeededOrFailed()
+
+  - ${{ parameters.powershellExecutable }}: |
+      Unregister-PSRepository -Name 'pspackageproject-local-repo' -ErrorAction Ignore
+    displayName: Unregister temporary PSRepository
+    condition: always()
