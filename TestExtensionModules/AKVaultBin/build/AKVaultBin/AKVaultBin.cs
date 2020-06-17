@@ -215,6 +215,16 @@ namespace AKVaultBin
             return list.ToArray();
         }
 
+        public override bool UnlockSecretVault(
+            SecureString vaultKey,
+            string vaultName,
+            out Exception error)
+        {
+            // Vault is never locked.
+            error = null;
+            return true;
+        }
+
         public override bool TestSecretVault(
             string vaultName,
             IReadOnlyDictionary<string, object> parameters,
