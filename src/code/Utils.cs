@@ -627,6 +627,8 @@ namespace Microsoft.PowerShell.SecretManagement
                     {
                         InvokeSetSecretOnScriptFn(name, secret, vaultName, cmdlet);
                     }
+
+                    return;
                 }
                 catch (PasswordRequiredException)
                 {
@@ -697,6 +699,8 @@ namespace Microsoft.PowerShell.SecretManagement
                     {
                         InvokeRemoveSecretOnScriptFn(name, vaultName, cmdlet);
                     }
+
+                    return;
                 }
                 catch (PasswordRequiredException)
                 {
@@ -1756,6 +1760,13 @@ namespace Microsoft.PowerShell.SecretManagement
                     if (ex is PasswordRequiredException)
                     {
                         throw;
+                    }
+                    else if (ex is RuntimeException exr)
+                    {
+                        if (exr.ErrorRecord.Exception is PasswordRequiredException)
+                        {
+                            throw exr.ErrorRecord.Exception;
+                        }
                     }
 
                     errors = new ErrorRecord[1] {

@@ -10,6 +10,9 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
             Import-Module -Name Microsoft.PowerShell.SecretManagement
         }
 
+        $global:oldAllowPrompting = (Get-Option).AllowPrompting
+        Set-Option -AllowPrompting:$false
+
         # Binary extension module
         $classImplementation = @'
             using Microsoft.PowerShell.SecretManagement;
@@ -17,6 +20,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
             using System.Collections;
             using System.Collections.Generic;
             using System.Management.Automation;
+            using System.Security;
             
             namespace VaultExtension
             {
@@ -24,6 +28,8 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
                 {
                     private static Dictionary<string, object> _store = new Dictionary<string, object>();
                     public static Dictionary<string, object> Dict { get { return _store; } }
+                    public static bool Locked { get; set; }
+                    static Store() { Locked = false; }
                 }
 
                 public class TestExtVault : SecretManagementExtension
@@ -32,11 +38,24 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
             
                     public TestExtVault(string vaultName) : base(vaultName) { }
 
+                    public void SetVaultLock(bool locked) { Store.Locked = locked; }
+
+                    public override bool UnlockSecretVault(
+                        SecureString vaultKey,
+                        string vaultName,
+                        out Exception error)
+                    {
+                        error = null;
+                        Store.Locked = false;
+                        return true;
+                    }
+
                     public override bool TestSecretVault(
                         string vaultName,
                         IReadOnlyDictionary<string, object> additionalParameters,
                         out Exception[] errors)
                     {
+                        if (Store.Locked) { throw new Microsoft.PowerShell.SecretManagement.PasswordRequiredException("Pass phrase required"); }
                         var valid = true;
                         var errorList = new List<Exception>();
                         if (!additionalParameters.ContainsKey("AccessId"))
@@ -63,6 +82,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
                         IReadOnlyDictionary<string, object> additionalParameters,
                         out Exception error)
                     {
+                        if (Store.Locked) { throw new Microsoft.PowerShell.SecretManagement.PasswordRequiredException("Pass phrase required"); }
                         error = null;
                         if (!_store.TryAdd(name, secret))
                         {
@@ -79,6 +99,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
                         IReadOnlyDictionary<string, object> additionalParameters,
                         out Exception error)
                     {
+                        if (Store.Locked) { throw new Microsoft.PowerShell.SecretManagement.PasswordRequiredException("Pass phrase required"); }
                         error = null;
                         if (_store.TryGetValue(name, out object secret))
                         {
@@ -95,6 +116,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
                         IReadOnlyDictionary<string, object> additionalParameters,
                         out Exception error)
                     {
+                        if (Store.Locked) { throw new Microsoft.PowerShell.SecretManagement.PasswordRequiredException("Pass phrase required"); }
                         error = null;
                         if (_store.Remove(name))
                         {
@@ -111,6 +133,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
                         IReadOnlyDictionary<string, object> additionalParameters,
                         out Exception error)
                     {
+                        if (Store.Locked) { throw new Microsoft.PowerShell.SecretManagement.PasswordRequiredException("Pass phrase required"); }
                         error = null;
                         var list = new List<SecretInformation>(_store.Count);
                         foreach (var item in _store)
@@ -176,33 +199,58 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         }
 
         # Script extension module
+        $scriptModuleName = "TVaultScript"
+        $scriptModulePath = Join-Path $testdrive $scriptModuleName
+        New-Item -ItemType Directory $scriptModulePath -Force
+        $script:scriptModuleFilePath = Join-Path $scriptModulePath "${scriptModuleName}.psd1"
+        "@{ ModuleVersion = '1.0' }" | Out-File -FilePath $script:scriptModuleFilePath
+        $scriptLockedFilePath = Join-Path $scriptModulePath 'Locked.xml'
+        $false | Export-Clixml -Path $scriptLockedFilePath
+
         $scriptImplementation = @'
             $script:store = [VaultExtension.Store]::Dict
+            $script:lockPath = '{0}'
+
+            function GetVaultLock
+            {{
+                return [bool] (Import-CliXml -Path $script:lockPath)
+            }}
+
+            function SetVaultLock
+            {{
+                param (
+                    [bool] $Lock
+                )
+
+                $Lock | Export-CliXml -Path $script:lockPath
+            }}
 
             function Get-Secret
-            {
+            {{
                 param (
                     [string] $Name,
                     [string] $VaultName,
                     [hashtable] $AdditionalParameters
                 )
 
+                if (GetVaultLock) {{ throw [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]::new("Pass phrase required") }}
+
                 $secret = $script:store[$Name]
                 if ($secret -eq $null)
-                {
+                {{
                     Write-Error("CannotFindSecret")
-                }
+                }}
 
                 if ($secret -is [byte[]])
-                {
+                {{
                     return @(,$secret)
-                }
+                }}
 
                 return $secret
-            }
+            }}
 
             function Set-Secret
-            {
+            {{
                 param (
                     [string] $Name,
                     [object] $Secret,
@@ -210,77 +258,92 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
                     [hashtable] $AdditionalParameters
                 )
 
+                if (GetVaultLock) {{ throw [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]::new("Pass phrase required") }}
+
                 return $script:store.TryAdd($Name, $Secret)
-            }
+            }}
 
             function Remove-Secret
-            {
+            {{
                 param (
                     [string] $Name,
                     [string] $VaultName,
                     [hashtable] $AdditionalParameters
                 )
 
+                if (GetVaultLock) {{ throw [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]::new("Pass phrase required") }}
+
                 return $script:store.Remove($Name)
-            }
+            }}
 
             function Get-SecretInfo
-            {
+            {{
                 param (
                     [string] $Filter,
                     [string] $VaultName,
                     [hashtable] $AdditionalParameters
                 )
 
+                if (GetVaultLock) {{ throw [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]::new("Pass phrase required") }}
+
                 if ([string]::IsNullOrEmpty($Filter))
-                {
+                {{
                     $Filter = '*'
-                }
+                }}
                 $pattern = [WildcardPattern]::new($Filter)
                 foreach ($key in $script:store.Keys)
-                {
+                {{
                     if ($pattern.IsMatch($key))
-                    {
+                    {{
                         $secret = $script:store[$key]
-                        $type = if ($secret -is [byte[]]) { [Microsoft.PowerShell.SecretManagement.SecretType]::ByteArray }
-                        elseif ($secret -is [string]) { [Microsoft.PowerShell.SecretManagement.SecretType]::String }
-                        elseif ($secret -is [securestring]) { [Microsoft.PowerShell.SecretManagement.SecretType]::SecureString }
-                        elseif ($secret -is [PSCredential]) { [Microsoft.PowerShell.SecretManagement.SecretType]::PSCredential }
-                        elseif ($secret -is [hashtable]) { [Microsoft.PowerShell.SecretManagement.SecretType]::Hashtable }
-                        else { [Microsoft.PowerShell.SecretManagement.SecretType]::Unknown }
+                        $type = if ($secret -is [byte[]]) {{ [Microsoft.PowerShell.SecretManagement.SecretType]::ByteArray }}
+                        elseif ($secret -is [string]) {{ [Microsoft.PowerShell.SecretManagement.SecretType]::String }}
+                        elseif ($secret -is [securestring]) {{ [Microsoft.PowerShell.SecretManagement.SecretType]::SecureString }}
+                        elseif ($secret -is [PSCredential]) {{ [Microsoft.PowerShell.SecretManagement.SecretType]::PSCredential }}
+                        elseif ($secret -is [hashtable]) {{ [Microsoft.PowerShell.SecretManagement.SecretType]::Hashtable }}
+                        else {{ [Microsoft.PowerShell.SecretManagement.SecretType]::Unknown }}
 
                         Write-Output ([Microsoft.PowerShell.SecretManagement.SecretInformation]::new($key, $type, $VaultName))
-                    }
-                }
-            }
+                    }}
+                }}
+            }}
+
+            function Unlock-SecretVault
+            {{
+                param (
+                    [securestring] $VaultKey,
+                    [string] $VaultName,
+                    [hashtable] $AdditionalParameters
+                )
+
+                SetVaultLock -Lock $false
+                return $true
+            }}
 
             function Test-SecretVault
-            {
+            {{
                 param (
                     [string] $VaultName,
                     [hashtable] $AdditionalParameters
                 )
 
+                if (GetVaultLock) {{ throw [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]::new("Pass phrase required") }}
+
                 $valid = $true
                 if (! $AdditionalParameters.ContainsKey('AccessId'))
-                {
+                {{
                     $valid = $false
                     Write-Error 'Missing AccessId parameter'
-                }
+                }}
                 if (! $AdditionalParameters.ContainsKey('SubscriptionId'))
-                {
+                {{
                     $valid = $false
                     Write-Error 'Missing SubscriptionId parameter'
-                }
+                }}
 
                 return $valid
-            }
-'@
-        $scriptModuleName = "TVaultScript"
-        $scriptModulePath = Join-Path $testdrive $scriptModuleName
-        New-Item -ItemType Directory $scriptModulePath -Force
-        $script:scriptModuleFilePath = Join-Path $scriptModulePath "${scriptModuleName}.psd1"
-        "@{ ModuleVersion = '1.0' }" | Out-File -FilePath $script:scriptModuleFilePath
+            }}
+'@ -f $scriptLockedFilePath
 
         $implementingModuleName = "SecretManagementExtension"
         $implementingModulePath = Join-Path $scriptModulePath $implementingModuleName
@@ -290,7 +353,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         @{{
             ModuleVersion = '1.0'
             RootModule = '{0}'
-            FunctionsToExport = @('Set-Secret','Get-Secret','Remove-Secret','Get-SecretInfo','Test-SecretVault')
+            FunctionsToExport = @('Set-Secret','Get-Secret','Remove-Secret','Get-SecretInfo','Test-SecretVault','Unlock-SecretVault')
         }}
         " -f $implementingModuleName
         $manifestInfo | Out-File -FilePath $implementingManifestFilePath
@@ -302,6 +365,21 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
         Unregister-SecretVault -Name BinaryTestVault -ErrorAction Ignore
         Unregister-SecretVault -Name ScriptTestVault -ErrorAction Ignore
+        Set-Option -AllowPrompting:$($global:oldAllowPrompting)
+    }
+
+    function GetVaultLock
+    {
+        return Import-CliXml -Path $scriptLockedFilePath
+    }
+
+    function SetVaultLock
+    {
+        param (
+            [bool] $Lock
+        )
+
+        $Lock | Export-Clixml -Path $scriptLockedFilePath -Force
     }
 
     function VerifyByteArrayType
@@ -517,6 +595,68 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         }
     }
 
+    function VerifyVaultLock
+    {
+        param (
+            [string] $VaultName
+        )
+
+        It "Verifies Set-Secret expected error on locked vault: $VaultName" {
+            { Set-Secret -Name None -Secret ([System.IO.Path]::GetRandomFileName()) -Vault $VaultName } | `
+                Should -Throw -ExceptionType ([Microsoft.PowerShell.SecretManagement.PasswordRequiredException])
+        }
+
+        It "Verifies Get-Secret expected error on locked vault: $VaultName" {
+            { Get-Secret -Name None -Vault $VaultName } | `
+                Should -Throw -ExceptionType ([Microsoft.PowerShell.SecretManagement.PasswordRequiredException])
+        }
+
+        It "Verifies Get-SecretInfo expected error on locked vault: $VaultName" {
+            { Get-SecretInfo -Vault $VaultName } | `
+                Should -Throw -ExceptionType ([Microsoft.PowerShell.SecretManagement.PasswordRequiredException])
+        }
+
+        It "Verifies Remove-Secret expected error on locked vault: $VaultName" {
+            { Remove-Secret -Name None -Vault $VaultName } | `
+                Should -Throw -ExceptionType ([Microsoft.PowerShell.SecretManagement.PasswordRequiredException])
+        }
+
+        It "Verifies Test-SecretVault expected error on locked vault: $VaultName" {
+            { Test-SecretVault -Vault $VaultName } | `
+                Should -Throw -ExceptionType ([Microsoft.PowerShell.SecretManagement.PasswordRequiredException])
+        }
+    }
+
+    function VerifyVaultUnlock
+    {
+        param (
+            [string] $VaultName
+        )
+
+        $fakeKey = [System.IO.Path]::GetRandomFileName()
+        Unlock-SecretVault -Name $VaultName -Key (ConvertTo-SecureString -String $fakeKey -AsPlainText -Force)
+
+        It "Verifies Set-Secret no error on unlocked vault: $VaultName" {
+            { Set-Secret -Name None -Secret ([System.IO.Path]::GetRandomFileName()) -Vault $VaultName } | Should -Not -Throw
+        }
+
+        It "Verifies Get-Secret no error on unlocked vault: $VaultName" {
+            { Get-Secret -Name None -Vault $VaultName } | Should -Not -Throw
+        }
+
+        It "Verifies Get-SecretInfo no error on unlocked vault: $VaultName" {
+            { Get-SecretInfo -Vault $VaultName } | Should -Not -Throw
+        }
+
+        It "Verifies Remove-Secret no error on unlocked vault: $VaultName" {
+            { Remove-Secret -Name None -Vault $VaultName } | Should -Not -Throw
+        }
+
+        It "Verifies Test-SecretVault no error on unlocked vault: $VaultName" {
+            { Test-SecretVault -Vault $VaultName } | Should -Not -Throw
+        }
+    }
+
     Context "Binary extension (default) vault registration tests" {
 
         $randomSecretC = [System.IO.Path]::GetRandomFileName()
@@ -560,6 +700,32 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
         It "Verifies Test-SecretVault succeeds" {
             Test-SecretVault -Vault BinaryTestVault | Should -BeTrue
+        }
+    }
+
+    Context "Binary extension vault lock" {
+
+        [VaultExtension.Store]::Locked = $true
+        try
+        {
+            VerifyVaultLock -VaultName BinaryTestVault
+        }
+        finally
+        {
+            [VaultExtension.Store]::Locked = $false
+        }
+    }
+
+    Context "Binary extension vault unlock" {
+
+        [VaultExtension.Store]::Locked = $true
+        try
+        {
+            VerifyVaultUnlock -VaultName BinaryTestVault
+        }
+        finally
+        {
+            [VaultExtension.Store]::Locked = $false
         }
     }
 
@@ -665,6 +831,32 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
             Set-DefaultVault -Name BinaryTestVault
             Set-Secret -Name GoesToDefaultVault -Secret $randomSecretE
             Get-Secret -Name GoesToDefaultVault -Vault BinaryTestVault -AsPlainText | Should -BeExactly $randomSecretE
+        }
+    }
+
+    Context "Script extension vault lock" {
+
+        SetVaultLock -Lock $true
+        try
+        {
+            VerifyVaultLock -VaultName ScriptTestVault
+        }
+        finally
+        {
+            SetVaultLock -Lock $false
+        }
+    }
+
+    Context "Script extension vault unlock" {
+
+        SetVaultLock -Lock $true
+        try
+        {
+            VerifyVaultUnlock -VaultName ScriptTestVault
+        }
+        finally
+        {
+            SetVaultLock -Lock $false
         }
     }
 
