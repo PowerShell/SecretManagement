@@ -24,7 +24,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets name of extension vault.
         /// </summary>
-        public string Name { get; }
+        public string VaultName { get; }
 
         /// <summary>
         /// Gets name of extension vault module.
@@ -64,7 +64,7 @@ namespace Microsoft.PowerShell.SecretManagement
             string name,
             ExtensionVaultModule vaultInfo)
         {
-            Name = name;
+            VaultName = name;
             ModuleName = vaultInfo.ModuleName;
             ModulePath = vaultInfo.ModulePath;
             VaultParameters = vaultInfo.VaultParameters;
@@ -380,6 +380,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 error = new ItemNotFoundException("Test-SecretVault function not found.");
                 return false;
             }
+            funcInfo = moduleInfo.ExportedFunctions["Test-SecretVault"];
             if (!funcInfo.Parameters.ContainsKey("VaultName"))
             {
                 error = new ItemNotFoundException("Test-SecretVault VaultName parameter not found.");
@@ -388,6 +389,29 @@ namespace Microsoft.PowerShell.SecretManagement
             if (!funcInfo.Parameters.ContainsKey("AdditionalParameters"))
             {
                 error = new ItemNotFoundException("Test-SecretVault AdditionalParameters parameter not found.");
+                return false;
+            }
+
+            // Unlock-SecretVault function
+            if (!moduleInfo.ExportedFunctions.ContainsKey("Unlock-SecretVault"))
+            {
+                error = new ItemNotFoundException("Unlock-SecretVault function not found.");
+                return false;
+            }
+            funcInfo = moduleInfo.ExportedFunctions["Unlock-SecretVault"];
+            if (!funcInfo.Parameters.ContainsKey("VaultKey"))
+            {
+                error = new ItemNotFoundException("Unlock-SecretVault VaultKey parameter not found.");
+                return false;
+            }
+            if (!funcInfo.Parameters.ContainsKey("VaultName"))
+            {
+                error = new ItemNotFoundException("Unlock-SecretVault VaultName parameter not found.");
+                return false;
+            }
+            if (!funcInfo.Parameters.ContainsKey("AdditionalParameters"))
+            {
+                error = new ItemNotFoundException("Unlock-SecretVault AdditionalParameters parameter not found.");
                 return false;
             }
 
@@ -468,7 +492,7 @@ namespace Microsoft.PowerShell.SecretManagement
                     break;
                 
                 case SecretVaultParameterSet:
-                    vaultName = SecretVault.Name;
+                    vaultName = SecretVault.VaultName;
                     break;
 
                 default:
@@ -508,7 +532,7 @@ namespace Microsoft.PowerShell.SecretManagement
     {
         #region Parameters
 
-        [Parameter (Position=0, Mandatory=true)]
+        [Parameter (Position=0)]
         public string Name { get; set; }
 
         #endregion
@@ -671,7 +695,7 @@ namespace Microsoft.PowerShell.SecretManagement
     /// If no vault is specified then all vaults are searched.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, "SecretInfo")]
-    [OutputType(typeof(PSObject))]
+    [OutputType(typeof(SecretInformation))]
     public sealed class GetSecretInfoCommand : SecretCmdlet
     {
         #region Parameters
@@ -810,7 +834,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// Gets or sets a switch that forces a string secret type to be returned as plain text.
         /// Otherwise the string is returned as a SecureString type.
         /// </summary>
-        [Parameter(Position=2)]
+        [Parameter]
         public SwitchParameter AsPlainText { get; set; }
 
         #endregion

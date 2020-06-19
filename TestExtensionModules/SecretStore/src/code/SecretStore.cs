@@ -33,6 +33,7 @@ namespace Microsoft.PowerShell.SecretStore
         /// Gets or sets a plain text password.
         /// </summary>
         [Parameter(ParameterSetName=StringParameterSet)]
+        [ValidateNotNullOrEmpty]
         public string Password { get; set; }
 
         /// <summary>
@@ -41,7 +42,11 @@ namespace Microsoft.PowerShell.SecretStore
         [Parameter(Mandatory=true, ValueFromPipeline=true, ValueFromPipelineByPropertyName=true, ParameterSetName=SecureStringParameterSet)]
         public SecureString SecureStringPassword { get; set; }
 
+        /// <summary>
+        /// Gets or sets a password timeout value in seconds.
+        /// </summary>
         [Parameter]
+        [ValidateRange(-1, (Int32.MaxValue / 1000))]
         public int PasswordTimeout { get; set; }
 
         #endregion
@@ -99,6 +104,7 @@ namespace Microsoft.PowerShell.SecretStore
     #region Get-LocalStoreConfiguration
 
     [Cmdlet(VerbsCommon.Get, "LocalStoreConfiguration")]
+    [OutputType(typeof(SecureStoreConfig))]
     public sealed class GetLocalStoreConfiguration : PSCmdlet
     {
         #region Overrides
@@ -118,6 +124,7 @@ namespace Microsoft.PowerShell.SecretStore
 
     [Cmdlet(VerbsCommon.Set, "LocalStoreConfiguration", DefaultParameterSetName = ParameterSet,
         SupportsShouldProcess = true, ConfirmImpact = ConfirmImpact.High)]
+    [OutputType(typeof(SecureStoreConfig))]
     public sealed class SetLocalStoreConfiguration : PSCmdlet
     {
         #region Members
@@ -211,6 +218,7 @@ namespace Microsoft.PowerShell.SecretStore
 
     [Cmdlet(VerbsCommon.Reset, "LocalStore", 
         SupportsShouldProcess = true, ConfirmImpact = ConfirmImpact.High)]
+    [OutputType(typeof(SecureStoreConfig))]
     public sealed class ResetLocalStoreCommand : PSCmdlet
     {
         #region Parmeters
@@ -222,6 +230,7 @@ namespace Microsoft.PowerShell.SecretStore
         public SwitchParameter PasswordRequired { get; set; }
 
         [Parameter]
+        [ValidateRange(-1, (Int32.MaxValue / 1000))]
         public int PasswordTimeout { get; set; }
 
         [Parameter]
@@ -306,7 +315,7 @@ namespace Microsoft.PowerShell.SecretStore
 
     #region SecretStoreExtension
 
-    public class SecretStoreExtension : SecretManagementExtension
+    public sealed class SecretStoreExtension : SecretManagementExtension
     {
         #region Constructors
 

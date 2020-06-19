@@ -93,17 +93,9 @@ namespace Microsoft.PowerShell.SecretStore
 
         #region Properties
 
-        public static string SecretManagementLocalPath
-        {
-            get;
-            private set;
-        }
+        public static string SecretManagementLocalPath { get; }
 
-        public static bool IsWindows
-        {
-            get;
-            private set;
-        }
+        public static bool IsWindows { get; }
 
         #endregion
 
@@ -519,13 +511,11 @@ namespace Microsoft.PowerShell.SecretStore
         public string Name
         {
             get;
-            private set;
         }
 
         public string TypeName
         {
             get;
-            private set;
         }
 
         public int Offset
@@ -537,13 +527,11 @@ namespace Microsoft.PowerShell.SecretStore
         public int Size
         {
             get;
-            private set;
         }
 
         public ReadOnlyDictionary<string, object> Attributes
         {
             get;
-            private set;
         }
 
         #endregion
@@ -604,7 +592,7 @@ namespace Microsoft.PowerShell.SecretStore
         // Example of store data as Hashtable
         /*
         @{
-        ConfigData =
+            ConfigData =
             @{
                 StoreScope='LocalScope'
                 PasswordRequired=$true
@@ -667,10 +655,7 @@ namespace Microsoft.PowerShell.SecretStore
                 CryptoUtils.ZeroOutData(Blob);
             }
 
-            if (MetaData != null)
-            {
-                MetaData.Clear();
-            }
+            MetaData?.Clear();
         }
 
         #endregion
@@ -750,23 +735,6 @@ namespace Microsoft.PowerShell.SecretStore
                         size: (int) item.Size,
                         attributes: new ReadOnlyDictionary<string, object>(attributesDictionary)));
             }
-        }
-
-        #endregion
-    }
-
-    internal sealed class SecureStorePasswordException : InvalidOperationException
-    {
-        #region Constructor
-
-        public SecureStorePasswordException()
-            : base("Password is required to access local store.")
-        {
-        }
-
-        public SecureStorePasswordException(string msg)
-            : base(msg)
-        {
         }
 
         #endregion
@@ -1229,12 +1197,20 @@ namespace Microsoft.PowerShell.SecretStore
         public void UpdateDataFromFile()
         {
             SecureStoreData data;
-            if (!SecureStoreFile.ReadFile(
-                password: Password,
-                data: out data,
-                out string _))
+            SecureString password = Password;
+            try
             {
-                data = SecureStoreData.CreateEmpty();
+                if (!SecureStoreFile.ReadFile(
+                    password: Password,
+                    data: out data,
+                    out string _))
+                {
+                    data = SecureStoreData.CreateEmpty();
+                }
+            }
+            finally
+            {
+                password.Clear();
             }
             
             lock (_syncObject)
@@ -1970,7 +1946,6 @@ namespace Microsoft.PowerShell.SecretStore
 
         private static void UpdateData(FileSystemEventArgs args)
         {
-
             try
             {
                 var lastFileChange = System.IO.File.GetLastWriteTime(args.FullPath);
@@ -2008,7 +1983,6 @@ namespace Microsoft.PowerShell.SecretStore
         public DateTime FileChangedTime
         {
             get;
-            private set;
         }
 
         public FileUpdateEventArgs(DateTime fileChangedTime)
@@ -2094,10 +2068,7 @@ namespace Microsoft.PowerShell.SecretStore
 
         public void Dispose()
         {
-            if (_secureStore != null)
-            {
-                _secureStore.Dispose();
-            }
+            _secureStore?.Dispose();
         }
 
         #endregion

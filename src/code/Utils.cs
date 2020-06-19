@@ -87,17 +87,9 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Properties
 
-        public static string SecretManagementLocalPath
-        {
-            get;
-            private set;
-        }
+        public static string SecretManagementLocalPath { get; }
 
-        public static bool IsWindows
-        {
-            get;
-            private set;
-        }
+        public static bool IsWindows { get; }
 
         #endregion
 
@@ -270,7 +262,6 @@ namespace Microsoft.PowerShell.SecretManagement
         public string Name
         {
             get; 
-            private set;
         }
 
         /// <summary>
@@ -279,7 +270,6 @@ namespace Microsoft.PowerShell.SecretManagement
         public SecretType Type
         {
             get;
-            private set;
         }
 
         /// <summary>
@@ -288,7 +278,6 @@ namespace Microsoft.PowerShell.SecretManagement
         public string VaultName
         {
             get;
-            private set;
         }
 
         #endregion
@@ -1486,14 +1475,21 @@ namespace Microsoft.PowerShell.SecretManagement
         public static void SetDefaultVault(
             string vaultName)
         {
-            if (!VaultExtensions.TryGetValue(
+            if (string.IsNullOrEmpty(vaultName))
+            {
+                _defaultVaultName = string.Empty;
+            }
+            else if (VaultExtensions.TryGetValue(
                 key: vaultName,
                 value: out ExtensionVaultModule vault))
+            {
+                _defaultVaultName = vault.VaultName;
+            }
+            else
             {
                 throw new ItemNotFoundException("Vault name was not found.");
             }
 
-            _defaultVaultName = vault.VaultName;
             WriteSecretVaultRegistry(
                 vaultInfo: GetAll(),
                 defaultVaultName: _defaultVaultName,
