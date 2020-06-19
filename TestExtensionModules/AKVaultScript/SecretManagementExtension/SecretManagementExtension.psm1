@@ -102,6 +102,18 @@ function Get-SecretInfo
     }
 }
 
+function Unlock-SecretVault
+{
+    param (
+        [securestring] $VaultKey,
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    # Vault is never locked.
+    return $true
+}
+
 function Test-SecretVault
 {
     param (

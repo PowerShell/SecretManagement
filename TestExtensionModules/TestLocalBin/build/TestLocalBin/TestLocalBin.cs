@@ -12,7 +12,6 @@ using System.Security;
 
 namespace TestLocalBin
 {
-
     #region TestLocalBin
 
     public class TestLocalBinExtension : SecretManagementExtension
@@ -112,6 +111,16 @@ namespace TestLocalBin
             }
 
             return list.ToArray();
+        }
+
+        public override bool UnlockSecretVault(
+            SecureString vaultKey,
+            string vaultName,
+            out Exception error)
+        {
+            // Vault is never locked.
+            error = null;
+            return true;
         }
 
         public override bool TestSecretVault(

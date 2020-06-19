@@ -4,16 +4,16 @@
 @{
 
 # Script module or binary module file associated with this manifest.
-RootModule = '.\Microsoft.PowerShell.SecretManagement.dll'
+RootModule = '.\Microsoft.PowerShell.SecretStore.dll'
 
 # Version number of this module.
-ModuleVersion = '0.3.0'
+ModuleVersion = '0.1.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
 
 # ID used to uniquely identify this module
-GUID = '766a9266-f2ba-4146-bec2-bb30bf5a4f0a'
+GUID = '6b983e67-c297-431a-916c-f4ce24dd7bac'
 
 # Author of this module
 Author = 'Microsoft Corporation'
@@ -26,50 +26,19 @@ Copyright = '(c) Microsoft Corporation. All rights reserved.'
 
 # Description of the functionality provided by this module
 Description = "
-This module helps manage secrets by providing a set of cmdlets that lets you store secrets
-locally using a local vault provider, and access secrets from remote vaults.
-Local and remote vaults can be registered and unregistered on the local machine, per user,
-for use in managing and retrieving secrets.
-
-*****
-Breaking change for 0.2.0: The script extension vault module name has been changed from 
-'ImplementingModule' to 'SecretManagementExtension'.
-Any registered script extension vault module will have to be renamed accordingly.
-*****
-
-*****
-Breaking change for 0.2.1: Module and cmdlets renamed.  Changes to required functions.
-All previous vault extensions will need to be updated.
-*****
-
-*****
-This is an alpha version of the module that currently works only on Windows platforms.
-*****
-
-*****
-Breaking change for 0.3.0: Removing BuiltInLocalVault.
-*****
+This PowerShell module is an extension vault module for the PowerShell SecretManagement module.
+As an extension vault, this module stores secrets to the local machine based on the current user account context.
+The secrets are encrypted on file using .NET Crypto APIs.
+A password is required for each user account store.
 "
+
+RequiredAssemblies = @('Microsoft.PowerShell.SecretStore.dll')
 
 # Minimum version of the PowerShell engine required by this module
 PowerShellVersion = '5.1'
 
-# Format files (.ps1xml) to be loaded when importing this module
-FormatsToProcess = @('Microsoft.PowerShell.SecretManagement.format.ps1xml')
-
-# Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = @()
-
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
-CmdletsToExport = @(
-    'Register-SecretVault','Unregister-SecretVault','Get-SecretVault','Set-DefaultVault','Set-Secret','Remove-Secret','Get-Secret','Get-SecretInfo',
-    'Unlock-SecretVault','Test-SecretVault','Get-Option','Set-Option')
-
-# Variables to export from this module
-VariablesToExport = '*'
-
-# Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
-AliasesToExport = @()
+CmdletsToExport = @('Unlock-LocalStore','Update-LocalStorePassword','Get-LocalStoreConfiguration','Set-LocalStoreConfiguration','Reset-LocalStore')
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
 PrivateData = @{
@@ -92,7 +61,7 @@ PrivateData = @{
         # ReleaseNotes = ''
 
         # Prerelease string of this module
-        Prerelease = 'alpha2'
+        Prerelease = 'alpha1'
 
         # Flag to indicate whether the module requires explicit user acceptance for install/update/save
         # RequireLicenseAcceptance = $false
