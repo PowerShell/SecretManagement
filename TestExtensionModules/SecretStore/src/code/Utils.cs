@@ -340,7 +340,10 @@ namespace Microsoft.PowerShell.SecretStore
             }
             finally
             {
-                ZeroOutData(keyToUse);
+                if (passWord != null)
+                {
+                    ZeroOutData(keyToUse);
+                }
             }
         }
 
@@ -350,7 +353,6 @@ namespace Microsoft.PowerShell.SecretStore
             byte[] data)
         {
             var keyToUse = (passWord != null) ? DeriveKeyFromSecureString(passWord, key.Key) : key.Key;
-            
             try
             {
                 using (var aes = Aes.Create())
@@ -379,7 +381,10 @@ namespace Microsoft.PowerShell.SecretStore
             }
             finally
             {
-                ZeroOutData(keyToUse);
+                if (passWord != null)
+                {
+                    ZeroOutData(keyToUse);
+                }
             }
         }
 
@@ -1174,10 +1179,7 @@ namespace Microsoft.PowerShell.SecretStore
             }
             finally
             {
-                if (password != null)
-                {
-                    password.Clear();
-                }
+                password?.Clear();
             }
 
             return true;
@@ -1266,10 +1268,7 @@ namespace Microsoft.PowerShell.SecretStore
             }
             finally
             {
-                if (password != null)
-                {
-                    password.Clear();
-                }
+                password?.Clear();
             }
         }
 
@@ -1390,7 +1389,7 @@ namespace Microsoft.PowerShell.SecretStore
             }
             finally
             {
-                password.Clear();
+                password?.Clear();
             }
             
             lock (_syncObject)
@@ -1561,10 +1560,7 @@ namespace Microsoft.PowerShell.SecretStore
             }
             finally
             {
-                if (password != null)
-                {
-                    password.Clear();
-                }
+                password?.Clear();
             }
         }
 
