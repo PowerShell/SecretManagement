@@ -159,8 +159,13 @@ namespace Microsoft.PowerShell.SecretStore
             SecureString secureString,
             out byte[] data)
         {
-            IntPtr ptr = Marshal.SecureStringToCoTaskMemUnicode(secureString);
+            if (secureString == null)
+            {
+                data = null;
+                return false;
+            }
 
+            IntPtr ptr = Marshal.SecureStringToCoTaskMemUnicode(secureString);
             if (ptr != IntPtr.Zero)
             {
                 try
@@ -275,74 +280,140 @@ namespace Microsoft.PowerShell.SecretStore
 
     internal static class CryptoUtils
     {
+        #region Private members
+
+        private static byte[] salt = new byte[32]
+        {
+            154, 146, 58, 204, 7, 124, 237, 132,
+            248, 95, 158, 243, 108, 235, 163, 103,
+            148, 95, 205, 190, 109, 184, 116, 92,
+            155, 12, 6, 99, 0, 91, 54, 250
+        };
+
+        #endregion
+
         #region Public methods
 
-        public static byte[] GenerateKey()
+        public static AesKey GenerateKey()
         {
+            // By default this creates a 256 AES key with 128 block size.
+            // IV size then, is 16.
+            byte[] key;
+            byte[] iv;
             using (var aes = Aes.Create())
             {
-                return aes.Key;
+                key = aes.Key;
+                iv = new byte[aes.BlockSize / 8];
             }
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(iv);
+            }
+
+            return new AesKey(key, iv);
         }
 
         public static byte[] EncryptWithKey(
             SecureString passWord,
-            byte[] key,
+            AesKey key,
             byte[] data)
         {
-            var keyToUse = (passWord != null) ?
-                DeriveFromKey(passWord, key) :
-                key;
-
-            using (var aes = Aes.Create())
+            var keyToUse = (passWord != null) ? DeriveKeyFromSecureString(passWord, key.Key) : key.Key;
+            try
             {
-                aes.IV = new byte[16];      // Set IV to zero
-                aes.Key = keyToUse;
-                using (var encryptor = aes.CreateEncryptor())
-                using (var sourceStream = new MemoryStream(data))
-                using (var targetStream = new MemoryStream())
+                using (var aes = Aes.Create())
                 {
-                    using (var cryptoStream = new CryptoStream(targetStream, encryptor, CryptoStreamMode.Write))
+                    aes.Key = keyToUse;
+                    aes.IV = key.IV;
+                    using (var encryptor = aes.CreateEncryptor())
+                    using (var sourceStream = new MemoryStream(data))
+                    using (var targetStream = new MemoryStream())
                     {
-                        sourceStream.CopyTo(cryptoStream);
-                    }
+                        using (var cryptoStream = new CryptoStream(targetStream, encryptor, CryptoStreamMode.Write))
+                        {
+                            sourceStream.CopyTo(cryptoStream);
+                        }
 
-                    return targetStream.ToArray();
+                        return targetStream.ToArray();
+                    }
                 }
+            }
+            finally
+            {
+                ZeroOutData(keyToUse);
             }
         }
 
         public static byte[] DecryptWithKey(
             SecureString passWord,
-            byte[] key,
+            AesKey key,
             byte[] data)
         {
-            var keyToUse = (passWord != null) ?
-                DeriveFromKey(passWord, key) :
-                key;
+            var keyToUse = (passWord != null) ? DeriveKeyFromSecureString(passWord, key.Key) : key.Key;
             
-            using (var aes = Aes.Create())
+            try
             {
-                aes.IV = new byte[16];      // Set IV to zero
-                aes.Key = keyToUse;
-                using (var decryptor = aes.CreateDecryptor())
-                using (var sourceStream = new MemoryStream(data))
-                using (var targetStream = new MemoryStream())
+                using (var aes = Aes.Create())
                 {
-                    using (var cryptoStream = new CryptoStream(sourceStream, decryptor, CryptoStreamMode.Read))
+                    aes.IV = key.IV;
+                    aes.Key = keyToUse;
+                    using (var decryptor = aes.CreateDecryptor())
+                    using (var sourceStream = new MemoryStream(data))
+                    using (var targetStream = new MemoryStream())
                     {
-                        try
+                        using (var cryptoStream = new CryptoStream(sourceStream, decryptor, CryptoStreamMode.Read))
                         {
-                            cryptoStream.CopyTo(targetStream);
+                            try
+                            {
+                                cryptoStream.CopyTo(targetStream);
+                            }
+                            catch (CryptographicException)
+                            {
+                                throw new PasswordRequiredException(Utils.PasswordRequiredMessage);
+                            }
                         }
-                        catch (CryptographicException)
-                        {
-                            throw new PasswordRequiredException(Utils.PasswordRequiredMessage);
-                        }
-                    }
 
-                    return targetStream.ToArray();
+                        return targetStream.ToArray();
+                    }
                 }
+            }
+            finally
+            {
+                ZeroOutData(keyToUse);
+            }
+        }
+
+        public static byte[] ComputeHashWithPasswordOrUser(
+            SecureString passWord,
+            byte[] dataToHash)
+        {
+            byte[] keyToUse = DeriveHashkeyFromPasswordOrUser(passWord);
+            try
+            {
+                return ComputeHash(keyToUse, dataToHash);
+            }
+            finally
+            {
+                ZeroOutData(keyToUse);
+            }
+        }
+
+        public static bool ValidateHashWithPasswordOrUser(
+            SecureString passWord,
+            byte[] hash,
+            byte[] dataToValidate)
+        {
+            var keyToUse = DeriveHashkeyFromPasswordOrUser(passWord);
+            try
+            {
+                return ValidateHash(
+                    key: keyToUse,
+                    hashToCompare: hash,
+                    dataToValidate: dataToValidate);
+            }
+            finally
+            {
+                ZeroOutData(keyToUse);
             }
         }
 
@@ -358,18 +429,23 @@ namespace Microsoft.PowerShell.SecretStore
 
         #region Private methods
 
-        private static byte[] DeriveFromKey(
+        private static byte[] DeriveKeyFromSecureString(
             SecureString passWord,
             byte[] key)
         {
             if (Utils.GetDataFromSecureString(
                 secureString: passWord,
-                out byte[] passWordData))
+                data: out byte[] passWordData))
             {
                 try
                 {
-                    var derivedBytes = new Rfc2898DeriveBytes(passWordData, key, 1000);
-                    return derivedBytes.GetBytes(key.Length);
+                    using (var derivedBytes = new Rfc2898DeriveBytes(
+                        password: passWordData, 
+                        salt: key, 
+                        iterations: 1000))
+                    {
+                        return derivedBytes.GetBytes(key.Length);
+                    }
                 }
                 finally
                 {
@@ -378,6 +454,70 @@ namespace Microsoft.PowerShell.SecretStore
             }
 
             throw new PSInvalidOperationException("Cannot read password SecureString data.");
+        }
+
+        private static byte[] DeriveHashkeyFromPasswordOrUser(
+            SecureString passWord)
+        {
+            // Create hash key with either provided password or current user name.
+            byte[] passWordData;
+            if (!Utils.GetDataFromSecureString(
+                secureString: passWord,
+                data: out passWordData))
+            {
+                passWordData = Encoding.UTF8.GetBytes(Environment.UserName);
+            }
+
+            // Derive key.
+            try
+            {
+                using (var derivedBytes = new Rfc2898DeriveBytes(
+                    password: passWordData, 
+                    salt: salt, 
+                    iterations: 1000))
+                {
+                    return derivedBytes.GetBytes(64);
+                }
+            }
+            finally
+            {
+                ZeroOutData(passWordData);
+            }
+        }
+
+        private static byte[] ComputeHash(
+            byte[] key,
+            byte[] dataToHash)
+        {
+            using (var hMac = new HMACSHA256(key))
+            {
+                return hMac.ComputeHash(dataToHash);
+            }
+        }
+
+        private static bool ValidateHash(
+            byte[] key,
+            byte[] hashToCompare,
+            byte[] dataToValidate)
+        {
+            var computedHash = ComputeHash(
+                key: key,
+                dataToHash: dataToValidate);
+            
+            if (hashToCompare.Length != computedHash.Length)
+            {
+                return false;
+            }
+
+            for (int i=0; i<hashToCompare.Length; i++)
+            {
+                if (hashToCompare[i] != computedHash[i])
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         #endregion
@@ -559,13 +699,51 @@ namespace Microsoft.PowerShell.SecretStore
         #endregion
     }
 
+    internal sealed class AesKey
+    {
+        #region Properties
+
+        public byte[] Key { get; }
+        public byte[] IV { get; }
+
+        #endregion
+
+        #region Constructor
+
+        public AesKey(
+            byte[] key,
+            byte[] iv)
+        {
+            Key = key;
+            IV = iv;
+        }
+
+        #endregion
+
+        #region Public methods
+
+        public void Clear()
+        {
+            if (Key != null)
+            {
+                CryptoUtils.ZeroOutData(Key);
+            }
+            if (IV != null)
+            {
+                CryptoUtils.ZeroOutData(IV);
+            }
+        }
+
+        #endregion
+    }
+
     internal sealed class SecureStoreData
     {
         #region Properties
 
-        internal byte[] Key { get; set; }
-        internal byte[] Blob { get; set; }
-        internal Dictionary<string, SecureStoreMetadata> MetaData { get; set; }
+        public AesKey Key { get; set; }
+        public byte[] Blob { get; set; }
+        public Dictionary<string, SecureStoreMetadata> MetaData { get; set; }
 
         #endregion
 
@@ -576,7 +754,7 @@ namespace Microsoft.PowerShell.SecretStore
         }
 
         public SecureStoreData(
-            byte[] key,
+            AesKey key,
             string json,
             byte[] blob)
         {
@@ -645,10 +823,7 @@ namespace Microsoft.PowerShell.SecretStore
 
         public void Clear()
         {
-            if (Key != null)
-            {
-                CryptoUtils.ZeroOutData(Key);
-            }
+            Key.Clear();
 
             if (Blob != null)
             {
@@ -871,7 +1046,8 @@ namespace Microsoft.PowerShell.SecretStore
         public void UpdatePassword(
             SecureString newpassword,
             SecureString oldPassword,
-            bool skipPasswordRequiredCheck)
+            bool skipPasswordRequiredCheck,
+            bool skipConfigFileWrite)
         {
             if (!skipPasswordRequiredCheck)
             {
@@ -922,9 +1098,12 @@ namespace Microsoft.PowerShell.SecretStore
 
                 // Password change is considered a configuration change.
                 // Induce a configuration change event by writing to the config file.
-                SecureStoreFile.WriteConfigFile(
-                    configData: _configData,
-                    out string _);
+                if (!skipConfigFileWrite)
+                {
+                    SecureStoreFile.WriteConfigFile(
+                        configData: _configData,
+                        out string _);
+                }
             }
         }
 
@@ -964,7 +1143,7 @@ namespace Microsoft.PowerShell.SecretStore
         {
             errorMsg = string.Empty;
             byte[] encryptedBlob = null;
-            byte[] key = null;
+            AesKey key = null;
             lock (_syncObject)
             {
                 // Get blob
@@ -1158,7 +1337,8 @@ namespace Microsoft.PowerShell.SecretStore
                     UpdatePassword(
                         newPassword,
                         oldPassword,
-                        skipPasswordRequiredCheck: true);
+                        skipPasswordRequiredCheck: true,
+                        skipConfigFileWrite: true);
 
                     success = true;
                 }
@@ -1275,7 +1455,7 @@ namespace Microsoft.PowerShell.SecretStore
             SecureString newPassword,
             SecureString oldPassword,
             Dictionary<string, SecureStoreMetadata> metaData,
-            byte[] key,
+            AesKey key,
             byte[] blob,
             out Dictionary<string, SecureStoreMetadata> outMetaData)
         {
@@ -1637,11 +1817,17 @@ namespace Microsoft.PowerShell.SecretStore
 
         // File structure
         /*
+        int:    data hash size
+        byte[]: data hash
+        <Data>
         int:    key blob size
+        int:    iv blob size
         int:    json blob size
         byte[]: key blob
+        byte[]: iv blob
         byte[]: json blob
         byte[]: data blob
+        </Data>
         */
 
         public static bool WriteFile(
@@ -1649,40 +1835,115 @@ namespace Microsoft.PowerShell.SecretStore
             SecureStoreData data,
             out string errorMsg)
         {
+            // Encrypt json meta data.
+            var jsonStr = data.ConvertMetaToJson();
+            var jsonBlob = CryptoUtils.EncryptWithKey(
+                passWord: password,
+                key: data.Key,
+                data: Encoding.UTF8.GetBytes(jsonStr));
+
+            // Create single file data blob.
+            var intSize = sizeof(Int32);
+            var keyBlobSize = data.Key.Key.Length;
+            var ivBlobSize = data.Key.IV.Length;
+            var jsonBlobSize = jsonBlob.Length;
+            var fileDataBlobSize = (intSize * 3) + keyBlobSize + ivBlobSize + jsonBlobSize + data.Blob.Length;
+            var fileDataBlob = new byte[fileDataBlobSize];
+            var index = 0;
+
+            // Copy key size.
+            Buffer.BlockCopy(
+                src: BitConverter.GetBytes(keyBlobSize),
+                srcOffset: 0,
+                dst: fileDataBlob,
+                dstOffset: index,
+                count: intSize);
+            index += intSize;
+
+            // Copy iv size.
+            Buffer.BlockCopy(
+                src: BitConverter.GetBytes(ivBlobSize),
+                srcOffset: 0,
+                dst: fileDataBlob,
+                dstOffset: index,
+                count: intSize);
+            index += intSize;
+            
+            // Copy json blob size.
+            Buffer.BlockCopy(
+                src: BitConverter.GetBytes(jsonBlobSize),
+                srcOffset: 0,
+                dst: fileDataBlob,
+                dstOffset: index,
+                count: intSize);
+            index += intSize;
+
+            // Copy key blob.
+            Buffer.BlockCopy(
+                src: data.Key.Key,
+                srcOffset: 0,
+                dst: fileDataBlob,
+                dstOffset: index,
+                count: keyBlobSize);
+            index += keyBlobSize;
+
+            // Copy iv blob.
+            Buffer.BlockCopy(
+                src: data.Key.IV,
+                srcOffset: 0,
+                dst: fileDataBlob,
+                dstOffset: index,
+                count: ivBlobSize);
+            index += ivBlobSize;
+
+            // Copy json blob.
+            Buffer.BlockCopy(
+                src: jsonBlob,
+                srcOffset: 0,
+                dst: fileDataBlob,
+                dstOffset: index,
+                count: jsonBlobSize);
+            index += jsonBlobSize;
+
+            // Copy data blob.
+            Buffer.BlockCopy(
+                src: data.Blob,
+                srcOffset: 0,
+                dst: fileDataBlob,
+                dstOffset: index,
+                count: data.Blob.Length);
+
+            // Compute hash.
+            var dataHash = CryptoUtils.ComputeHashWithPasswordOrUser(
+                passWord: password,
+                dataToHash: fileDataBlob);
+
             var count = 0;
             Exception exFail = null;
             do
             {
                 try
                 {
-                    // Encrypt json meta data.
-                    var jsonStr = data.ConvertMetaToJson();
-                    var jsonBlob = CryptoUtils.EncryptWithKey(
-                        passWord: password,
-                        key: data.Key,
-                        data: Encoding.UTF8.GetBytes(jsonStr));
-
+                    // Write to file.
                     using (var fileStream = File.OpenWrite(LocalStoreFilePath))
                     {
                         fileStream.Seek(0, 0);
 
-                        // Write blob sizes
-                        var intSize = sizeof(Int32);
-                        var keyBlobSize = data.Key.Length;
-                        var jsonBlobSize = jsonBlob.Length;
-                        byte[] intField = BitConverter.GetBytes(keyBlobSize);
-                        fileStream.Write(intField, 0, intSize);
-                        intField = BitConverter.GetBytes(jsonBlobSize);
-                        fileStream.Write(intField, 0, intSize);
+                        // Write hash length and hash to file.
+                        fileStream.Write(
+                            array: BitConverter.GetBytes(dataHash.Length),
+                            offset: 0,
+                            count: intSize);
+                        fileStream.Write(
+                            array: dataHash,
+                            offset: 0,
+                            count: dataHash.Length);
                         
-                        // Write key blob
-                        fileStream.Write(data.Key, 0, keyBlobSize);
-
-                        // Write json blob
-                        fileStream.Write(jsonBlob, 0, jsonBlobSize);
-
-                        // Write data blob
-                        fileStream.Write(data.Blob, 0, data.Blob.Length);
+                        // Write data blob to file.
+                        fileStream.Write(
+                            array: fileDataBlob,
+                            offset: 0,
+                            count: fileDataBlob.Length);
 
                         if (fileStream.Position != fileStream.Length)
                         {
@@ -1736,6 +1997,11 @@ namespace Microsoft.PowerShell.SecretStore
             }
 
             // Open and read from file stream
+            var intSize = sizeof(Int32);
+            byte[] intField = new byte[intSize];
+            byte[] hash = null;
+            byte[] fileDataBlob = null;
+
             var count = 0;
             Exception exFail = null;
             do
@@ -1744,39 +2010,18 @@ namespace Microsoft.PowerShell.SecretStore
                 {
                     using (var fileStream = File.OpenRead(LocalStoreFilePath))
                     {
-                        // Read offsets
-                        var intSize = sizeof(Int32);
-                        byte[] intField = new byte[intSize];
+                        // Read file data hash.
                         fileStream.Read(intField, 0, intSize);
-                        var keyBlobSize = BitConverter.ToInt32(intField, 0);
-                        fileStream.Read(intField, 0, intSize);
-                        var jsonBlobSize = BitConverter.ToInt32(intField, 0);
+                        var hashSize = BitConverter.ToInt32(intField, 0);
+                        hash = new byte[hashSize];
+                        fileStream.Read(hash, 0, hashSize);
 
-                        // Read key blob
-                        byte[] keyBlob = new byte[keyBlobSize];
-                        fileStream.Read(keyBlob, 0, keyBlobSize);
+                        // Read file data blob.
+                        var fileDataBlobSize = (int) (fileStream.Length - (intSize + hashSize));
+                        fileDataBlob = new byte[fileDataBlobSize];
+                        fileStream.Read(fileDataBlob, 0, fileDataBlobSize);
 
-                        // Read json blob and decrypt
-                        byte[] jsonBlob = new byte[jsonBlobSize];
-                        fileStream.Read(jsonBlob, 0, jsonBlobSize);
-                        var jsonStr = Encoding.UTF8.GetString(
-                            CryptoUtils.DecryptWithKey(
-                                passWord: password,
-                                key: keyBlob,
-                                jsonBlob));
-
-                        // Read data blob
-                        var dataBlobSize = (int) (fileStream.Length - (keyBlobSize + jsonBlobSize + (intSize * 2 )));
-                        byte[] dataBlob = new byte[dataBlobSize];
-                        fileStream.Read(dataBlob, 0, dataBlobSize);
-
-                        data = new SecureStoreData(
-                            key: keyBlob,
-                            json: jsonStr,
-                            blob: dataBlob);
-
-                        errorMsg = string.Empty;
-                        return true;
+                        break;
                     }
                 }
                 catch (IOException exIO)
@@ -1800,12 +2045,114 @@ namespace Microsoft.PowerShell.SecretStore
 
             } while (++count < 4);
 
-            errorMsg = string.Format(
-                CultureInfo.InvariantCulture,
-                @"Unable to read from local store file with error: {0}",
-                exFail.Message);
+            if (exFail != null || hash == null || fileDataBlob == null)
+            {
+                errorMsg = string.Format(
+                    CultureInfo.InvariantCulture,
+                    @"Unable to read from local store file with error: {0}",
+                    (exFail != null) ? exFail.Message : string.Empty);
 
-            return false;
+                return false;
+            }
+
+            // Validate file data blob integrity.
+            if (!CryptoUtils.ValidateHashWithPasswordOrUser(
+                passWord: password,
+                hash: hash,
+                dataToValidate: fileDataBlob))
+            {
+                errorMsg = "Store file integrity check failed.";
+                return false;
+            }
+
+            // Extract key blob size.
+            var index = 0;
+            Buffer.BlockCopy(
+                src: fileDataBlob,
+                srcOffset: index,
+                dst: intField,
+                dstOffset: 0,
+                count: intSize);
+            index += intSize;
+            var keyBlobSize = BitConverter.ToInt32(intField, 0);
+
+            // Extract iv blob size.
+            Buffer.BlockCopy(
+                src: fileDataBlob,
+                srcOffset: index,
+                dst: intField,
+                dstOffset: 0,
+                count: intSize);
+            index += intSize;
+            var ivBlobSize = BitConverter.ToInt32(intField, 0);
+
+            // Extract json blob size.
+            Buffer.BlockCopy(
+                src: fileDataBlob,
+                srcOffset: index,
+                dst: intField,
+                dstOffset: 0,
+                count: intSize);
+            index += intSize;
+            var jsonBlobSize = BitConverter.ToInt32(intField, 0);
+
+            // Extract key blob
+            var keyBlob = new byte[keyBlobSize];
+            Buffer.BlockCopy(
+                src: fileDataBlob,
+                srcOffset: index,
+                dst: keyBlob,
+                dstOffset: 0,
+                count: keyBlobSize);
+            index += keyBlobSize;
+
+            // Extract iv blob
+            var ivBlob = new byte[ivBlobSize];
+            Buffer.BlockCopy(
+                src: fileDataBlob,
+                srcOffset: index,
+                dst: ivBlob,
+                dstOffset: 0,
+                count: ivBlobSize);
+            index += ivBlobSize;
+
+            var key = new AesKey(
+                key: keyBlob,
+                iv: ivBlob);
+
+            // Extract json blob
+            var jsonBlob = new byte[jsonBlobSize];
+            Buffer.BlockCopy(
+                src: fileDataBlob,
+                srcOffset: index,
+                dst: jsonBlob,
+                dstOffset: 0,
+                count: jsonBlobSize);
+            index += jsonBlobSize;
+
+            var jsonStr = Encoding.UTF8.GetString(
+                CryptoUtils.DecryptWithKey(
+                    passWord: password,
+                    key: key,
+                    data: jsonBlob));
+
+            // Extract data blob
+            var dataBlobSize = (fileDataBlob.Length - (keyBlobSize + ivBlobSize + jsonBlobSize +(intSize * 3)));
+            var dataBlob = new byte[dataBlobSize];
+            Buffer.BlockCopy(
+                src: fileDataBlob,
+                srcOffset: index,
+                dst: dataBlob,
+                dstOffset: 0,
+                count: dataBlobSize);
+
+            data = new SecureStoreData(
+                key: key,
+                json: jsonStr,
+                blob: dataBlob);
+
+            errorMsg = string.Empty;
+            return true;
         }
 
         public static bool WriteConfigFile(
@@ -2362,7 +2709,8 @@ namespace Microsoft.PowerShell.SecretStore
             _secureStore.UpdatePassword(
                 newPassword,
                 oldPassword,
-                skipPasswordRequiredCheck: false);
+                skipPasswordRequiredCheck: false,
+                skipConfigFileWrite: false);
         }
 
         public bool UpdateConfiguration(
