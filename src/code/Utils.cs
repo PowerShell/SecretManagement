@@ -617,7 +617,7 @@ namespace Microsoft.PowerShell.SecretManagement
                         InvokeSetSecretOnScriptFn(name, secret, vaultName, cmdlet);
                     }
 
-                    return;
+                    break;
                 }
                 catch (PasswordRequiredException)
                 {
@@ -689,7 +689,7 @@ namespace Microsoft.PowerShell.SecretManagement
                         InvokeRemoveSecretOnScriptFn(name, vaultName, cmdlet);
                     }
 
-                    return;
+                    break;
                 }
                 catch (PasswordRequiredException)
                 {
