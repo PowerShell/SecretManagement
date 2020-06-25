@@ -627,6 +627,10 @@ namespace Microsoft.PowerShell.SecretStore
         private void ConvertFromJson(string json)
         {
             dynamic configDataObj = (Utils.ConvertJsonToPSObject(json));
+            if (configDataObj == null)
+            {
+                throw new InvalidDataException("Unable to read store configuration json data.");
+            }
             Scope = (SecureStoreScope) configDataObj.ConfigData.StoreScope;
             PasswordRequired = (bool) configDataObj.ConfigData.PasswordRequired;
             PasswordTimeout = (int) configDataObj.ConfigData.PasswordTimeout;
@@ -887,7 +891,7 @@ namespace Microsoft.PowerShell.SecretStore
             // Validate
             if (data == null)
             {
-                throw new InvalidDataException("The data from the local secure store is unusable.");
+                throw new InvalidDataException("Unable to read store json meta data.");
             }
 
             // Meta data
@@ -968,7 +972,10 @@ namespace Microsoft.PowerShell.SecretStore
             _configData = configData;
             SetPassword(password);
 
+            SecureStoreFile.ClearDataUpdateEventList();
             SecureStoreFile.DataUpdated += (sender, args) => HandleDataUpdateEvent(sender, args);
+
+            SecureStoreFile.ClearConfigUpdateEventList();
             SecureStoreFile.ConfigUpdated += (sender, args) => HandleConfigUpdateEvent(sender, args);
         }
 
@@ -1424,7 +1431,7 @@ namespace Microsoft.PowerShell.SecretStore
         {
             try
             {
-                if ((args.FileChangedTime - SecureStoreFile.LastWriteTime) > _updateDelay)
+                if ((args.FileChangedTime - SecureStoreFile.LastConfigWriteTime) > _updateDelay)
                 {
                     UpdateConfigFromFile();
                 }
@@ -1440,7 +1447,7 @@ namespace Microsoft.PowerShell.SecretStore
         {
             try
             {
-                if ((args.FileChangedTime - SecureStoreFile.LastWriteTime) > _updateDelay)
+                if ((args.FileChangedTime - SecureStoreFile.LastStoreWriteTime) > _updateDelay)
                 {
                     UpdateDataFromFile();
                 }
@@ -1707,8 +1714,9 @@ namespace Microsoft.PowerShell.SecretStore
         private static readonly FileSystemWatcher _storeFileWatcher;
         private static readonly Timer _updateEventTimer;
         private static readonly object _syncObject;
-        private static DateTime _lastWriteTime;
-        private static DateTime _lastFileChange;
+        private static DateTime _lastConfigWriteTime;
+        private static DateTime _lastStoreWriteTime;
+        private static DateTime _lastStoreFileChange;
 
         #endregion
 
@@ -1733,7 +1741,8 @@ namespace Microsoft.PowerShell.SecretStore
             _storeFileWatcher.Changed += (sender, args) => { UpdateData(args); };
 
             _syncObject = new object();
-            _lastWriteTime = DateTime.MinValue;
+            _lastConfigWriteTime = DateTime.MinValue;
+            _lastStoreWriteTime = DateTime.MinValue;
             _updateEventTimer = new Timer(
                 (state) => {
                     try
@@ -1741,7 +1750,7 @@ namespace Microsoft.PowerShell.SecretStore
                         DateTime fileChangeTime;
                         lock (_syncObject)
                         {
-                            fileChangeTime = _lastFileChange;
+                            fileChangeTime = _lastStoreFileChange;
                         }
 
                         RaiseDataUpdatedEvent(
@@ -1765,6 +1774,16 @@ namespace Microsoft.PowerShell.SecretStore
                 DataUpdated.Invoke(null, args);
             }
         }
+        public static void ClearDataUpdateEventList()
+        {
+            if (DataUpdated != null)
+            {
+                foreach (var handlerDelegate in DataUpdated.GetInvocationList())
+                {
+                    DataUpdated -= (EventHandler<FileUpdateEventArgs>) handlerDelegate;
+                }
+            }
+        }
 
         public static event EventHandler<FileUpdateEventArgs> ConfigUpdated;
         private static void RaiseConfigUpdatedEvent(FileUpdateEventArgs args)
@@ -1774,18 +1793,39 @@ namespace Microsoft.PowerShell.SecretStore
                 ConfigUpdated.Invoke(null, args);
             }
         }
+        public static void ClearConfigUpdateEventList()
+        {
+            if (ConfigUpdated != null)
+            {
+                foreach (var handlerDelegate in ConfigUpdated.GetInvocationList())
+                {
+                    ConfigUpdated -= (EventHandler<FileUpdateEventArgs>) handlerDelegate;
+                }
+            }
+        }
 
         #endregion
 
         #region Properties
 
-        public static DateTime LastWriteTime
+        public static DateTime LastConfigWriteTime
         {
             get
             {
                 lock (_syncObject)
                 {
-                    return _lastWriteTime;
+                    return _lastConfigWriteTime;
+                }
+            }
+        }
+
+        public static DateTime LastStoreWriteTime
+        {
+            get
+            {
+                lock (_syncObject)
+                {
+                    return _lastStoreWriteTime;
                 }
             }
         }
@@ -1948,7 +1988,7 @@ namespace Microsoft.PowerShell.SecretStore
 
                         lock (_syncObject)
                         {
-                            _lastWriteTime = DateTime.Now;
+                            _lastStoreWriteTime = DateTime.Now;
                         }
 
                         errorMsg = string.Empty;
@@ -2163,6 +2203,12 @@ namespace Microsoft.PowerShell.SecretStore
                 {
                     // Encrypt json meta data.
                     var jsonStr = configData.ConvertToJson();
+
+                    lock (_syncObject)
+                    {
+                        _lastConfigWriteTime = DateTime.Now;
+                    }
+
                     File.WriteAllText(
                         path: LocalConfigFilePath,
                         contents: jsonStr);
@@ -2299,7 +2345,7 @@ namespace Microsoft.PowerShell.SecretStore
                     {
                         // Set/reset event callback timer for each file change event.
                         // This is to smooth out multiple file changes into a single update event.
-                        _lastFileChange = lastFileChange;
+                        _lastStoreFileChange = lastFileChange;
                         _updateEventTimer.Change(
                             dueTime: 5000,              // 5 second delay
                             period: Timeout.Infinite);
