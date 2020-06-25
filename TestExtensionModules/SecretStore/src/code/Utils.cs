@@ -313,6 +313,18 @@ namespace Microsoft.PowerShell.SecretStore
             return new AesKey(key, iv);
         }
 
+        public static AesKey GenerateKeyFromPassword(
+            string password)
+        {
+            var key = DeriveKeyFromPassword(
+                passwordData: Encoding.UTF8.GetBytes(password),
+                keyLength: 32);
+
+            var iv = new byte[16];  // Zero IV.
+            
+            return new AesKey(key, iv);
+        }
+
         public static byte[] EncryptWithKey(
             SecureString passWord,
             AesKey key,
@@ -392,7 +404,7 @@ namespace Microsoft.PowerShell.SecretStore
             SecureString passWord,
             byte[] dataToHash)
         {
-            byte[] keyToUse = DeriveHashkeyFromPasswordOrUser(passWord);
+            byte[] keyToUse = DeriveKeyFromPasswordOrUser(passWord);
             try
             {
                 return ComputeHash(keyToUse, dataToHash);
@@ -408,7 +420,7 @@ namespace Microsoft.PowerShell.SecretStore
             byte[] hash,
             byte[] dataToValidate)
         {
-            var keyToUse = DeriveHashkeyFromPasswordOrUser(passWord);
+            var keyToUse = DeriveKeyFromPasswordOrUser(passWord);
             try
             {
                 return ValidateHash(
@@ -442,26 +454,35 @@ namespace Microsoft.PowerShell.SecretStore
                 secureString: passWord,
                 data: out byte[] passWordData))
             {
-                try
-                {
-                    using (var derivedBytes = new Rfc2898DeriveBytes(
-                        password: passWordData, 
-                        salt: key, 
-                        iterations: 1000))
-                    {
-                        return derivedBytes.GetBytes(key.Length);
-                    }
-                }
-                finally
-                {
-                    ZeroOutData(passWordData);
-                }
+                return DeriveKeyFromPassword(
+                    passwordData: passWordData,
+                    keyLength: key.Length);
             }
 
             throw new PSInvalidOperationException("Cannot read password SecureString data.");
         }
 
-        private static byte[] DeriveHashkeyFromPasswordOrUser(
+        private static byte[] DeriveKeyFromPassword(
+            byte[] passwordData,
+            int keyLength)
+        {
+            try
+            {
+                using (var derivedBytes = new Rfc2898DeriveBytes(
+                    password: passwordData, 
+                    salt: salt, 
+                    iterations: 1000))
+                {
+                    return derivedBytes.GetBytes(keyLength);
+                }
+            }
+            finally
+            {
+                ZeroOutData(passwordData);
+            }
+        }
+
+        private static byte[] DeriveKeyFromPasswordOrUser(
             SecureString passWord)
         {
             // Create hash key with either provided password or current user name.
@@ -473,21 +494,9 @@ namespace Microsoft.PowerShell.SecretStore
                 passWordData = Encoding.UTF8.GetBytes(Environment.UserName);
             }
 
-            // Derive key.
-            try
-            {
-                using (var derivedBytes = new Rfc2898DeriveBytes(
-                    password: passWordData, 
-                    salt: salt, 
-                    iterations: 1000))
-                {
-                    return derivedBytes.GetBytes(64);
-                }
-            }
-            finally
-            {
-                ZeroOutData(passWordData);
-            }
+            return DeriveKeyFromPassword(
+                passwordData: passWordData,
+                keyLength: 64);
         }
 
         private static byte[] ComputeHash(
@@ -2195,23 +2204,30 @@ namespace Microsoft.PowerShell.SecretStore
             SecureStoreConfig configData,
             out string errorMsg)
         {
+            AesKey key = null;
             var count = 0;
             Exception exFail = null;
             do
             {
                 try
                 {
-                    // Encrypt json meta data.
                     var jsonStr = configData.ConvertToJson();
+
+                    // Encrypt config json data.
+                    key = CryptoUtils.GenerateKeyFromPassword(Environment.UserName);
+                    var jsonEncrypted = CryptoUtils.EncryptWithKey(
+                        passWord: null,
+                        key: key,
+                        Encoding.UTF8.GetBytes(jsonStr));
 
                     lock (_syncObject)
                     {
                         _lastConfigWriteTime = DateTime.Now;
                     }
 
-                    File.WriteAllText(
+                    File.WriteAllBytes(
                         path: LocalConfigFilePath,
-                        contents: jsonStr);
+                        bytes: jsonEncrypted);
                 
                     errorMsg = string.Empty;
                     return true;
@@ -2226,6 +2242,10 @@ namespace Microsoft.PowerShell.SecretStore
                     // Unexpected error.
                     exFail = ex;
                     break;
+                }
+                finally
+                {
+                    key?.Clear();
                 }
 
                 System.Threading.Thread.Sleep(250);
@@ -2253,13 +2273,23 @@ namespace Microsoft.PowerShell.SecretStore
             }
 
             // Open and read from file stream
+            AesKey key = null;
             var count = 0;
             Exception exFail = null;
             do
             {
                 try
                 {
-                    var configJson = File.ReadAllText(LocalConfigFilePath);
+                    var encryptedConfigJson = File.ReadAllBytes(LocalConfigFilePath);
+
+                    // Decrypt config json data.
+                    key = CryptoUtils.GenerateKeyFromPassword(Environment.UserName);
+                    var configJsonBlob = CryptoUtils.DecryptWithKey(
+                        passWord: null,
+                        key: key,
+                        data: encryptedConfigJson);
+
+                    var configJson = Encoding.UTF8.GetString(configJsonBlob);
                     configData = new SecureStoreConfig(configJson);
                     errorMsg = string.Empty;
                     return true;
@@ -2274,6 +2304,10 @@ namespace Microsoft.PowerShell.SecretStore
                     // Unexpected error.
                     exFail = ex;
                     break;
+                }
+                finally
+                {
+                    key?.Clear();
                 }
 
                 System.Threading.Thread.Sleep(250);
