@@ -11,7 +11,9 @@ using System.IO;
 using System.Management.Automation;
 using System.Runtime.InteropServices;
 using System.Security;
+using System.Security.AccessControl;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using System.Text;
 using System.Threading;
 
@@ -278,6 +280,8 @@ namespace Microsoft.PowerShell.SecretStore
 
     #region SecureStore
 
+    #region CryptoUtils
+
     internal static class CryptoUtils
     {
         #region Private members
@@ -537,11 +541,19 @@ namespace Microsoft.PowerShell.SecretStore
         #endregion
     }
 
+    #endregion
+
+    #region SecureStoreScope
+
     public enum SecureStoreScope
     {
         CurrentUser = 1,
         AllUsers
     }
+
+    #endregion
+
+    #region SecureStoreConfig
 
     internal sealed class SecureStoreConfig
     {
@@ -662,6 +674,11 @@ namespace Microsoft.PowerShell.SecretStore
         #endregion
     }
 
+    #endregion
+
+
+    #region SecureStoreMetadat
+
     internal sealed class SecureStoreMetadata
     {
         #region Properties
@@ -717,6 +734,10 @@ namespace Microsoft.PowerShell.SecretStore
         #endregion
     }
 
+    #endregion
+
+    #region AesKey
+
     internal sealed class AesKey
     {
         #region Properties
@@ -754,6 +775,10 @@ namespace Microsoft.PowerShell.SecretStore
 
         #endregion
     }
+
+    #endregion
+
+    #region SecureStoreData
 
     internal sealed class SecureStoreData
     {
@@ -932,6 +957,10 @@ namespace Microsoft.PowerShell.SecretStore
 
         #endregion
     }
+
+    #endregion
+
+    #region SecureStore
 
     internal sealed class SecureStore : IDisposable
     {
@@ -1709,6 +1738,10 @@ namespace Microsoft.PowerShell.SecretStore
         #endregion
     }
 
+    #endregion
+
+    #region SecureStoreFile
+
     internal static class SecureStoreFile
     {
         #region Members
@@ -1739,8 +1772,18 @@ namespace Microsoft.PowerShell.SecretStore
 
             if (!Directory.Exists(LocalStorePath))
             {
-                // TODO: Need to specify directory/file permissions.
                 Directory.CreateDirectory(LocalStorePath);
+
+                if (Utils.IsWindows)
+                {
+                    SetDirectoryACLs(LocalStorePath);
+                }
+                else
+                {
+                    SetFilePermissions(
+                        filePath: LocalStorePath,
+                        isDirectory: true);
+                }
             }
 
             _storeFileWatcher = new FileSystemWatcher(LocalStorePath);
@@ -1969,6 +2012,16 @@ namespace Microsoft.PowerShell.SecretStore
             {
                 try
                 {
+                    if (!Utils.IsWindows && !File.Exists(LocalStoreFilePath))
+                    {
+                        // Non-Windows platform file permissions must be set individually.
+                        // Windows platform file ACLs are inherited from containing directory.
+                        using (File.Create(LocalStoreFilePath)) { }
+                        SetFilePermissions(
+                            filePath: LocalStoreFilePath,
+                            isDirectory: false);
+                    }
+
                     // Write to file.
                     using (var fileStream = File.OpenWrite(LocalStoreFilePath))
                     {
@@ -2225,6 +2278,16 @@ namespace Microsoft.PowerShell.SecretStore
                         _lastConfigWriteTime = DateTime.Now;
                     }
 
+                    if (!Utils.IsWindows && !File.Exists(LocalConfigFilePath))
+                    {
+                        // Non-Windows platform file permissions must be set individually.
+                        // Windows platform file ACLs are inherited from containing directory.
+                        using (File.Create(LocalConfigFilePath)) { }
+                        SetFilePermissions(
+                            filePath: LocalConfigFilePath,
+                            isDirectory: false);
+                    }
+
                     File.WriteAllBytes(
                         path: LocalConfigFilePath,
                         bytes: jsonEncrypted);
@@ -2396,8 +2459,117 @@ namespace Microsoft.PowerShell.SecretStore
             }
         }
 
+        private static void SetDirectoryACLs(string directoryPath)
+        {
+            // Windows platform.
+
+            // For Windows, file permissions are set to FullAccess for current user account only.
+            var dirInfo = new DirectoryInfo(directoryPath);
+            var dirSecurity = new DirectorySecurity();
+
+            // SetAccessRule method applies to this directory.
+            dirSecurity.SetAccessRule(
+                new FileSystemAccessRule(
+                    identity: WindowsIdentity.GetCurrent().User,
+                    type: AccessControlType.Allow,
+                    fileSystemRights: FileSystemRights.FullControl,
+                    inheritanceFlags: InheritanceFlags.None,
+                    propagationFlags: PropagationFlags.None));
+
+            // AddAccessRule method applies to child directories and files.
+            dirSecurity.AddAccessRule(
+                new FileSystemAccessRule(
+                identity: WindowsIdentity.GetCurrent().User,
+                fileSystemRights: FileSystemRights.FullControl,
+                type: AccessControlType.Allow,
+                inheritanceFlags: InheritanceFlags.ObjectInherit | InheritanceFlags.ContainerInherit,
+                propagationFlags: PropagationFlags.InheritOnly));
+
+            // Set access rule protections.
+            dirSecurity.SetAccessRuleProtection(
+                isProtected: true,
+                preserveInheritance: false);
+
+            // Set directory owner.
+            dirSecurity.SetOwner(WindowsIdentity.GetCurrent().User);
+
+            // Apply rules.
+            dirInfo.SetAccessControl(dirSecurity);
+        }
+
+        private static void SetFilePermissions(
+            string filePath,
+            bool isDirectory)
+        {
+            // Non-Windows platforms.
+
+            // Set directory permissions to current user only.
+            /*
+                Current user is user owner.
+                Current user is group owner.
+                Permission for user (dir) owner:    rw(x)   (execute for directories only)
+                Permissions for group owner:        ---     (no access)
+                Permissions for others:             ---     (no access)
+            */
+            var script = isDirectory ? 
+                string.Format(CultureInfo.InvariantCulture, @"chmod u=rwx,g=---,o=--- {0}", filePath) :
+                string.Format(CultureInfo.InvariantCulture, @"chmod u=rw-,g=---,o=--- {0}", filePath);
+            PowerShellInvoker.InvokeScriptCommon<PSObject>(
+                script: script,
+                args: new object[0] ,
+                error: out ErrorRecord error);
+        }
+
+        /*
+        private const string s_permissionsWarningMessage = "Store access rules have been modified.";
+        // TODO: CheckFileACLs, CheckFilePermissions
+        private static bool CheckDirectoryACLs(
+            string directoryPath,
+            out string warningMessage)
+        {
+            // Windows platform.
+            var dirInfo = new DirectoryInfo(directoryPath);
+            var dirAccessRules = dirInfo.GetAccessControl().GetAccessRules(
+                includeExplicit: true,
+                includeInherited: false,
+                targetType: typeof(SecurityIdentifier));
+
+            if (dirAccessRules.Count > 1)
+            {
+                warningMessage = s_permissionsWarningMessage;
+                return false;
+            }
+
+            var rule = dirAccessRules[0];
+
+            if (rule.IsInherited ||
+                rule.IdentityReference != WindowsIdentity.GetCurrent().User ||
+                !rule.InheritanceFlags.HasFlag(InheritanceFlags.ContainerInherit) ||
+                !rule.InheritanceFlags.HasFlag(InheritanceFlags.ObjectInherit) ||
+                rule.PropagationFlags != PropagationFlags.None)
+            {
+                warningMessage = s_permissionsWarningMessage;
+                return false;
+            }
+
+            warningMessage = string.Empty;
+            return true;
+        }
+
+        private static bool CheckDirectoryPermissions(
+            string directoryPath,
+            out string warningMessage)
+        {
+            // TODO:
+            warningMessage = "Not yet supported.";
+            return false;
+        }
+        */
+
         #endregion
     }
+
+    #endregion
 
     #region Event args
 
