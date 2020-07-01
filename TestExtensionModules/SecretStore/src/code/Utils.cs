@@ -676,8 +676,7 @@ namespace Microsoft.PowerShell.SecretStore
 
     #endregion
 
-
-    #region SecureStoreMetadat
+    #region SecureStoreMetada
 
     internal sealed class SecureStoreMetadata
     {
