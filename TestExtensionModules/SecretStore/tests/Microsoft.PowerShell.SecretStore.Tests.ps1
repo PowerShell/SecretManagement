@@ -35,6 +35,95 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         }
     }
 
+    Context "Local Store file permission tests" {
+
+        BeforeAll {
+            Get-SecretInfo
+
+            if ($IsWindows)
+            {
+                $storePath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)
+                $storePath = Join-Path -Path $storePath -ChildPath 'Microsoft\PowerShell\secretmanagement\localstore'
+                $storeConfigFilePath = Join-Path -Path $storePath -ChildPath 'storeconfig'
+                $storeFilePath = Join-Path -Path $storePath -ChildPath 'storefile'
+            }
+            else
+            {
+                $storePath = Join-Path -Path "$home" -ChildPath '.secretmanagement/localstore'
+                $storeConfigFilePath = Join-Path -Path $storePath -ChildPath 'storeconfig'
+                $storeFilePath = Join-Path -Path $storePath -ChildPath 'storefile'
+            }
+        }
+
+        if ($IsWindows)
+        {
+            It "Verifies local store directory ACLs" {
+                $acl = Get-Acl $storePath
+                $acl.Access | Should -HaveCount 1
+                $accessRule = $acl.Access[0]
+
+                $accessRule.FileSystemRights | Should -BeExactly 'FullControl'
+                $accessRule.AccessControlType | Should -BeExactly 'Allow'
+                $accessRule.IdentityReference | Should -BeExactly ([System.Security.Principal.WindowsIdentity]::GetCurrent()).Name
+                $accessRule.IsInherited | Should -BeFalse
+                $accessRule.InheritanceFlags | Should -BeExactly 'ContainerInherit, ObjectInherit'
+                $accessRule.PropagationFlags | Should -BeExactly 'None'
+            }
+
+            It "Verifies local store configuration file ACLs" {
+                $acl = Get-Acl $storeConfigFilePath
+                $acl.Access | Should -HaveCount 1
+                $accessRule = $acl.Access[0]
+
+                $accessRule.FileSystemRights | Should -BeExactly 'FullControl'
+                $accessRule.AccessControlType | Should -BeExactly 'Allow'
+                $accessRule.IdentityReference | Should -BeExactly ([System.Security.Principal.WindowsIdentity]::GetCurrent()).Name
+                $accessRule.IsInherited | Should -BeTrue
+                $accessRule.InheritanceFlags | Should -BeExactly 'None'
+                $accessRule.PropagationFlags | Should -BeExactly 'None'
+            }
+
+            It "Verifies local store file ACLs" {
+                $acl = Get-Acl $storeFilePath
+                $acl.Access | Should -HaveCount 1
+                $accessRule = $acl.Access[0]
+
+                $accessRule.FileSystemRights | Should -BeExactly 'FullControl'
+                $accessRule.AccessControlType | Should -BeExactly 'Allow'
+                $accessRule.IdentityReference | Should -BeExactly ([System.Security.Principal.WindowsIdentity]::GetCurrent()).Name
+                $accessRule.IsInherited | Should -BeTrue
+                $accessRule.InheritanceFlags | Should -BeExactly 'None'
+                $accessRule.PropagationFlags | Should -BeExactly 'None'
+            }
+        }
+        else
+        {
+            # drwx------ 2 <user> <user> 4096 Jun 30 16:03 <path>
+            $userName = [System.Environment]::GetEnvironmentVariable("USER")
+
+            It "Verifies local store directory permissions" {
+                $permissions = (ls -ld "$storePath").Split(' ')
+                $permissions[0] | Should -BeExactly 'drwx------'
+                $permissions[2] | Should -BeExactly $userName
+                $permissions[3] | Should -BeExactly $userName
+            }
+
+            It "Verfies local store configuration file permissions" {
+                $permissions = (ls -ld "$storeConfigFilePath").Split(' ')
+                $permissions[0] | Should -BeExactly '-rw-------'
+                $permissions[2] | Should -BeExactly $userName
+                $permissions[3] | Should -BeExactly $userName
+            }
+
+            It "Verifes local store file permissions" {
+                $permissions = (ls -ld "$storeFilePath").Split(' ')
+                $permissions[0] | Should -BeExactly '-rw-------'
+                $permissions[2] | Should -BeExactly $userName
+                $permissions[3] | Should -BeExactly $userName
+            }
+        }
+    }
+
     Context "Local Store Vault cmdlet tests" {
 
         It "Verifies local store configuration for tests" {
