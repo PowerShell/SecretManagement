@@ -20,6 +20,10 @@ Registering extension vaults:
 - Get-SecretVault
 - Unregister-SecretVault
 - Test-SecretVault
+- Unlock-SecretVault
+- Set-DefaultVault
+- Get-Option
+- Set-Option
 
 Accessing secrets:
 
@@ -97,6 +101,12 @@ public override bool TestVault(
     IReadOnlyDictionary<string, object> additionalParameters,
     out Exception[] errors)
 { }
+
+public override bool UnlockSecretVault(
+    SecureString vaultKey,
+    string vaultName,
+    out Exception error)
+{ }
 ```
 
 ### Script module vault extension
@@ -173,6 +183,16 @@ function Test-Vault
     )
 
 }
+
+function Unlock-SecretVault
+{
+    param (
+        [securestring] $VaultKey,
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+}
 ```
 
 A vault extension doesn't need to provide full implementation of all required methods.
@@ -198,6 +218,9 @@ Output: True on success, False otherwise
 - Test-Vault
 Input Parameters VaultName, AdditionalParameters
 Output: True for valid vault, False otherwise
+- Unlock-Vault
+Input Parameters VaultKey, VaultName, AdditionalParameters
+Output True on successful unlock
 
 You have to be careful with PowerShell script functions, because there are many ways for objects to be added to the output pipeline and the Secrets Management module expects very specific output objects from the functions.
 Make sure your script implementation does not inadvertently insert spurious objects to the pipeline, which will confuse the Secrets Management module.
