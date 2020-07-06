@@ -425,6 +425,7 @@ namespace Microsoft.PowerShell.SecretStore
         public override bool UnlockSecretVault(
             SecureString vaultKey,
             string vaultName,
+            IReadOnlyDictionary<string, object> additionalParameters,
             out Exception error)
         {
             error = null;

@@ -418,11 +418,13 @@ namespace Microsoft.PowerShell.SecretManagement
         /// </summary>
         /// <param name="vaultKey">A key SecureString object that unlocks the vault.</param>
         /// <param name="vaultName">Name of registered vault.</param>
+        /// <param name="additionalParameters">Optional parameters.</param>
         /// <param name="error">Optional exception object on failure.</param>
         /// <returns>True if unlock operation succeeds.</returns>
         public abstract bool UnlockSecretVault(
             SecureString vaultKey,
             string vaultName,
+            IReadOnlyDictionary<string, object> additionalParameters,
             out Exception error);
 
         /// <summary>
@@ -1011,6 +1013,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 return _vaultExtentsion.Value.UnlockSecretVault(
                     vaultKey: vaultKey,
                     vaultName: vaultName,
+                    additionalParameters: VaultParameters,
                     out error);
             }
             catch (Exception ex)
