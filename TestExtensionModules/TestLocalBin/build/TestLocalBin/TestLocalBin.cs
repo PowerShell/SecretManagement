@@ -116,6 +116,7 @@ namespace TestLocalBin
         public override bool UnlockSecretVault(
             SecureString vaultKey,
             string vaultName,
+            IReadOnlyDictionary<string, object> parameters,
             out Exception error)
         {
             // Vault is never locked.
