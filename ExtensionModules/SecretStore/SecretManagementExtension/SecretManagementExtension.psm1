@@ -1,0 +1,211 @@
+#
+# SecretStore extension vault function implementation
+#
+
+function Get-Secret
+{
+    [CmdletBinding()]
+    param (
+        [string] $Name,
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    $errorMsg = ""
+    $count = 0
+    do
+    {
+        try
+        {
+            $outSecret = $null
+            if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
+                $Name,
+                [ref] $outSecret,
+                [ref] $errorMsg))
+            {
+                if ($outSecret -is [byte[]])
+                {
+                    Write-Output @(,$outSecret)
+                }
+                else
+                {
+                    Write-Output $outSecret
+                }
+            }
+
+            break
+        }
+        catch [Microsoft.PowerShell.SecretStore.PasswordRequiredException]
+        {
+            if (! [Microsoft.PowerShell.SecretStore.LocalSecretStore]::AllowPrompting -or
+                ($count -gt 0))
+            {
+                throw
+            }
+
+            [Microsoft.PowerShell.SecretStore.LocalSecretStore]::PromptAndUnlockVault($VaultName, $PSCmdlet)
+        }
+    } while ($count++ -lt 1)
+
+    if (! [string]::IsNullOrEmpty($errorMsg))
+    {
+        $errorRecord = [System.Management.Automation.ErrorRecord]::new(
+            [System.Management.Automation.PSInvalidOperationException]::new("Get-Secret error in vault $VaultName : $errorMsg"),
+            "SecretStoreGetSecretFailed",
+            [System.Management.Automation.ErrorCategory]::InvalidOperation,
+            $null)
+        Write-Error -ErrorRecord $errorRecord
+    }
+}
+
+function Get-SecretInfo
+{
+    [CmdletBinding()]
+    param (
+        [string] $Filter,
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    $errorMsg = ""
+    $count = 0
+    do
+    {
+        try
+        {
+            $outSecretInfo = $null
+            if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
+                $Filter,
+                [ref] $outSecretInfo,
+                $VaultName,
+                [ref] $errorMsg))
+            {
+                Write-Output $outSecretInfo
+            }
+            
+            break
+        }
+        catch [Microsoft.PowerShell.SecretStore.PasswordRequiredException]
+        {
+            if (! [Microsoft.PowerShell.SecretStore.LocalSecretStore]::AllowPrompting -or
+                ($count -gt 0))
+            {
+                throw
+            }
+
+            [Microsoft.PowerShell.SecretStore.LocalSecretStore]::PromptAndUnlockVault($VaultName, $PSCmdlet)
+        }
+    } while ($count++ -lt 1)
+
+    if (! [string]::IsNullOrEmpty($errorMsg))
+    {
+        $errorRecord = [System.Management.Automation.ErrorRecord]::new(
+            [System.Management.Automation.ItemNotFoundException]::new("Get-SecretInfo error in vault $VaultName : $errorMsg"),
+            "SecretStoreGetSecretInfoFailed",
+            [System.Management.Automation.ErrorCategory]::InvalidOperation,
+            $null)
+        Write-Error -ErrorRecord $errorRecord
+    }
+}
+
+function Set-Secret
+{
+    [CmdletBinding()]
+    param (
+        [string] $Name,
+        [object] $Secret,
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    $errorMsg = ""
+    $count = 0
+    do
+    {
+        try
+        {
+            [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
+                $Name,
+                $Secret,
+                [ref] $errorMsg)
+            
+            break
+        }
+        catch [Microsoft.PowerShell.SecretStore.PasswordRequiredException]
+        {
+            if (! [Microsoft.PowerShell.SecretStore.LocalSecretStore]::AllowPrompting -or
+                ($count -gt 0))
+            {
+                throw
+            }
+
+            [Microsoft.PowerShell.SecretStore.LocalSecretStore]::PromptAndUnlockVault($VaultName, $PSCmdlet)
+        }
+    } while ($count++ -lt 1)
+
+    if (! [string]::IsNullOrEmpty($errorMsg))
+    {
+        $errorRecord = [System.Management.Automation.ErrorRecord]::new(
+            [System.Management.Automation.ItemNotFoundException]::new("Set-Secret error in vault $VaultName : $errorMsg"),
+            "SecretStoreSetSecretFailed",
+            [System.Management.Automation.ErrorCategory]::InvalidOperation,
+            $null)
+        Write-Error -ErrorRecord $errorRecord
+    }
+}
+
+function Remove-Secret
+{
+    [CmdletBinding()]
+    param (
+        [string] $Name,
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    $errorMsg = ""
+    $count = 0
+    do
+    {
+        try
+        {
+            [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().DeleteObject(
+                $Name,
+                [ref] $errorMsg)
+            
+            break
+        }
+        catch [Microsoft.PowerShell.SecretStore.PasswordRequiredException]
+        {
+            if (! [Microsoft.PowerShell.SecretStore.LocalSecretStore]::AllowPrompting -or
+                ($count -gt 0))
+            {
+                throw
+            }
+
+            [Microsoft.PowerShell.SecretStore.LocalSecretStore]::PromptAndUnlockVault($VaultName, $PSCmdlet)
+        }
+    } while ($count++ -lt 1)
+
+    if (! [string]::IsNullOrEmpty($errorMsg))
+    {
+        $errorRecord = [System.Management.Automation.ErrorRecord]::new(
+            [System.Management.Automation.ItemNotFoundException]::new("Remove-Secret error in vault $VaultName : $errorMsg"),
+            "SecretStoreRemoveSecretFailed",
+            [System.Management.Automation.ErrorCategory]::InvalidOperation,
+            $null)
+        Write-Error -ErrorRecord $errorRecord
+    }
+}
+
+function Test-SecretVault
+{
+    [CmdletBinding()]
+    param (
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    # TODO: Implement
+    return $true
+}

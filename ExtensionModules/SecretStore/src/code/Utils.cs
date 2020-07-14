@@ -27,47 +27,6 @@ namespace Microsoft.PowerShell.SecretStore
     {
         #region Members
 
-        private const string ConvertJsonToHashtableScript = @"
-            param (
-                [string] $json
-            )
-
-            function ConvertToHash
-            {
-                param (
-                    [pscustomobject] $object
-                )
-
-                $output = @{}
-                $object | Get-Member -MemberType NoteProperty | ForEach-Object {
-                    $name = $_.Name
-                    $value = $object.($name)
-
-                    if ($value -is [object[]])
-                    {
-                        $array = @()
-                        $value | ForEach-Object {
-                            $array += (ConvertToHash $_)
-                        }
-                        $output.($name) = $array
-                    }
-                    elseif ($value -is [pscustomobject])
-                    {
-                        $output.($name) = (ConvertToHash $value)
-                    }
-                    else
-                    {
-                        $output.($name) = $value
-                    }
-                }
-
-                $output
-            }
-
-            $customObject = ConvertFrom-Json -InputObject $json
-            return ConvertToHash $customObject
-        ";
-
         internal const string PasswordRequiredMessage = "A valid password is required to access the Microsoft.PowerShell.SecretStore vault.";
 
         #endregion
@@ -271,6 +230,22 @@ namespace Microsoft.PowerShell.SecretStore
             } while (!isVerified);
 
             return password;
+        }
+
+        #endregion
+    }
+
+    #endregion
+
+    #region Exceptions
+
+    public sealed class PasswordRequiredException : InvalidOperationException
+    {
+        #region Constructor
+
+        public PasswordRequiredException(string msg)
+            : base(msg)
+        {
         }
 
         #endregion
@@ -2589,12 +2564,58 @@ namespace Microsoft.PowerShell.SecretStore
 
     #endregion
 
+    #region PowerShellInvoker
+
+    internal static class PowerShellInvoker
+    {
+        #region Members
+
+        private static System.Management.Automation.PowerShell _powershell = 
+            System.Management.Automation.PowerShell.Create(RunspaceMode.NewRunspace);
+
+        #endregion
+
+        #region Methods
+
+        public static Collection<T> InvokeScriptCommon<T>(
+            string script,
+            object[] args,
+            out ErrorRecord error)
+        {
+            Collection<T> results;
+            try
+            {
+                results = _powershell.AddScript(script).AddParameters(args).Invoke<T>();
+                error = (_powershell.Streams.Error.Count > 0) ? _powershell.Streams.Error[0] : null;
+            }
+            catch (Exception ex)
+            {
+                error = new ErrorRecord(
+                    exception: ex,
+                    errorId: "PowerShellInvokerInvalidOperation",
+                    errorCategory: ErrorCategory.InvalidOperation,
+                    targetObject: null);
+                results = new Collection<T>();
+            }
+            finally
+            {
+                _powershell.Commands.Clear();
+            }
+
+            return results;
+        }
+
+        #endregion
+    }
+
+    #endregion
+
     #region LocalSecretStore
 
     /// <summary>
-    /// Default local secret store
+    /// Local secret store
     /// </summary>
-    internal sealed class LocalSecretStore : IDisposable
+    public sealed class LocalSecretStore : IDisposable
     {
         #region Members
 
@@ -2616,16 +2637,18 @@ namespace Microsoft.PowerShell.SecretStore
 
         #region Properties
 
-        public SecureStoreConfig Configuration
+        internal SecureStoreConfig Configuration
         {
-            get
-            {
-                return new SecureStoreConfig(
-                    scope: _secureStore.ConfigData.Scope,
-                    passwordRequired: _secureStore.ConfigData.PasswordRequired,
-                    passwordTimeout: _secureStore.ConfigData.PasswordTimeout,
-                    doNotPrompt: _secureStore.ConfigData.DoNotPrompt);
-            }
+            get => new SecureStoreConfig(
+                        scope: _secureStore.ConfigData.Scope,
+                        passwordRequired: _secureStore.ConfigData.PasswordRequired,
+                        passwordTimeout: _secureStore.ConfigData.PasswordTimeout,
+                        doNotPrompt: _secureStore.ConfigData.DoNotPrompt);
+        }
+
+        public static bool AllowPrompting
+        {
+            get => SecureStoreFile.ConfigAllowsPrompting;
         }
 
         #endregion
@@ -2636,7 +2659,7 @@ namespace Microsoft.PowerShell.SecretStore
         {
         }
 
-        public LocalSecretStore(
+        internal LocalSecretStore(
             SecureStore secureStore)
         {
             _secureStore = secureStore;
@@ -2699,7 +2722,7 @@ namespace Microsoft.PowerShell.SecretStore
                                 throw new PasswordRequiredException("The provided password is incorrect for the Microsoft.PowerShell.SecretStore module vault.");
                             }
 
-                            if (cmdlet != null && SecureStoreFile.ConfigAllowsPrompting)
+                            if (cmdlet != null && AllowPrompting)
                             {
                                 if (SecureStoreFile.StoreFileExists())
                                 {
@@ -2739,8 +2762,24 @@ namespace Microsoft.PowerShell.SecretStore
             }
         }
 
-        #endregion
+        private const string VaultPaswordPrompt = "Vault {0} requires a password.";
+        public static void PromptAndUnlockVault(
+            string vaultName,
+            PSCmdlet cmdlet)
+        {
+            var promptMessage = string.Format(CultureInfo.InvariantCulture,
+                VaultPaswordPrompt, vaultName);
 
+            var vaultKey = Utils.PromptForPassword(
+                cmdlet: cmdlet,
+                verifyPassword: false,
+                message: promptMessage);
+
+            LocalSecretStore.GetInstance(vaultKey).UnlockLocalStore(vaultKey);
+        }
+
+        #endregion
+        
         #region Public methods
 
         public bool WriteObject<T>(
@@ -2928,7 +2967,11 @@ namespace Microsoft.PowerShell.SecretStore
             }
         }
 
-        public void UnlockLocalStore(
+        #endregion
+
+        #region Internal methods
+
+        internal void UnlockLocalStore(
             SecureString password,
             int? passwordTimeout = null)
         {
@@ -2949,7 +2992,7 @@ namespace Microsoft.PowerShell.SecretStore
             }
         }
 
-        public void UpdatePassword(
+        internal void UpdatePassword(
             SecureString newPassword,
             SecureString oldPassword)
         {
@@ -2960,7 +3003,7 @@ namespace Microsoft.PowerShell.SecretStore
                 skipConfigFileWrite: false);
         }
 
-        public bool UpdateConfiguration(
+        internal bool UpdateConfiguration(
             SecureStoreConfig newConfigData,
             PSCmdlet cmdlet,
             out string errorMsg)
@@ -3543,52 +3586,6 @@ namespace Microsoft.PowerShell.SecretStore
 
         #endregion
     
-        #endregion
-    }
-
-    #endregion
-
-    #region PowerShellInvoker
-
-    internal static class PowerShellInvoker
-    {
-        #region Members
-
-        private static System.Management.Automation.PowerShell _powershell = 
-            System.Management.Automation.PowerShell.Create(RunspaceMode.NewRunspace);
-
-        #endregion
-
-        #region Methods
-
-        public static Collection<T> InvokeScriptCommon<T>(
-            string script,
-            object[] args,
-            out ErrorRecord error)
-        {
-            Collection<T> results;
-            try
-            {
-                results = _powershell.AddScript(script).AddParameters(args).Invoke<T>();
-                error = (_powershell.Streams.Error.Count > 0) ? _powershell.Streams.Error[0] : null;
-            }
-            catch (Exception ex)
-            {
-                error = new ErrorRecord(
-                    exception: ex,
-                    errorId: "PowerShellInvokerInvalidOperation",
-                    errorCategory: ErrorCategory.InvalidOperation,
-                    targetObject: null);
-                results = new Collection<T>();
-            }
-            finally
-            {
-                _powershell.Commands.Clear();
-            }
-
-            return results;
-        }
-
         #endregion
     }
 

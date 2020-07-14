@@ -5,10 +5,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Globalization;
 using System.IO;
 using System.Management.Automation;
-using System.Runtime.InteropServices;
+using System.Management.Automation.Runspaces;
 using System.Security;
 
 using Dbg = System.Diagnostics.Debug;
@@ -125,93 +124,6 @@ namespace Microsoft.PowerShell.SecretManagement
             return (results.Count > 0) ? results[0] : null;
         }
 
-        private static bool ComparePasswords(
-            SecureString password1,
-            SecureString password2)
-        {
-            if (password1.Length != password2.Length)
-            {
-                return false;
-            }
-
-            IntPtr ptrPassword1 = IntPtr.Zero;
-            IntPtr ptrPassword2 = IntPtr.Zero;
-            try
-            {
-                ptrPassword1 = Marshal.SecureStringToCoTaskMemUnicode(password1);
-                ptrPassword2 = Marshal.SecureStringToCoTaskMemUnicode(password2);
-                if (ptrPassword1 != IntPtr.Zero && ptrPassword2 != IntPtr.Zero)
-                {
-                    for (int i=0; i<(password1.Length * 2); i++)
-                    {
-                        if (Marshal.ReadByte(ptrPassword1, i) != Marshal.ReadByte(ptrPassword2, i))
-                        {
-                            return false;
-                        }
-                    }
-
-                    return true;
-                }
-            }
-            finally
-            {
-                if (ptrPassword1 != IntPtr.Zero)
-                {
-                    Marshal.ZeroFreeCoTaskMemUnicode(ptrPassword1);
-                }
-
-                if (ptrPassword2 != IntPtr.Zero)
-                {
-                    Marshal.ZeroFreeCoTaskMemUnicode(ptrPassword2);
-                }
-            }
-
-            return false;
-        }
-
-        public static SecureString PromptForPassword(
-            PSCmdlet cmdlet,
-            bool verifyPassword = false,
-            string message = null)
-        {
-            if (cmdlet.Host == null || cmdlet.Host.UI == null)
-            {
-                throw new PSInvalidOperationException(
-                    "Cannot prompt for password. No host available.");
-            }
-
-            SecureString password = null;
-
-            cmdlet.Host.UI.WriteLine(
-                string.IsNullOrEmpty(message) ? 
-                    "A password is required for Microsoft.PowerShell.SecretStore vault."
-                    : message);
-
-            var isVerified = !verifyPassword;
-            do
-            {
-                // Initial prompt
-                cmdlet.Host.UI.WriteLine("Enter password:");
-                password = cmdlet.Host.UI.ReadLineAsSecureString();
-
-                if (verifyPassword)
-                {
-                    // Verification prompt
-                    cmdlet.Host.UI.WriteLine("Enter password again for verification:");
-                    var passwordVerified = cmdlet.Host.UI.ReadLineAsSecureString();
-
-                    isVerified = ComparePasswords(password, passwordVerified);
-
-                    if (!isVerified)
-                    {
-                        cmdlet.Host.UI.WriteLine("\nThe two entered passwords do not match.  Please re-enter the passwords.\n");
-                    }
-                }
-            } while (!isVerified);
-
-            return password;
-        }
-
         #endregion
     }
 
@@ -231,22 +143,6 @@ namespace Microsoft.PowerShell.SecretManagement
         PSCredential,
         Hashtable
     };
-
-    #endregion
-
-    #region Exceptions
-
-    public sealed class PasswordRequiredException : InvalidOperationException
-    {
-        #region Constructor
-
-        public PasswordRequiredException(string msg)
-            : base(msg)
-        {
-        }
-
-        #endregion
-    }
 
     #endregion
 
@@ -306,144 +202,6 @@ namespace Microsoft.PowerShell.SecretManagement
 
     #endregion
 
-    #region SecretManagementExtension class
-
-    /// <summary>
-    /// Abstract class which SecretManagement extension vault modules will implement
-    /// to provide secret management functions for plugin local or remote vaults.
-    /// </summary>
-    public abstract class SecretManagementExtension
-    {
-        #region Properties
-
-        /// <summary>
-        /// Name of the registered vault associated with this extension instance.
-        /// </summary>
-        public string VaultName { get; }
-
-        #endregion
-
-        #region Constructor
-
-        private SecretManagementExtension() { }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SecretManagementExtension"/> class.
-        /// </summary>
-        public SecretManagementExtension(string vaultName)
-        {
-            if (string.IsNullOrEmpty(vaultName))
-            {
-                throw new ArgumentNullException("vaultName");
-            }
-
-            VaultName = vaultName;
-        }
-
-        #endregion
-
-        #region Abstract methods
-
-        /// <summary>
-        /// Adds a secret to the vault.
-        /// Currently supported secret types are:
-        ///     PSCredential
-        ///     SecureString
-        ///     String
-        ///     Hashtable
-        ///     byte[]
-        /// </summary>
-        /// <param name="name">Name under which secret will be stored.</param>
-        /// <param name="secret">Secret to be stored.</param>
-        /// <param name="vaultName">Name of registered vault.</param>
-        /// <param name="additionalParameters">Optional additional parameters.</param>
-        /// <param name="error">Optional exception object on failure.</param>
-        /// <returns>True on success.</returns>
-        public abstract bool SetSecret(
-            string name,
-            object secret,
-            string vaultName,
-            IReadOnlyDictionary<string, object> additionalParameters,
-            out Exception error);
-
-        /// <summary>
-        /// Gets a secret from the vault.
-        /// </summary>
-        /// <param name="name">Name of the secret to retrieve.</param>
-        /// <param name="vaultName">Name of registered vault.</param>
-        /// <param name="additionalParameters">Optional additional parameters.</param>
-        /// <param name="error">Optional exception object on failure.</param>
-        /// <returns>Secret object retrieved from the vault.  Null returned if not found.</returns>
-        public abstract object GetSecret(
-            string name,
-            string vaultName,
-            IReadOnlyDictionary<string, object> additionalParameters,
-            out Exception error);
-        
-        /// <summary>
-        /// Removes a secret from the vault.
-        /// </summary>
-        /// <param name="name">Name of the secret to remove.</param>
-        /// <param name="vaultName">Name of registered vault.</param>
-        /// <param name="additionalParameters">Optional additional parameters.</param>
-        /// <param name="error">Optional exception object on failure.</param>
-        /// <returns>True on success.</returns>
-        public abstract bool RemoveSecret(
-            string name,
-            string vaultName,
-            IReadOnlyDictionary<string, object> additionalParameters,
-            out Exception error);
-
-        /// <summary>
-        /// Returns a list of key/value pairs for each found vault secret, where
-        ///     key   (string): is the name of the secret.
-        ///     value (object): is the corresponding secret object.
-        /// </summary>
-        /// <param name="filter">
-        /// A string, including wildcard characters, used to search secret names.
-        /// A null value, empty string, or "*" will return all vault secrets.
-        /// </param>
-        /// <param name="vaultName">Name of registered vault.</param>
-        /// <param name="additionalParameters">Optional additional parameters.</param>
-        /// <param name="error">Optional exception object on failure.</param>
-        /// <returns>Array of SecretInformation objects.</returns>
-        public abstract SecretInformation[] GetSecretInfo(
-            string filter,
-            string vaultName,
-            IReadOnlyDictionary<string, object> additionalParameters,
-            out Exception error);
-
-        /// <summary>
-        /// This is an optional method to unlock an extension vault with a key.
-        /// </summary>
-        /// <param name="vaultKey">A key SecureString object that unlocks the vault.</param>
-        /// <param name="vaultName">Name of registered vault.</param>
-        /// <param name="additionalParameters">Optional parameters.</param>
-        /// <param name="error">Optional exception object on failure.</param>
-        /// <returns>True if unlock operation succeeds.</returns>
-        public abstract bool UnlockSecretVault(
-            SecureString vaultKey,
-            string vaultName,
-            IReadOnlyDictionary<string, object> additionalParameters,
-            out Exception error);
-
-        /// <summary>
-        /// Validates operation of the registered vault extension. 
-        /// </summary>
-        /// <param name="vaultName">Name of registered vault.</param>
-        /// <param name="additionalParameters">Optional parameters for validation.</param>
-        /// <param name="error">Optional exception object on failure.</param>
-        /// <returns>True if extension is functioning.</returns>
-        public abstract bool TestSecretVault(
-            string vaultName,
-            IReadOnlyDictionary<string, object> additionalParameters,
-            out Exception[] errors);
-
-        #endregion
-    }
-
-    #endregion
-
     #region Extension vault module class
 
     /// <summary>
@@ -453,20 +211,39 @@ namespace Microsoft.PowerShell.SecretManagement
     {
         #region Members
 
+        #region Script
+
+        // Invokes Get-Secret, Set-Secret, Get-SecretInfo, Remove-Secret commands in
+        // nested module within provided module path.
+        // Assumes the following directory structure:
+        //  Module directory (parent module)
+        //      Module.psd1
+        //      Module.psm1
+        //      ImplementingModule directory (nested module)
+        //          ImplementingModule.psd1
+        //          ImplementingModule.psm1
+        private const string RunCommandScript = @"
+            param (
+                [string] $ModulePath,
+                [string] $ImplementingModuleName,
+                [string] $Command,
+                [hashtable] $Params
+            )
+        
+            $module = Import-Module -Name $ModulePath -Passthru
+            & $module ""$ImplementingModuleName\$Command"" @Params
+        ";
+
+        #endregion
+
         internal const string GetSecretCmd = "Get-Secret";
         internal const string GetSecretInfoCmd = "Get-SecretInfo";
         internal const string SetSecretCmd = "Set-Secret";
         internal const string RemoveSecretCmd = "Remove-Secret";
         internal const string TestVaultCmd = "Test-SecretVault";
-        internal const string UnlockVaultCmd = "Unlock-SecretVault";
         internal const string ModuleNameStr = "ModuleName";
         internal const string ModulePathStr = "ModulePath";
         internal const string VaultParametersStr = "VaultParameters";
-        internal const string ImplementingTypeStr = "ImplementingType";
-        internal const string ImplementingFunctionsStr = "ImplementingFunctions";
-        internal const string VaultPaswordPrompt = "Vault {0} requires a password.";
-
-        private Lazy<SecretManagementExtension> _vaultExtentsion;
         
         #endregion
 
@@ -486,16 +263,6 @@ namespace Microsoft.PowerShell.SecretManagement
         /// Module path.
         /// </summary>
         public string ModulePath { get; }
-
-        /// <summary>
-        /// Name of the assembly implementing the SecretManagementExtension derived type.
-        /// </summary>
-        public string ImplementingTypeAssemblyName { get; }
-
-        /// <summary>
-        /// Name of type implementing SecretManagementExtension abstract class.
-        /// </summary>
-        public string ImplementingTypeName { get; }
 
         /// <summary>
         /// Additional vault parameters.
@@ -520,15 +287,11 @@ namespace Microsoft.PowerShell.SecretManagement
             Hashtable vaultInfo,
             bool isDefault)
         {
-            // Required module information.
+            // Module information.
             IsDefault = isDefault;
             VaultName = vaultName;
             ModuleName = (string) vaultInfo[ModuleNameStr];
             ModulePath = (string) vaultInfo[ModulePathStr];
-
-            var implementingType = (Hashtable) vaultInfo[ImplementingTypeStr];
-            ImplementingTypeAssemblyName = (string) implementingType["AssemblyName"];
-            ImplementingTypeName = (string) implementingType["TypeName"];
 
             // Additional parameters.
             var vaultParameters = new Dictionary<string, object>();
@@ -543,8 +306,6 @@ namespace Microsoft.PowerShell.SecretManagement
                 }
             }
             VaultParameters = new ReadOnlyDictionary<string, object>(vaultParameters);
-
-            Init();
         }
 
         /// <summary>
@@ -556,36 +317,8 @@ namespace Microsoft.PowerShell.SecretManagement
             VaultName = module.VaultName;
             ModuleName = module.ModuleName;
             ModulePath = module.ModulePath;
-            ImplementingTypeAssemblyName = module.ImplementingTypeAssemblyName;
-            ImplementingTypeName = module.ImplementingTypeName;
             VaultParameters = module.VaultParameters;
             IsDefault = module.IsDefault;
-
-            Init();
-        }
-
-        private void Init()
-        {
-            _vaultExtentsion = new Lazy<SecretManagementExtension>(() => {
-                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    if (assembly.GetName().Name.Equals(ImplementingTypeAssemblyName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        var implementingType = assembly.GetType(ImplementingTypeName);
-                        if (implementingType != null)
-                        {
-                            // SecretManagementExtension abstract class constructor takes a single 'vaultName' parameter.
-                            return (SecretManagementExtension) Activator.CreateInstance(
-                                type: implementingType,
-                                args: new object[] { VaultName });
-                        }
-                    }
-                }
-
-                throw new InvalidOperationException(
-                    string.Format(CultureInfo.InvariantCulture, 
-                        "Unable to find and create SecretManagementExtension type instance from vault {0}", VaultName));
-            });
         }
 
         #endregion
@@ -605,32 +338,36 @@ namespace Microsoft.PowerShell.SecretManagement
             string vaultName,
             PSCmdlet cmdlet)
         {
-            var count = 0;
-            do
-            {
-                try
-                {
-                    if (!string.IsNullOrEmpty(ImplementingTypeName))
-                    {
-                        InvokeSetSecretOnImplementingType(name, secret, vaultName, cmdlet);
-                    }
-                    else
-                    {
-                        InvokeSetSecretOnScriptFn(name, secret, vaultName, cmdlet);
-                    }
+            var additionalParameters = GetAdditionalParams();
+            var parameters = new Hashtable() {
+                { "Name", name },
+                { "Secret", secret },
+                { "VaultName", vaultName },
+                { "AdditionalParameters", additionalParameters }
+            };
 
-                    break;
-                }
-                catch (PasswordRequiredException)
-                {
-                    if (!RegisteredVaultCache.Option.AllowPrompting || 
-                        count > 0 ||
-                        !TryPromptAndUnlockVault(vaultName, cmdlet))
-                    {
-                        throw;
-                    }
-                }
-            } while (count++ < 1);
+            InvokeOnCmdlet(
+                cmdlet: cmdlet,
+                script: RunCommandScript,
+                args: new object[] { ModulePath, RegisterSecretVaultCommand.ImplementingModule, SetSecretCmd, parameters },
+                out Exception terminatingError);
+            
+            if (terminatingError != null)
+            {
+                cmdlet.WriteError(
+                    new ErrorRecord(
+                        new PSInvalidOperationException(
+                            message: string.Format("Unable to add secret {0} to vault {1}", name, VaultName),
+                            innerException: terminatingError),
+                        "SetSecretInvalidOperation",
+                        ErrorCategory.InvalidOperation,
+                        this));
+            }
+            else
+            {
+                cmdlet.WriteVerbose(
+                    string.Format("Secret {0} was successfully added to vault {1}.", name, VaultName));
+            }
         }
 
         /// <summary>
@@ -641,31 +378,52 @@ namespace Microsoft.PowerShell.SecretManagement
             string vaultName,
             PSCmdlet cmdlet)
         {
-            var count = 0;
-            do
-            {
-                try 
-                {
-                    if (!string.IsNullOrEmpty(this.ImplementingTypeName))
-                    {
-                        return InvokeGetSecretOnImplementingType(name, vaultName, cmdlet);
-                    }
-                    else
-                    {
-                        return InvokeGetSecretOnScriptFn(name, vaultName, cmdlet);
-                    }
-                }
-                catch (PasswordRequiredException)
-                {
-                    if (!RegisteredVaultCache.Option.AllowPrompting || 
-                        count > 0 ||
-                        !TryPromptAndUnlockVault(vaultName, cmdlet))
-                    {
-                        throw;
-                    }
-                }
-            } while (count++ < 1);
+            var additionalParameters = GetAdditionalParams();
+            var parameters = new Hashtable() {
+                { "Name", name },
+                { "VaultName", vaultName },
+                { "AdditionalParameters", additionalParameters }
+            };
 
+            var results = InvokeOnCmdlet<object>(
+                cmdlet: cmdlet,
+                script: RunCommandScript,
+                args: new object[] { ModulePath, RegisterSecretVaultCommand.ImplementingModule, GetSecretCmd, parameters },
+                out Exception terminatingError);
+            
+            if (terminatingError != null)
+            {
+                cmdlet.WriteError(
+                    new ErrorRecord(
+                        new PSInvalidOperationException(
+                            message: string.Format("Unable to get secret {0} from vault {1}", name, VaultName),
+                            innerException: terminatingError),
+                        "GetSecretInvalidOperation",
+                        ErrorCategory.InvalidOperation,
+                        this));
+            }
+            else
+            {
+                cmdlet.WriteVerbose(
+                    string.Format("Secret {0} was successfully retrieved from vault {1}.", name, VaultName));
+            }
+
+            if (results.Count > 0)
+            {
+                if (results[0] is byte)
+                {
+                    // Re-wrap collection of bytes into a byte array.
+                    byte[] byteArray = new byte[results.Count];
+                    for (int i=0; i<results.Count; i++)
+                    {
+                        byteArray[i] = (byte) results[i];
+                    }
+                    return byteArray;
+                }
+
+                return results[0];
+            }
+            
             return null;
         }
 
@@ -677,117 +435,109 @@ namespace Microsoft.PowerShell.SecretManagement
             string vaultName,
             PSCmdlet cmdlet)
         {
-            var count = 0;
-            do
-            {
-                try
-                {
-                    if (!string.IsNullOrEmpty(this.ImplementingTypeName))
-                    {
-                        InvokeRemoveSecretOnImplementingType(name, vaultName, cmdlet);
-                    }
-                    else
-                    {
-                        InvokeRemoveSecretOnScriptFn(name, vaultName, cmdlet);
-                    }
+            var additionalParameters = GetAdditionalParams();
+            var parameters = new Hashtable() {
+                { "Name", name },
+                { "VaultName", vaultName },
+                { "AdditionalParameters", additionalParameters }
+            };
 
-                    break;
-                }
-                catch (PasswordRequiredException)
-                {
-                    if (!RegisteredVaultCache.Option.AllowPrompting || 
-                        count > 0 ||
-                        !TryPromptAndUnlockVault(vaultName, cmdlet))
-                    {
-                        throw;
-                    }
-                }
+            InvokeOnCmdlet(
+                cmdlet: cmdlet,
+                script: RunCommandScript,
+                args: new object[] { ModulePath, RegisterSecretVaultCommand.ImplementingModule, RemoveSecretCmd, parameters },
+                out Exception terminatingError);
+
+            if (terminatingError != null)
+            {
+                cmdlet.WriteError(
+                    new ErrorRecord(
+                        new PSInvalidOperationException(
+                            message: string.Format("Unable to remove secret {0} from vault {1}", name, VaultName),
+                            innerException: terminatingError),
+                        "RemoveSecretInvalidOperation",
+                        ErrorCategory.InvalidOperation,
+                        this));
             }
-            while (count++ < 1);
+            else
+            {
+                cmdlet.WriteVerbose(
+                    string.Format("Secret {0} was successfully removed from vault {1}.", name, VaultName));
+            }
         }
 
+        /// <summary>
+        /// Returns secret meta data.
+        /// </summary>
         public SecretInformation[] InvokeGetSecretInfo(
             string filter,
             string vaultName,
             PSCmdlet cmdlet)
         {
-            var count = 0;
-            do
-            {
-                try
-                {
-                    if (!string.IsNullOrEmpty(this.ImplementingTypeName))
-                    {
-                        return InvokeGetSecretInfoOnImplementingType(filter, vaultName, cmdlet);
-                    }
-                    else
-                    {
-                        return InvokeGetSecretInfoOnScriptFn(filter, vaultName, cmdlet);
-                    }
-                }
-                catch (PasswordRequiredException)
-                {
-                    if (!RegisteredVaultCache.Option.AllowPrompting || 
-                        count > 0 ||
-                        !TryPromptAndUnlockVault(vaultName, cmdlet))
-                    {
-                        throw;
-                    }
-                }
-            }
-            while (count++ < 1);
+            var additionalParameters = GetAdditionalParams();
+            var parameters = new Hashtable() {
+                { "Filter", filter },
+                { "VaultName", vaultName },
+                { "AdditionalParameters", additionalParameters }
+            };
 
-            return new SecretInformation[0];
+            var results = InvokeOnCmdlet<SecretInformation>(
+                cmdlet: cmdlet,
+                script: RunCommandScript,
+                args: new object[] { ModulePath, RegisterSecretVaultCommand.ImplementingModule, GetSecretInfoCmd, parameters },
+                out Exception terminatingError);
+            
+            if (terminatingError != null)
+            {
+                cmdlet.WriteError(
+                    new ErrorRecord(
+                        new PSInvalidOperationException(
+                            message: string.Format("Unable to get secret information from vault {0}", VaultName),
+                            innerException: terminatingError),
+                        "GetSecretInfoInvalidOperation",
+                        ErrorCategory.InvalidOperation,
+                        this));
+            }
+            else
+            {
+                cmdlet.WriteVerbose(
+                    string.Format("Secret information was successfully retrieved from vault {0}.", VaultName));
+            }
+
+            var secretInfo = new SecretInformation[results.Count];
+            results.CopyTo(secretInfo, 0);
+            return secretInfo;
         }
 
         public bool InvokeTestVault(
             string vaultName,
             PSCmdlet cmdlet)
         {
-            var count = 0;
-            do
-            {
-                try
-                {
-                    if (!string.IsNullOrEmpty(this.ImplementingTypeName))
-                    {
-                        return InvokeTestVaultOnImplementingType(vaultName, cmdlet);
-                    }
-                    else
-                    {
-                        return InvokeTestVaultOnScriptFn(vaultName, cmdlet);
-                    }
-                }
-                catch (PasswordRequiredException)
-                {
-                    if (!RegisteredVaultCache.Option.AllowPrompting || 
-                        count > 0 ||
-                        !TryPromptAndUnlockVault(vaultName, cmdlet))
-                    {
-                        throw;
-                    }
-                }
-            }
-            while (count++ < 1);
+            var additionalParameters = GetAdditionalParams();
+            var parameters = new Hashtable() {
+                { "VaultName", VaultName },
+                { "AdditionalParameters", additionalParameters }
+            };
 
-            return false;
-        }
+            var results = InvokeOnCmdlet<bool>(
+                cmdlet: cmdlet,
+                script: RunCommandScript,
+                args: new object[] { ModulePath, RegisterSecretVaultCommand.ImplementingModule, TestVaultCmd, parameters },
+                out Exception terminatingError);
 
-        public bool InvokeUnlockVault(
-            SecureString vaultKey,
-            string vaultName,
-            PSCmdlet cmdlet)
-        {
-            if (vaultKey == null) { return false; }
+            if (terminatingError != null)
+            {
+                cmdlet.WriteError(
+                    new ErrorRecord(
+                        new PSInvalidOperationException(
+                            message: string.Format("Unable to run Test-SecretVault on vault {0}", VaultName),
+                            innerException: terminatingError),
+                        "TestSecretVaultInvalidOperation",
+                        ErrorCategory.InvalidOperation,
+                        this));
+            }
 
-            if (!string.IsNullOrEmpty(this.ImplementingTypeName))
-            {
-                return InvokeUnlockVaultOnImplementingType(vaultKey, vaultName, cmdlet);
-            }
-            else
-            {
-                return InvokeUnlockVaultOnScriptFn(vaultKey, vaultName, cmdlet);
-            }
+            return (results.Count > 0) ? results[0] : false;
         }
 
         /// <summary>
@@ -800,531 +550,7 @@ namespace Microsoft.PowerShell.SecretManagement
         
         #endregion
 
-        #region Implementing type implementation
-
-        private void InvokeSetSecretOnImplementingType(
-            string name,
-            object secret,
-            string vaultName,
-            PSCmdlet cmdlet)
-        {
-            // Ensure the module has been imported so that the extension
-            // binary assembly is loaded.
-            ImportPSModule(cmdlet);
-
-            bool success = false;
-            Exception error = null;
-
-            try
-            {
-                success = _vaultExtentsion.Value.SetSecret(
-                    name: name,
-                    secret: secret,
-                    vaultName: vaultName,
-                    additionalParameters: VaultParameters,
-                    out error);
-            }
-            catch (PasswordRequiredException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                error = ex;
-            }
-
-            if (!success || error != null)
-            {
-                if (error == null)
-                {
-                    var msg = string.Format(
-                        CultureInfo.InvariantCulture, 
-                        "Could not add secret {0} to vault {1}.",
-                        name, VaultName);
-
-                    error = new InvalidOperationException(msg);
-                }
-
-                cmdlet.WriteError(
-                    new ErrorRecord(
-                        error,
-                        "InvokeSetSecretError",
-                        ErrorCategory.InvalidOperation,
-                        this));
-            }
-            else
-            {
-                cmdlet.WriteVerbose(
-                    string.Format("Secret {0} was successfully added to vault {1}.", name, VaultName));
-            }
-        }
-
-        private object InvokeGetSecretOnImplementingType(
-            string name,
-            string vaultName,
-            PSCmdlet cmdlet)
-        {
-            // Ensure the module has been imported so that the extension
-            // binary assembly is loaded.
-            ImportPSModule(cmdlet);
-
-            object secret = null;
-            Exception error = null;
-            
-            try
-            {
-                secret = _vaultExtentsion.Value.GetSecret(
-                    name: name,
-                    vaultName: vaultName,
-                    additionalParameters: VaultParameters,
-                    out error);
-            }
-            catch (PasswordRequiredException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                error = ex;
-            }
-
-            if (error != null)
-            {
-                cmdlet.WriteError(
-                    new ErrorRecord(
-                        error,
-                        "InvokeGetSecretError",
-                        ErrorCategory.InvalidOperation,
-                        this));
-            }
-
-            return secret;
-        }
-
-        private void InvokeRemoveSecretOnImplementingType(
-            string name,
-            string vaultName,
-            PSCmdlet cmdlet)
-        {
-            // Ensure the module has been imported so that the extension
-            // binary assembly is loaded.
-            ImportPSModule(cmdlet);
-
-            var success = false;
-            Exception error = null;
-
-            try
-            {
-                success = _vaultExtentsion.Value.RemoveSecret(
-                    name: name,
-                    vaultName: vaultName,
-                    additionalParameters: VaultParameters,
-                    out error);
-            }
-            catch (PasswordRequiredException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                error = ex;
-            }
-
-            if (!success || error != null)
-            {
-                if (error == null)
-                {
-                    var msg = string.Format(
-                        CultureInfo.InvariantCulture, 
-                        "Could not remove secret {0} from vault {1}.",
-                        name, VaultName);
-
-                    error = new InvalidOperationException(msg);
-                }
-
-                cmdlet.WriteError(
-                    new ErrorRecord(
-                        error,
-                        "InvokeRemoveSecretError",
-                        ErrorCategory.InvalidOperation,
-                        this));
-            }
-            else
-            {
-                cmdlet.WriteVerbose(
-                    string.Format("Secret {0} was successfully removed from vault {1}.", name, VaultName));
-            }
-        }
-
-        private SecretInformation[] InvokeGetSecretInfoOnImplementingType(
-            string filter,
-            string vaultName,
-            PSCmdlet cmdlet)
-        {
-            // Ensure the module has been imported so that the extension
-            // binary assembly is loaded.
-            ImportPSModule(cmdlet);
-
-            SecretInformation[] results = null;
-            Exception error = null;
-
-            try
-            {
-                results = _vaultExtentsion.Value.GetSecretInfo(
-                    filter: filter,
-                    vaultName: vaultName,
-                    additionalParameters: VaultParameters,
-                    out error);
-            }
-            catch (PasswordRequiredException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                error = ex;
-            }
-            
-            if (error != null)
-            {
-                cmdlet.WriteError(
-                    new ErrorRecord(
-                        error,
-                        "InvokeGetSecretInfoError",
-                        ErrorCategory.InvalidOperation,
-                        this));
-            }
-
-            return results;
-        }
-
-        private bool InvokeUnlockVaultOnImplementingType(
-            SecureString vaultKey,
-            string vaultName,
-            PSCmdlet cmdlet)
-        {
-            // Ensure the module has been imported so that the extension
-            // binary assembly is loaded.
-            ImportPSModule(cmdlet);
-
-            Exception error = null;
-            try
-            {
-                return _vaultExtentsion.Value.UnlockSecretVault(
-                    vaultKey: vaultKey,
-                    vaultName: vaultName,
-                    additionalParameters: VaultParameters,
-                    out error);
-            }
-            catch (Exception ex)
-            {
-                error = ex;
-            }
-
-            if (error != null)
-            {
-                cmdlet.WriteError(
-                    new ErrorRecord(
-                        error,
-                        "InvokeUnlockVaultError",
-                        ErrorCategory.InvalidOperation,
-                        this));
-            }
-
-            return false;
-        }
-
-        private bool InvokeTestVaultOnImplementingType(
-            string vaultName,
-            PSCmdlet cmdlet)
-        {
-            // Ensure the module has been imported so that the extension
-            // binary assembly is loaded.
-            ImportPSModule(cmdlet);
-
-            Exception[] errors;
-            bool success;
-
-            try
-            {
-                success = _vaultExtentsion.Value.TestSecretVault(
-                    vaultName: vaultName,
-                    additionalParameters: VaultParameters,
-                    errors: out errors);
-            }
-            catch (PasswordRequiredException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                success = false;
-                errors = new Exception[1] { ex };
-            }
-
-            if (errors != null)
-            {
-                foreach (var error in errors)
-                {
-                    cmdlet.WriteError(
-                        new ErrorRecord(
-                            exception: error,
-                            errorId: "TestVaultInvalidOperation",
-                            errorCategory: ErrorCategory.InvalidOperation,
-                            targetObject: null));
-                }
-            }
-
-            return success;
-        }
-
-        #endregion
-
-        #region Script function implementation
-
-        private const string RunCommandScript = @"
-            param (
-                [string] $ModulePath,
-                [string] $ModuleName,
-                [string] $Command,
-                [hashtable] $Params
-            )
-        
-            Import-Module -Name $ModulePath
-            & ""$ModuleName\$Command"" @Params
-        ";
-
-        private void InvokeSetSecretOnScriptFn(
-            string name,
-            object secret,
-            string vaultName,
-            PSCmdlet cmdlet)
-        {
-            var additionalParameters = GetAdditionalParams();
-            var parameters = new Hashtable() {
-                { "Name", name },
-                { "Secret", secret },
-                { "VaultName", vaultName },
-                { "AdditionalParameters", additionalParameters }
-            };
-
-            var implementingModulePath = System.IO.Path.Combine(ModulePath, RegisterSecretVaultCommand.ImplementingModule);
-            var results = PowerShellInvoker.InvokeScript<bool>(
-                script: RunCommandScript,
-                args: new object[] { implementingModulePath, RegisterSecretVaultCommand.ImplementingModule, SetSecretCmd, parameters },
-                error: out Exception error);
-
-            bool success = results.Count > 0 ? results[0] : false;
-            
-            if (!success || error != null)
-            {
-                cmdlet.WriteError(
-                    new ErrorRecord(
-                        error,
-                        "SetSecretInvalidOperation",
-                        ErrorCategory.InvalidOperation,
-                        this));
-            }
-            else
-            {
-                cmdlet.WriteVerbose(
-                    string.Format("Secret {0} was successfully added to vault {1}.", name, VaultName));
-            }
-        }
-
-        private object InvokeGetSecretOnScriptFn(
-            string name,
-            string vaultName,
-            PSCmdlet cmdlet)
-        {
-            var additionalParameters = GetAdditionalParams();
-            var parameters = new Hashtable() {
-                { "Name", name },
-                { "VaultName", vaultName },
-                { "AdditionalParameters", additionalParameters }
-            };
-
-            var implementingModulePath = System.IO.Path.Combine(ModulePath, RegisterSecretVaultCommand.ImplementingModule);
-            var results = PowerShellInvoker.InvokeScript<object>(
-                script: RunCommandScript,
-                args: new object[] { implementingModulePath, RegisterSecretVaultCommand.ImplementingModule, GetSecretCmd, parameters },
-                error: out Exception error);
-            
-            if (error != null)
-            {
-                cmdlet.WriteError(
-                    new ErrorRecord(
-                        error,
-                        "InvokeGetSecretError",
-                        ErrorCategory.InvalidOperation,
-                        this));
-            }
-            
-            return results.Count > 0 ? results[0] : null;
-        }
-
-        private void InvokeRemoveSecretOnScriptFn(
-            string name,
-            string vaultName,
-            PSCmdlet cmdlet)
-        {
-            var additionalParameters = GetAdditionalParams();
-            var parameters = new Hashtable() {
-                { "Name", name },
-                { "VaultName", vaultName },
-                { "AdditionalParameters", additionalParameters }
-            };
-
-            var implementingModulePath = System.IO.Path.Combine(ModulePath, RegisterSecretVaultCommand.ImplementingModule);
-            var results = PowerShellInvoker.InvokeScript<bool>(
-                script: RunCommandScript,
-                args: new object[] { implementingModulePath, RegisterSecretVaultCommand.ImplementingModule, RemoveSecretCmd, parameters },
-                error: out Exception error);
-
-            bool success = results.Count > 0 ? results[0] : false;
-            if (!success || error != null)
-            {
-                cmdlet.WriteError(
-                    new ErrorRecord(
-                        error,
-                        "RemoveSecretInvalidOperation",
-                        ErrorCategory.InvalidOperation,
-                        this));
-            }
-            else
-            {
-                cmdlet.WriteVerbose(
-                    string.Format("Secret {0} was successfully removed from vault {1}.", name, VaultName));
-            }
-        }
-
-        private SecretInformation[] InvokeGetSecretInfoOnScriptFn(
-            string filter,
-            string vaultName,
-            PSCmdlet cmdlet)
-        {
-            var additionalParameters = GetAdditionalParams();
-            var parameters = new Hashtable() {
-                { "Filter", filter },
-                { "VaultName", vaultName },
-                { "AdditionalParameters", additionalParameters }
-            };
-
-            var implementingModulePath = System.IO.Path.Combine(ModulePath, RegisterSecretVaultCommand.ImplementingModule);
-            var results = PowerShellInvoker.InvokeScript<SecretInformation>(
-                script: RunCommandScript,
-                args: new object[] { implementingModulePath, RegisterSecretVaultCommand.ImplementingModule, GetSecretInfoCmd, parameters },
-                error: out Exception error);
-            
-            if (error != null)
-            {
-                cmdlet.WriteError(
-                    new ErrorRecord(
-                        error,
-                        "GetSecretInvalidOperation",
-                        ErrorCategory.InvalidOperation,
-                        this));
-            }
-
-            var secretInfo = new SecretInformation[results.Count];
-            results.CopyTo(secretInfo, 0);
-            return secretInfo;
-        }
-
-        private bool InvokeUnlockVaultOnScriptFn(
-            SecureString vaultKey,
-            string vaultName,
-            PSCmdlet cmdlet)
-        {
-            var additionalParameters = GetAdditionalParams();
-            var parameters = new Hashtable() {
-                { "VaultKey", vaultKey },
-                { "VaultName", vaultName },
-                { "AdditionalParameters", additionalParameters }
-            };
-
-            var implementingModulePath = System.IO.Path.Combine(ModulePath, RegisterSecretVaultCommand.ImplementingModule);
-            var results = PowerShellInvoker.InvokeScript<bool>(
-                script: RunCommandScript,
-                args: new object[] { implementingModulePath, RegisterSecretVaultCommand.ImplementingModule, UnlockVaultCmd, parameters },
-                error: out Exception error);
-            
-            bool success = results.Count > 0 ? results[0] : false;
-            if (!success || error != null)
-            {
-                cmdlet.WriteError(
-                    new ErrorRecord(
-                        error,
-                        "RemoveSecretInvalidOperation",
-                        ErrorCategory.InvalidOperation,
-                        this));
-            }
-            else
-            {
-                cmdlet.WriteVerbose(
-                    string.Format("Vault {0} was successfully unlocked.", VaultName));
-            }
-
-            return success;
-        }
-
-        private bool InvokeTestVaultOnScriptFn(
-            string vaultName,
-            PSCmdlet cmdlet)
-        {
-            var additionalParameters = GetAdditionalParams();
-            var parameters = new Hashtable() {
-                { "VaultName", VaultName },
-                { "AdditionalParameters", additionalParameters }
-            };
-
-            var implementingModulePath = System.IO.Path.Combine(ModulePath, RegisterSecretVaultCommand.ImplementingModule);
-            ErrorRecord[] errors = null;
-            var results = PowerShellInvoker.InvokeScript<bool>(
-                script: RunCommandScript,
-                args: new object[] { implementingModulePath, RegisterSecretVaultCommand.ImplementingModule, TestVaultCmd, parameters },
-                errors: out errors);
-            
-            foreach (var error in errors)
-            {
-                cmdlet.WriteError(error);
-            }
-
-            return (results.Count > 0) ? results[0] : false;
-        }
-
-        #endregion
-
         #region Private methods
-
-        private bool TryPromptAndUnlockVault(
-            string vaultName,
-            PSCmdlet cmdlet)
-        {
-            var promptMessage = string.Format(CultureInfo.InvariantCulture,
-                VaultPaswordPrompt, vaultName);
-
-            var vaultKey = Utils.PromptForPassword(
-                cmdlet: cmdlet,
-                verifyPassword: false,
-                message: promptMessage);
-
-            return InvokeUnlockVault(vaultKey, vaultName, cmdlet);
-        }
-        
-        internal void ImportPSModule(PSCmdlet cmdlet)
-        {
-            cmdlet.InvokeCommand.InvokeScript(
-                script: @"
-                    param ([string] $ModulePath)
-
-                    Import-Module -Name $ModulePath -Scope Local
-                ",
-                useNewScope: false,
-                writeToPipeline: System.Management.Automation.Runspaces.PipelineResultTypes.None,
-                input: null,
-                args: new object[] { this.ModulePath });
-        }
 
         private Hashtable GetAdditionalParams()
         {
@@ -1337,6 +563,58 @@ namespace Microsoft.PowerShell.SecretManagement
             }
 
             return additionalParams;
+        }
+
+        private Collection<PSObject> InvokeOnCmdlet(
+            PSCmdlet cmdlet,
+            string script,
+            object[] args,
+            out Exception terminatingError)
+        {
+            try
+            {
+                terminatingError = null;
+                return cmdlet.InvokeCommand.InvokeScript(
+                    script: script,
+                    useNewScope: true,
+                    writeToPipeline: PipelineResultTypes.Error,
+                    input: null,
+                    args: args);
+            }
+            catch (Exception ex)
+            {
+                terminatingError = ex;
+                return new Collection<PSObject>();
+            }
+        }
+
+        private Collection<T> InvokeOnCmdlet<T>(
+            PSCmdlet cmdlet,
+            string script,
+            object[] args,
+            out Exception terminatingError)
+        {
+            var results = InvokeOnCmdlet(
+                cmdlet: cmdlet,
+                script: script,
+                args: args,
+                out terminatingError);
+
+            var returnCollection = new Collection<T>();
+            if (terminatingError != null || results.Count == 0)
+            {
+                return returnCollection;
+            }
+
+            foreach (var psItem in results)
+            {
+                if (psItem != null && psItem.BaseObject is T result)
+                {
+                    returnCollection.Add(result);
+                }
+            }
+
+            return returnCollection;
         }
 
         #endregion
@@ -1360,9 +638,8 @@ namespace Microsoft.PowerShell.SecretManagement
         private static readonly FileSystemWatcher _registryWatcher;
         private static readonly Dictionary<string, ExtensionVaultModule> _vaultCache;
         private static Hashtable _vaultInfoCache;
-        private static string _defaultVaultName = "";
+        private static string _defaultVaultName = string.Empty;
         private static bool _allowAutoRefresh;
-        private static bool _allowPrompting;
 
         #endregion
 
@@ -1389,18 +666,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
         public static string DefaultVaultName
         {
-            get
-            {
-                return _defaultVaultName;
-            }
-        }
-
-        public static SecretManagementOption Option
-        {
-            get
-            {
-                return new SecretManagementOption(_allowPrompting);
-            }
+            get => _defaultVaultName;
         }
 
         #endregion
@@ -1467,8 +733,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 _defaultVaultName = defaultVault ? keyName : _defaultVaultName;
                 WriteSecretVaultRegistry(
                     vaultInfo: vaultItems,
-                    defaultVaultName: _defaultVaultName,
-                    allowPrompting: _allowPrompting);
+                    defaultVaultName: _defaultVaultName);
                 return true;
             }
 
@@ -1495,17 +760,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
             WriteSecretVaultRegistry(
                 vaultInfo: GetAll(),
-                defaultVaultName: _defaultVaultName,
-                allowPrompting: _allowPrompting);
-        }
-
-        public static void SetOption(
-            SecretManagementOption option)
-        {
-            WriteSecretVaultRegistry(
-                vaultInfo: GetAll(),
-                defaultVaultName: _defaultVaultName,
-                allowPrompting: option.AllowPrompting);
+                defaultVaultName: _defaultVaultName);
         }
 
         /// <summary>
@@ -1522,8 +777,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 vaultItems.Remove(keyName);
                 WriteSecretVaultRegistry(
                     vaultInfo: vaultItems,
-                    defaultVaultName: _defaultVaultName.Equals(keyName, StringComparison.OrdinalIgnoreCase) ? string.Empty : _defaultVaultName,
-                    allowPrompting: _allowPrompting);
+                    defaultVaultName: _defaultVaultName.Equals(keyName, StringComparison.OrdinalIgnoreCase) ? string.Empty : _defaultVaultName);
                 return vaultInfo;
             }
 
@@ -1539,7 +793,6 @@ namespace Microsoft.PowerShell.SecretManagement
         //
         /*
         {
-          "AllowPrompting": true,
           "DefaultVaultName": "TestLocalBin",
           "Vaults": {
             "TestLocalBin": {
@@ -1575,8 +828,7 @@ namespace Microsoft.PowerShell.SecretManagement
         {
             if (!TryReadSecretVaultRegistry(
                 vaultInfo: out Hashtable vaultItems,
-                defaultVaultName: out _defaultVaultName,
-                allowPrompting: out _allowPrompting))
+                defaultVaultName: out _defaultVaultName))
             {
                 return;
             }
@@ -1611,16 +863,13 @@ namespace Microsoft.PowerShell.SecretManagement
         /// </summary>
         /// <param name="vaultInfo">Resulting Hashtable out parameter.</param>
         /// <param name="defaultVaultName">Specified default vault.</param>
-        /// <param name="allowPrompting">Specifies whether user prompting is allowed.</param>
         /// <returns>True if file is successfully read and converted from json.</returns>
         private static bool TryReadSecretVaultRegistry(
             out Hashtable vaultInfo,
-            out string defaultVaultName,
-            out bool allowPrompting)
+            out string defaultVaultName)
         {
             vaultInfo = null;
             defaultVaultName = "";
-            allowPrompting = true;
 
             if (!File.Exists(RegistryFilePath))
             {
@@ -1635,7 +884,6 @@ namespace Microsoft.PowerShell.SecretManagement
                     string jsonInfo = File.ReadAllText(RegistryFilePath);
                     var registryInfo = Utils.ConvertJsonToHashtable(jsonInfo);
                     defaultVaultName = (string) registryInfo["DefaultVaultName"];
-                    allowPrompting = (bool) registryInfo["AllowPrompting"];
                     vaultInfo = (Hashtable) registryInfo["Vaults"];
                     return true;
                 }
@@ -1672,17 +920,14 @@ namespace Microsoft.PowerShell.SecretManagement
         /// </summary>
         /// <param name="vaultInfo">Hashtable containing registered vault information.</param>
         /// <param name="defaultVaultName">The default vault name.</param>
-        /// <param name="allowPrompting">Indicates if user prompting is allowed.</param>
         /// </summary>
         private static void WriteSecretVaultRegistry(
             Hashtable vaultInfo,
-            string defaultVaultName,
-            bool allowPrompting)
+            string defaultVaultName)
         {
             var registryInfo = new Hashtable()
             {
                 { "DefaultVaultName", defaultVaultName },
-                { "AllowPrompting", allowPrompting },
                 { "Vaults", vaultInfo }
             };
             string jsonInfo = Utils.ConvertHashtableToJson(registryInfo);
@@ -1756,18 +1001,6 @@ namespace Microsoft.PowerShell.SecretManagement
                 }
                 catch (Exception ex)
                 {
-                    if (ex is PasswordRequiredException)
-                    {
-                        throw;
-                    }
-                    else if (ex is RuntimeException exr)
-                    {
-                        if (exr.ErrorRecord.Exception is PasswordRequiredException)
-                        {
-                            throw exr.ErrorRecord.Exception;
-                        }
-                    }
-
                     errors = new ErrorRecord[1] {
                         new ErrorRecord(
                             exception: ex,
