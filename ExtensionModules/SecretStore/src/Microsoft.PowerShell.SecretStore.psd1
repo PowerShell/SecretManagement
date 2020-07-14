@@ -6,8 +6,10 @@
 # Script module or binary module file associated with this manifest.
 RootModule = '.\Microsoft.PowerShell.SecretStore.dll'
 
+NestedModules = @('.\SecretManagementExtension')
+
 # Version number of this module.
-ModuleVersion = '0.1.0'
+ModuleVersion = '0.4.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -32,13 +34,13 @@ The secrets are encrypted on file using .NET Crypto APIs.
 A password is required for each user account store.
 "
 
-RequiredAssemblies = @('Microsoft.PowerShell.SecretStore.dll')
-
 # Minimum version of the PowerShell engine required by this module
 PowerShellVersion = '5.1'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = @('Unlock-LocalStore','Update-LocalStorePassword','Get-LocalStoreConfiguration','Set-LocalStoreConfiguration','Reset-LocalStore')
+
+FunctionsToExport = @()
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
 PrivateData = @{

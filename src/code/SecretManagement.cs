@@ -37,16 +37,6 @@ namespace Microsoft.PowerShell.SecretManagement
         public string ModulePath { get; }
 
         /// <summary>
-        /// Name of assembly implementing the SecretManagementExtension type.
-        /// </summary>
-        public string ImplementingTypeAssemblyName { get; }
-
-        /// <summary>
-        /// Name of type that implements the SecretManagementExtension type.
-        /// </summary>
-        public string ImplementingTypeName { get; }
-
-        /// <summary>
         /// Additional parameters used by vault module.
         /// </summary>
         public IReadOnlyDictionary<string, object> VaultParameters { get; }
@@ -68,37 +58,7 @@ namespace Microsoft.PowerShell.SecretManagement
             ModuleName = vaultInfo.ModuleName;
             ModulePath = vaultInfo.ModulePath;
             VaultParameters = vaultInfo.VaultParameters;
-            ImplementingTypeAssemblyName = vaultInfo.ImplementingTypeAssemblyName;
-            ImplementingTypeName = vaultInfo.ImplementingTypeName;
             IsDefault = vaultInfo.IsDefault;
-        }
-
-        #endregion
-    }
-
-    #endregion
-
-    #region SecretManagementOption
-
-    public sealed class SecretManagementOption
-    {
-        #region Parameters
-
-        /// <summary>
-        /// Class that contains SecretManagement options.
-        public bool AllowPrompting 
-        { 
-            get; 
-            private set;
-        }
-
-        #endregion
-
-        #region Constructor
-
-        internal SecretManagementOption(bool allowPrompting)
-        {
-            AllowPrompting = allowPrompting;
         }
 
         #endregion
@@ -177,7 +137,7 @@ namespace Microsoft.PowerShell.SecretManagement
             }
 
             // Resolve the module name path in calling context, if it is a path and not a name.
-            var results = SessionState.InvokeCommand.InvokeScript(
+            var results = InvokeCommand.InvokeScript(
                 script: "param([string] $path) (Resolve-Path -Path $path -EA Silent).Path",
                 args: new object[] { ModuleName });
             string resolvedPath = (results.Count == 1 && results[0] != null) ? (string) results[0].BaseObject : null;
@@ -201,48 +161,31 @@ namespace Microsoft.PowerShell.SecretManagement
             var modulePath = moduleInfo.Path;
             var dirPath = System.IO.File.Exists(modulePath) ? System.IO.Path.GetDirectoryName(modulePath) : modulePath;
 
-            // Check module required modules for implementing type of SecretManagementExtension class.
-            Type implementingType = GetImplementingTypeFromRequiredAssemblies(moduleInfo);
-
-            // Check if module supports implementing functions.
-            var haveScriptFunctionImplementation = CheckForImplementingModule(
+            if (!CheckForImplementingModule(
                 dirPath: dirPath,
-                error: out Exception error);
-
-            if (implementingType == null && !haveScriptFunctionImplementation)
+                error: out Exception error))
             {
                 var invalidException = new PSInvalidOperationException(
-                    message: "Could not find a SecretManagementExtension implementing type, or a valid implementing script module.",
+                    message: "Could not find a SecretManagement extension implementing script module.",
                     innerException: error);
 
                 ThrowTerminatingError(
                     new ErrorRecord(
                         invalidException,
-                        "RegisterSecretVaultCantFindImplementingTypeOrScriptModule",
+                        "RegisterSecretVaultCantFindImplementingScriptModule",
                         ErrorCategory.ObjectNotFound,
                         this));
             }
 
+            // Store module information.
             vaultInfo.Add(
                 key: ExtensionVaultModule.ModulePathStr,
                 value: dirPath);
-            
             vaultInfo.Add(
                 key: ExtensionVaultModule.ModuleNameStr,
                 value: moduleInfo.Name);
 
-            vaultInfo.Add(
-                key: ExtensionVaultModule.ImplementingTypeStr, 
-                value: new Hashtable() {
-                    { "AssemblyName", implementingType != null ? implementingType.Assembly.GetName().Name : string.Empty },
-                    { "TypeName", implementingType != null ? implementingType.FullName: string.Empty }
-                });
-
-            vaultInfo.Add(
-                key: ExtensionVaultModule.ImplementingFunctionsStr,
-                value: haveScriptFunctionImplementation);
-
-            // Store optional vault parameters
+            // Store optional vault parameters.
             vaultInfo.Add(
                 key: ExtensionVaultModule.VaultParametersStr,
                 value: VaultParameters);
@@ -257,31 +200,6 @@ namespace Microsoft.PowerShell.SecretManagement
         #endregion
 
         #region Private methods
-
-        private static Type GetImplementingTypeFromRequiredAssemblies(
-            PSModuleInfo moduleInfo)
-        {
-            var extensionType = typeof(Microsoft.PowerShell.SecretManagement.SecretManagementExtension);
-            foreach (var requiredAssembly in moduleInfo.RequiredAssemblies)
-            {
-                var assemblyName = System.IO.Path.GetFileNameWithoutExtension(requiredAssembly);
-                foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    if (assembly.GetName().Name.Equals(assemblyName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        foreach (var assemblyType in assembly.GetTypes())
-                        {
-                            if (extensionType.IsAssignableFrom(assemblyType))
-                            {
-                                return assemblyType;
-                            }
-                        }
-                    }
-                }
-            }
-
-            return null;
-        }
 
         private static bool CheckForImplementingModule(
             string dirPath,
@@ -298,15 +216,20 @@ namespace Microsoft.PowerShell.SecretManagement
             }
 
             // Get-Secret function
-            if (!moduleInfo.ExportedFunctions.ContainsKey("Get-Secret"))
+            if (!moduleInfo.ExportedCommands.ContainsKey("Get-Secret"))
             {
                 error = new ItemNotFoundException("Get-Secret function not found.");
                 return false;
             }
-            var funcInfo = moduleInfo.ExportedFunctions["Get-Secret"];
+            var funcInfo = moduleInfo.ExportedCommands["Get-Secret"];
             if (!funcInfo.Parameters.ContainsKey("Name"))
             {
                 error = new ItemNotFoundException("Get-Secret Name parameter not found.");
+                return false;
+            }
+            if (!funcInfo.Parameters.ContainsKey("VaultName"))
+            {
+                error = new ItemNotFoundException("Get-Secret VaultName parameter not found.");
                 return false;
             }
             if (!funcInfo.Parameters.ContainsKey("AdditionalParameters"))
@@ -316,12 +239,12 @@ namespace Microsoft.PowerShell.SecretManagement
             }
 
             // Set-Secret function
-            if (!moduleInfo.ExportedFunctions.ContainsKey("Set-Secret"))
+            if (!moduleInfo.ExportedCommands.ContainsKey("Set-Secret"))
             {
                 error = new ItemNotFoundException("Set-Secret function not found.");
                 return false;
             }
-            funcInfo = moduleInfo.ExportedFunctions["Set-Secret"];
+            funcInfo = moduleInfo.ExportedCommands["Set-Secret"];
             if (!funcInfo.Parameters.ContainsKey("Name"))
             {
                 error = new ItemNotFoundException("Set-Secret Name parameter not found.");
@@ -332,6 +255,11 @@ namespace Microsoft.PowerShell.SecretManagement
                 error = new ItemNotFoundException("Set-Secret Secret parameter not found.");
                 return false;
             }
+            if (!funcInfo.Parameters.ContainsKey("VaultName"))
+            {
+                error = new ItemNotFoundException("Set-Secret VaultName parameter not found.");
+                return false;
+            }
             if (!funcInfo.Parameters.ContainsKey("AdditionalParameters"))
             {
                 error = new ItemNotFoundException("Set-Secret AdditionalParameters parameter not found.");
@@ -339,15 +267,20 @@ namespace Microsoft.PowerShell.SecretManagement
             }
 
             // Remove-Secret function
-            if (!moduleInfo.ExportedFunctions.ContainsKey("Remove-Secret"))
+            if (!moduleInfo.ExportedCommands.ContainsKey("Remove-Secret"))
             {
                 error = new ItemNotFoundException("Remove-Secret function not found.");
                 return false;
             }
-            funcInfo = moduleInfo.ExportedFunctions["Remove-Secret"];
+            funcInfo = moduleInfo.ExportedCommands["Remove-Secret"];
             if (!funcInfo.Parameters.ContainsKey("Name"))
             {
                 error = new ItemNotFoundException("Remove-Secret Name parameter not found.");
+                return false;
+            }
+            if (!funcInfo.Parameters.ContainsKey("VaultName"))
+            {
+                error = new ItemNotFoundException("Remove-Secret VaultName parameter not found.");
                 return false;
             }
             if (!funcInfo.Parameters.ContainsKey("AdditionalParameters"))
@@ -357,15 +290,20 @@ namespace Microsoft.PowerShell.SecretManagement
             }
 
             // Get-SecretInfo function
-            if (!moduleInfo.ExportedFunctions.ContainsKey("Get-SecretInfo"))
+            if (!moduleInfo.ExportedCommands.ContainsKey("Get-SecretInfo"))
             {
                 error = new ItemNotFoundException("Get-SecretInfo function not found.");
                 return false;
             }
-            funcInfo = moduleInfo.ExportedFunctions["Get-SecretInfo"];
+            funcInfo = moduleInfo.ExportedCommands["Get-SecretInfo"];
             if (!funcInfo.Parameters.ContainsKey("Filter"))
             {
                 error = new ItemNotFoundException("Get-SecretInfo Filter parameter not found.");
+                return false;
+            }
+            if (!funcInfo.Parameters.ContainsKey("VaultName"))
+            {
+                error = new ItemNotFoundException("Get-SecretInfo VaultName parameter not found.");
                 return false;
             }
             if (!funcInfo.Parameters.ContainsKey("AdditionalParameters"))
@@ -389,29 +327,6 @@ namespace Microsoft.PowerShell.SecretManagement
             if (!funcInfo.Parameters.ContainsKey("AdditionalParameters"))
             {
                 error = new ItemNotFoundException("Test-SecretVault AdditionalParameters parameter not found.");
-                return false;
-            }
-
-            // Unlock-SecretVault function
-            if (!moduleInfo.ExportedFunctions.ContainsKey("Unlock-SecretVault"))
-            {
-                error = new ItemNotFoundException("Unlock-SecretVault function not found.");
-                return false;
-            }
-            funcInfo = moduleInfo.ExportedFunctions["Unlock-SecretVault"];
-            if (!funcInfo.Parameters.ContainsKey("VaultKey"))
-            {
-                error = new ItemNotFoundException("Unlock-SecretVault VaultKey parameter not found.");
-                return false;
-            }
-            if (!funcInfo.Parameters.ContainsKey("VaultName"))
-            {
-                error = new ItemNotFoundException("Unlock-SecretVault VaultName parameter not found.");
-                return false;
-            }
-            if (!funcInfo.Parameters.ContainsKey("AdditionalParameters"))
-            {
-                error = new ItemNotFoundException("Unlock-SecretVault AdditionalParameters parameter not found.");
                 return false;
             }
 
@@ -554,51 +469,6 @@ namespace Microsoft.PowerShell.SecretManagement
                         errorCategory: ErrorCategory.ObjectNotFound,
                         this));
             }
-        }
-
-        #endregion
-    }
-
-    #endregion
-
-    #region Set-Option
-
-    [Cmdlet(VerbsCommon.Set, "Option")]
-    [OutputType(typeof(SecretManagementOption))]
-    public sealed class SetOptionCommand : PSCmdlet
-    {
-        #region Parameters
-
-        [Parameter (Position=0)]
-        public SwitchParameter AllowPrompting { get; set; }
-
-        #endregion
-
-        #region Overrides
-
-        protected override void EndProcessing()
-        {
-            var option = new SecretManagementOption(AllowPrompting);
-            RegisteredVaultCache.SetOption(option);
-            WriteObject(option);
-        }
-
-        #endregion
-    }
-
-    #endregion
-
-    #region Get-Option
-
-    [Cmdlet(VerbsCommon.Get, "Option")]
-    [OutputType(typeof(SecretVaultInfo))]
-    public sealed class GetOptionCommand : PSCmdlet
-    {
-        #region Overrides
-
-        protected override void EndProcessing()
-        {
-            WriteObject(RegisteredVaultCache.Option);
         }
 
         #endregion
@@ -1164,47 +1034,6 @@ namespace Microsoft.PowerShell.SecretManagement
 
     #endregion
 
-    #region Unlock-SecretVault
-
-    /// <summary>
-    /// Unlocks a vault with the provided key.
-    /// </summary>
-    [Cmdlet(VerbsCommon.Unlock, "SecretVault")]
-    public sealed class UnlockSecretVaultCommand : SecretCmdlet
-    {
-        #region Parameters
-
-        /// <summary>
-        /// Gets or sets the vault name to be unlocked.
-        /// </summary>
-        [Parameter(Position=0, Mandatory=true)]
-        [ValidateNotNullOrEmpty]
-        public string Name { get; set; }
-        
-        /// <summary>
-        /// Gets or sets the key to unlock the vault.
-        /// </summary>
-        [Parameter(Position=1, Mandatory=true)]
-        public SecureString Key { get; set; }
-
-        #endregion
-
-        #region Overrides
-
-        protected override void EndProcessing()
-        {
-            var extensionModule = GetExtensionVault(Name);
-            extensionModule.InvokeUnlockVault(
-                vaultKey: Key,
-                vaultName: Name,
-                cmdlet: this);
-        }
-
-        #endregion
-    }
-
-    #endregion
-    
     #region Test-SecretVault
 
     /// <summary>

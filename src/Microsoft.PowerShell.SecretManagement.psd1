@@ -7,13 +7,13 @@
 RootModule = '.\Microsoft.PowerShell.SecretManagement.dll'
 
 # Version number of this module.
-ModuleVersion = '0.3.0'
+ModuleVersion = '0.4.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
 
 # ID used to uniquely identify this module
-GUID = '766a9266-f2ba-4146-bec2-bb30bf5a4f0a'
+GUID = 'a5c858f6-4a8e-41f1-b1ee-0ff8f6ad69d3'
 
 # Author of this module
 Author = 'Microsoft Corporation'
@@ -30,25 +30,6 @@ This module helps manage secrets by providing a set of cmdlets that lets you sto
 locally using a local vault provider, and access secrets from remote vaults.
 Local and remote vaults can be registered and unregistered on the local machine, per user,
 for use in managing and retrieving secrets.
-
-*****
-Breaking change for 0.2.0: The script extension vault module name has been changed from 
-'ImplementingModule' to 'SecretManagementExtension'.
-Any registered script extension vault module will have to be renamed accordingly.
-*****
-
-*****
-Breaking change for 0.2.1: Module and cmdlets renamed.  Changes to required functions.
-All previous vault extensions will need to be updated.
-*****
-
-*****
-This is an alpha version of the module that currently works only on Windows platforms.
-*****
-
-*****
-Breaking change for 0.3.0: Removing BuiltInLocalVault.
-*****
 "
 
 # Minimum version of the PowerShell engine required by this module
@@ -62,8 +43,8 @@ FunctionsToExport = @()
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = @(
-    'Register-SecretVault','Unregister-SecretVault','Get-SecretVault','Set-DefaultVault','Set-Secret','Remove-Secret','Get-Secret','Get-SecretInfo',
-    'Unlock-SecretVault','Test-SecretVault','Get-Option','Set-Option')
+    'Register-SecretVault','Unregister-SecretVault','Get-SecretVault','Set-DefaultVault','Test-SecretVault',
+    'Set-Secret','Get-Secret','Get-SecretInfo','Remove-Secret')
 
 # Variables to export from this module
 VariablesToExport = '*'
@@ -92,7 +73,7 @@ PrivateData = @{
         # ReleaseNotes = ''
 
         # Prerelease string of this module
-        Prerelease = 'alpha2'
+        Prerelease = 'alpha3'
 
         # Flag to indicate whether the module requires explicit user acceptance for install/update/save
         # RequireLicenseAcceptance = $false

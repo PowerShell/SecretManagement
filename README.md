@@ -20,10 +20,7 @@ Registering extension vaults:
 - Get-SecretVault
 - Unregister-SecretVault
 - Test-SecretVault
-- Unlock-SecretVault
 - Set-DefaultVault
-- Get-Option
-- Set-Option
 
 Accessing secrets:
 
@@ -49,65 +46,6 @@ The actual secret is not returned.
 Stores a single secret object to the extension vault (optional).
 - Remove-Secret  
 Removes a single secret object from the extension vault (optional).
-
-### Binary module vault extension
-
-This is a PowerShell module with a manifest file (.psd1) that specifies a managed assembly that implements the SecretManagementExtension abstract class.
-An example of such a module has been provided in the `TestExtensionModules\AKVault\` directory.
-This binary module uses the Azure `Az.Accounts` and `Az.KeyVault` PowerShell modules to add/remove/retrieve SecureString secrets from an Azure KeyVault resource.
-See the `TestExtensionModules\AKVault\build\AKVaultExtension\AKVaultExtension.cs` source file for details.
-This module requires extra information in order to connect to an Azure KeyVault resource, and uses the Secrets Management optional `-VaultParameters` optional dictionary parameter to provide that information to the implementation module.
-Since the Secrets Management can't know if the `-VaultParameters` contain secrets, the dictionary is always securely stored as a hashtable in the built-in local vault.
-An example registration of a working vault extension using this module is:
-
-```powershell
-Register-SecretVault -Name AzKeyVault -ModuleName AKVault -VaultParameters @{ AZKVaultName = 'MyAzKeyVault'; SubscriptionId = 'f3bc301d-40b7-4bcb-8e66-b1b238200f02' }
-```
-
-This module basically implements the five required methods as a C# class implementing the abstract SecretManagementExtension class (again see the `AKVaultExtension.cs` source file for details).
-
-```C#
-public override object GetSecret(
-    string name,
-    string vaultName,
-    IReadOnlyDictionary<string, object> additionalParameters,
-    out Exception error)
-{ }
-
-public override KeyValuePair<string, string>[] GetSecretInfo(
-    string filter,
-    string vaultName,
-    IReadOnlyDictionary<string, object> additionalParameters,
-    out Exception error)
-{ }
-
-public override bool SetSecret(
-    string name,
-    object secret,
-    string vaultName,
-    IReadOnlyDictionary<string, object> additionalParameters,
-    out Exception error)
-{ }
-
-public override bool RemoveSecret(
-    string name,
-    string vaultName,
-    IReadOnlyDictionary<string, object> additionalParameters,
-    out Exception error)
-{ }
-
-public override bool TestVault(
-    string vaultName,
-    IReadOnlyDictionary<string, object> additionalParameters,
-    out Exception[] errors)
-{ }
-
-public override bool UnlockSecretVault(
-    SecureString vaultKey,
-    string vaultName,
-    out Exception error)
-{ }
-```
 
 ### Script module vault extension
 
@@ -183,16 +121,6 @@ function Test-Vault
     )
 
 }
-
-function Unlock-SecretVault
-{
-    param (
-        [securestring] $VaultKey,
-        [string] $VaultName,
-        [hashtable] $AdditionalParameters
-    )
-
-}
 ```
 
 A vault extension doesn't need to provide full implementation of all required methods.
@@ -218,9 +146,6 @@ Output: True on success, False otherwise
 - Test-Vault
 Input Parameters VaultName, AdditionalParameters
 Output: True for valid vault, False otherwise
-- Unlock-Vault
-Input Parameters VaultKey, VaultName, AdditionalParameters
-Output True on successful unlock
 
 You have to be careful with PowerShell script functions, because there are many ways for objects to be added to the output pipeline and the Secrets Management module expects very specific output objects from the functions.
 Make sure your script implementation does not inadvertently insert spurious objects to the pipeline, which will confuse the Secrets Management module.

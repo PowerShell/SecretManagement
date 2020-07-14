@@ -10,9 +10,6 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             Import-Module -Name Microsoft.PowerShell.SecretManagement
         }
 
-        $global:oldSMPrompting = (Get-Option).AllowPrompting
-        Set-Option -AllowPrompting:$false
-
         Unregister-SecretVault -Name TestLocalVault -ErrorAction SilentlyContinue
         Register-SecretVault -Name TestLocalVault -ModuleName ../Microsoft.PowerShell.SecretStore.psd1 -DefaultVault
         
@@ -29,10 +26,6 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
     AfterAll {
 
         Unregister-SecretVault -Name TestLocalVault -ErrorAction SilentlyContinue
-        if ($global:oldSMPrompting)
-        {
-            Set-Option -AllowPrompting
-        }
     }
 
     Context "Local Store file permission tests" {
