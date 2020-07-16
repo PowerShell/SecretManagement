@@ -313,12 +313,12 @@ namespace Microsoft.PowerShell.SecretManagement
             }
 
             // Test-SecretVault function
-            if (!moduleInfo.ExportedFunctions.ContainsKey("Test-SecretVault"))
+            if (!moduleInfo.ExportedCommands.ContainsKey("Test-SecretVault"))
             {
                 error = new ItemNotFoundException("Test-SecretVault function not found.");
                 return false;
             }
-            funcInfo = moduleInfo.ExportedFunctions["Test-SecretVault"];
+            funcInfo = moduleInfo.ExportedCommands["Test-SecretVault"];
             if (!funcInfo.Parameters.ContainsKey("VaultName"))
             {
                 error = new ItemNotFoundException("Test-SecretVault VaultName parameter not found.");

@@ -1,6 +1,5 @@
-#
-# SecretStore extension vault function implementation
-#
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
 
 function Get-Secret
 {
@@ -23,14 +22,7 @@ function Get-Secret
                 [ref] $outSecret,
                 [ref] $errorMsg))
             {
-                if ($outSecret -is [byte[]])
-                {
-                    Write-Output @(,$outSecret)
-                }
-                else
-                {
-                    Write-Output $outSecret
-                }
+                Write-Output $outSecret -NoEnumerate
             }
 
             break
