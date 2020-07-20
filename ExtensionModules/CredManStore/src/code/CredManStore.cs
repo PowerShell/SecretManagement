@@ -10,7 +10,6 @@ using System.Management.Automation;
 
 namespace Microsoft.PowerShell.CredManStore
 {
-    /*
     #region Get-Secret
 
     [Cmdlet(VerbsCommon.Get, "Secret")]
@@ -253,5 +252,4 @@ namespace Microsoft.PowerShell.CredManStore
     }
 
     #endregion
-*/
 }
