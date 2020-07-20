@@ -116,12 +116,13 @@ function Set-Secret
     {
         try
         {
-            [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
+            if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
                 $Name,
                 $Secret,
-                [ref] $errorMsg)
-            
-            break
+                [ref] $errorMsg))
+            {
+                return
+            }
         }
         catch [Microsoft.PowerShell.SecretStore.PasswordRequiredException]
         {
@@ -161,11 +162,12 @@ function Remove-Secret
     {
         try
         {
-            [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().DeleteObject(
+            if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().DeleteObject(
                 $Name,
-                [ref] $errorMsg)
-            
-            break
+                [ref] $errorMsg))
+            {
+                return
+            }
         }
         catch [Microsoft.PowerShell.SecretStore.PasswordRequiredException]
         {
@@ -181,13 +183,19 @@ function Remove-Secret
 
     if (! [string]::IsNullOrEmpty($errorMsg))
     {
-        $errorRecord = [System.Management.Automation.ErrorRecord]::new(
-            [System.Management.Automation.ItemNotFoundException]::new("Remove-Secret error in vault $VaultName : $errorMsg"),
-            "SecretStoreRemoveSecretFailed",
-            [System.Management.Automation.ErrorCategory]::InvalidOperation,
-            $null)
-        Write-Error -ErrorRecord $errorRecord
+        $Msg = "Remove-Secret error in vault $VaultName : $errorMsg"
     }
+    else
+    {
+        $Msg = "Remove-Secret error in vault $VaultName : Secret not found"
+    }
+
+    $errorRecord = [System.Management.Automation.ErrorRecord]::new(
+        [System.Management.Automation.ItemNotFoundException]::new($Msg),
+        "SecretStoreRemoveSecretFailed",
+        [System.Management.Automation.ErrorCategory]::InvalidOperation,
+        $null)
+    Write-Error -ErrorRecord $errorRecord
 }
 
 function Test-SecretVault

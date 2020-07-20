@@ -3,9 +3,6 @@
 
 @{
 
-# Script module or binary module file associated with this manifest.
-RootModule = '.\Microsoft.PowerShell.CredManStore.dll'
-
 NestedModules = @('.\SecretManagementExtension')
 
 # Version number of this module.

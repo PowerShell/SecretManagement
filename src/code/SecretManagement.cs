@@ -691,7 +691,10 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets a name of secret to retrieve.
         /// <summary>
-        [Parameter(Position=0, Mandatory=true)]
+        [Parameter(Position=0, 
+                   Mandatory=true,
+                   ValueFromPipeline=true,
+                   ValueFromPipelineByPropertyName=true)]
         public string Name { get; set; }
 
         /// <summary>
@@ -711,12 +714,12 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Overrides
 
-        protected override void EndProcessing()
+        protected override void ProcessRecord()
         {
             // Wild card characters are not supported in this cmdlet.
             if (WildcardPattern.ContainsWildcardCharacters(Name))
             {
-                ThrowTerminatingError(
+                WriteError(
                     new ErrorRecord(
                         new ArgumentException("Name parameter cannot contain wildcard characters."),
                         "GetSecretNoWildcardCharsAllowed",
@@ -812,23 +815,43 @@ namespace Microsoft.PowerShell.SecretManagement
                 secret = secretPSObject.BaseObject;
             }
 
-            if (!AsPlainText && secret is string stringSecret)
+            if (secret is Hashtable secretHashtable)
             {
-                // Write a string secret type only if explicitly requested with the -AsPlainText
-                // parameter switch.  Otherwise return it as a SecureString type.
-                WriteObject(Utils.ConvertToSecureString(stringSecret));
+                WriteObject(
+                    ConvertHashtableElements(secretHashtable));
                 return;
             }
 
-            if (AsPlainText && secret is SecureString secureString)
+            WriteObject(
+                ConvertSecureString(secret));
+        }
+
+        private Hashtable ConvertHashtableElements(Hashtable hashtable)
+        {
+            Hashtable returnHashtable = new Hashtable(hashtable.Count);
+            foreach (var key in hashtable.Keys)
             {
-                // Convert secure string to plain text.
-                var networkCred = new System.Net.NetworkCredential("", secureString);
-                WriteObject(networkCred.Password);
-                return;
+                returnHashtable.Add(key, ConvertSecureString(hashtable[key]));
             }
 
-            WriteObject(secret);
+            return returnHashtable;
+        }
+
+        // All string secrets are converted to SecureString objects, unless AsPlainText
+        // is selected, in which case both string and SecureString secrets are returned as strings.
+        private object ConvertSecureString(object item)
+        {
+            if (!AsPlainText && item is string stringItem)
+            {
+                return Utils.ConvertToSecureString(stringItem);
+            }
+            else if (AsPlainText && item is SecureString secureStringItem)
+            {
+                var networkCred = new System.Net.NetworkCredential("", secureStringItem);
+                return networkCred.Password;
+            }
+
+            return item;
         }
 
         private void WriteNotFoundError()
