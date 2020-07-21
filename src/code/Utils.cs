@@ -5,6 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
@@ -19,6 +20,8 @@ namespace Microsoft.PowerShell.SecretManagement
     internal static class Utils
     {
         #region Members
+
+        private const string ImplementingExtension = "Extension";
 
         private const string ConvertJsonToHashtableScript = @"
             param (
@@ -122,6 +125,12 @@ namespace Microsoft.PowerShell.SecretManagement
                 error: out ErrorRecord _);
             
             return (results.Count > 0) ? results[0] : null;
+        }
+
+        public static string GetModuleExtensionName(string moduleName)
+        {
+            return string.Format(CultureInfo.InvariantCulture, 
+                @"{0}.{1}", moduleName, ImplementingExtension);
         }
 
         #endregion
@@ -349,7 +358,7 @@ namespace Microsoft.PowerShell.SecretManagement
             InvokeOnCmdlet(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
-                args: new object[] { ModulePath, RegisterSecretVaultCommand.ImplementingModule, SetSecretCmd, parameters },
+                args: new object[] { ModulePath, Utils.GetModuleExtensionName(ModuleName), SetSecretCmd, parameters },
                 out Exception terminatingError);
             
             if (terminatingError != null)
@@ -388,7 +397,7 @@ namespace Microsoft.PowerShell.SecretManagement
             var results = InvokeOnCmdlet<object>(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
-                args: new object[] { ModulePath, RegisterSecretVaultCommand.ImplementingModule, GetSecretCmd, parameters },
+                args: new object[] { ModulePath, Utils.GetModuleExtensionName(ModuleName), GetSecretCmd, parameters },
                 out Exception terminatingError);
             
             if (terminatingError != null)
@@ -445,7 +454,7 @@ namespace Microsoft.PowerShell.SecretManagement
             InvokeOnCmdlet(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
-                args: new object[] { ModulePath, RegisterSecretVaultCommand.ImplementingModule, RemoveSecretCmd, parameters },
+                args: new object[] { ModulePath, Utils.GetModuleExtensionName(ModuleName), RemoveSecretCmd, parameters },
                 out Exception terminatingError);
 
             if (terminatingError != null)
@@ -484,7 +493,7 @@ namespace Microsoft.PowerShell.SecretManagement
             var results = InvokeOnCmdlet<SecretInformation>(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
-                args: new object[] { ModulePath, RegisterSecretVaultCommand.ImplementingModule, GetSecretInfoCmd, parameters },
+                args: new object[] { ModulePath, Utils.GetModuleExtensionName(ModuleName), GetSecretInfoCmd, parameters },
                 out Exception terminatingError);
             
             if (terminatingError != null)
@@ -522,7 +531,7 @@ namespace Microsoft.PowerShell.SecretManagement
             var results = InvokeOnCmdlet<bool>(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
-                args: new object[] { ModulePath, RegisterSecretVaultCommand.ImplementingModule, TestVaultCmd, parameters },
+                args: new object[] { ModulePath, Utils.GetModuleExtensionName(ModuleName), TestVaultCmd, parameters },
                 out Exception terminatingError);
 
             if (terminatingError != null)

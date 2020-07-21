@@ -1,4 +1,6 @@
 @{
     ModuleVersion = '1.0'
-    NestedModules = @('.\SecretManagementExtension')
+    NestedModules = @('.\TestLocalScript.Extension')
+    CmdletsToExport = @()
+    FunctionsToExport = @()
 }
