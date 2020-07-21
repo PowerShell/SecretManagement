@@ -74,12 +74,6 @@ namespace Microsoft.PowerShell.SecretManagement
     [Cmdlet(VerbsLifecycle.Register, "SecretVault", SupportsShouldProcess = true)]
     public sealed class RegisterSecretVaultCommand : PSCmdlet
     {
-        #region Members
-
-        internal const string ImplementingModule = "SecretManagementExtension";
-
-        #endregion
-
         #region Parameters
 
         /// <summary>
@@ -100,7 +94,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets an optional Hashtable of parameters by name/value pairs.
         /// The hashtable is stored securely in the local store, and is made available to the 
-        /// SecretManagementExtension implementing type or module script functions.
+        /// extension implementing module script functions.
         /// </summary>
         [Parameter]
         public Hashtable VaultParameters { get; set; } = new Hashtable();
@@ -163,6 +157,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
             if (!CheckForImplementingModule(
                 dirPath: dirPath,
+                moduleName: moduleInfo.Name,
                 error: out Exception error))
             {
                 var invalidException = new PSInvalidOperationException(
@@ -203,11 +198,13 @@ namespace Microsoft.PowerShell.SecretManagement
 
         private static bool CheckForImplementingModule(
             string dirPath,
+            string moduleName,
             out Exception error)
         {
-            // An implementing module will be in a subfolder with module name 'SecretManagementExtension',
-            // and will export the four required functions: Set-Secret, Get-Secret, Remove-Secret, Get-SecretInfo.
-            var implementingModulePath = System.IO.Path.Combine(dirPath, ImplementingModule);
+            // An implementing module will be in a subfolder with module name 'ModuleName.Extension',
+            // and will export the five required functions: Set-Secret, Get-Secret, Remove-Secret, Get-SecretInfo, Test-SecretVault.
+            var implementingModuleName = Utils.GetModuleExtensionName(moduleName);
+            var implementingModulePath = System.IO.Path.Combine(dirPath, implementingModuleName);
             var moduleInfo = GetModuleInfo(implementingModulePath);
             if (moduleInfo == null)
             {

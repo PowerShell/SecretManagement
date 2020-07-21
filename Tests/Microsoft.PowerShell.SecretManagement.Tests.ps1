@@ -16,10 +16,15 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
         # Script extension module
         $scriptModuleName = "TVaultScript"
+        $implementingModuleName = "TVaultScript.Extension"
         $scriptModulePath = Join-Path $testdrive $scriptModuleName
         New-Item -ItemType Directory $scriptModulePath -Force
         $script:scriptModuleFilePath = Join-Path $scriptModulePath "${scriptModuleName}.psd1"
-        "@{ ModuleVersion = '1.0'; NestedModules = @('.\SecretManagementExtension'); FunctionsToExport = @() }" | Out-File -FilePath $script:scriptModuleFilePath
+        "@{{
+            ModuleVersion = '1.0'
+            NestedModules = @('.\{0}')
+            FunctionsToExport = @() 
+        }}" -f $implementingModuleName | Out-File -FilePath $script:scriptModuleFilePath
 
         $scriptImplementation = @'
             function Get-Secret
@@ -116,7 +121,6 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
             }
 '@
 
-        $implementingModuleName = "SecretManagementExtension"
         $implementingModulePath = Join-Path $scriptModulePath $implementingModuleName
         New-Item -ItemType Directory $implementingModulePath -Force
         $implementingManifestFilePath = Join-Path $implementingModulePath "${implementingModuleName}.psd1"
@@ -325,7 +329,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         }
 
         It "Verifies reading Hashtable type from $Title vault" {
-            $ht = Get-Secret -Name BinVaultHT -Vault $VaultName -ErrorVariable err
+            $ht = Get-Secret -Name BinVaultHT -Vault $VaultName -AsPlainText -ErrorVariable err
             $err.Count | Should -Be 0
             $ht.Blob.Count | Should -Be 2
             $ht.Str | Should -BeExactly "Hello"

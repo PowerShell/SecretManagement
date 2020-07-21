@@ -137,7 +137,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
         }
 
         It "Verifies Hashtable read from local store" {
-            $ht = Get-Secret -Name __Test_Hashtable_ -Vault TestLocalVault -ErrorVariable err
+            $ht = Get-Secret -Name __Test_Hashtable_ -Vault TestLocalVault -AsPlainText -ErrorVariable err
             
         }
 
