@@ -211,7 +211,9 @@ namespace Microsoft.PowerShell.SecretManagement
             var moduleInfo = GetModuleInfo(implementingModulePath);
             if (moduleInfo == null)
             {
-                error = new ItemNotFoundException("Implementing script module not found.");
+                error = new ItemNotFoundException(
+                    string.Format(CultureInfo.InvariantCulture, 
+                    @"Implementing script module not found at : {0}.", implementingModulePath));
                 return false;
             }
 
@@ -346,7 +348,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 ",
                 args: new object[] { modulePath },
                 out Exception _);
-            
+
             return (results.Count == 1) ? results[0] : null;
         }
 
