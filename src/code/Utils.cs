@@ -565,7 +565,7 @@ namespace Microsoft.PowerShell.SecretManagement
             return additionalParams;
         }
 
-        private Collection<PSObject> InvokeOnCmdlet(
+        private static Collection<PSObject> InvokeOnCmdlet(
             PSCmdlet cmdlet,
             string script,
             object[] args,
@@ -588,7 +588,7 @@ namespace Microsoft.PowerShell.SecretManagement
             }
         }
 
-        private Collection<T> InvokeOnCmdlet<T>(
+        private static Collection<T> InvokeOnCmdlet<T>(
             PSCmdlet cmdlet,
             string script,
             object[] args,
