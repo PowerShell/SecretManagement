@@ -55,13 +55,7 @@ function Set-Secret
     )
 
     $filePath = Join-Path -Path (Get-Path $VaultName) -ChildPath "${Name}.xml"
-    if (Test-Path -Path $filePath)
-    {
-        Write-Error "Secret name, $Name, is already used in this vault."
-        return $false
-    }
-
-    $Secret | Export-Clixml -Path $filePath
+    $Secret | Export-Clixml -Path $filePath -Force
     return $true
 }
 

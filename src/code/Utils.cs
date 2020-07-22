@@ -269,6 +269,11 @@ namespace Microsoft.PowerShell.SecretManagement
         public string ModuleName { get; }
 
         /// <summary>
+        /// Name of module extension which implements required functions.
+        /// </summary>
+        public string ModuleExtensionName { get; }
+
+        /// <summary>
         /// Module path.
         /// </summary>
         public string ModulePath { get; }
@@ -300,6 +305,7 @@ namespace Microsoft.PowerShell.SecretManagement
             IsDefault = isDefault;
             VaultName = vaultName;
             ModuleName = (string) vaultInfo[ModuleNameStr];
+            ModuleExtensionName = Utils.GetModuleExtensionName(ModuleName);
             ModulePath = (string) vaultInfo[ModulePathStr];
 
             // Additional parameters.
@@ -325,6 +331,7 @@ namespace Microsoft.PowerShell.SecretManagement
         {
             VaultName = module.VaultName;
             ModuleName = module.ModuleName;
+            ModuleExtensionName = module.ModuleExtensionName;
             ModulePath = module.ModulePath;
             VaultParameters = module.VaultParameters;
             IsDefault = module.IsDefault;
@@ -358,7 +365,7 @@ namespace Microsoft.PowerShell.SecretManagement
             InvokeOnCmdlet(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
-                args: new object[] { ModulePath, Utils.GetModuleExtensionName(ModuleName), SetSecretCmd, parameters },
+                args: new object[] { ModulePath, ModuleExtensionName, SetSecretCmd, parameters },
                 out Exception terminatingError);
             
             if (terminatingError != null)
@@ -397,7 +404,7 @@ namespace Microsoft.PowerShell.SecretManagement
             var results = InvokeOnCmdlet<object>(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
-                args: new object[] { ModulePath, Utils.GetModuleExtensionName(ModuleName), GetSecretCmd, parameters },
+                args: new object[] { ModulePath, ModuleExtensionName, GetSecretCmd, parameters },
                 out Exception terminatingError);
             
             if (terminatingError != null)
@@ -454,7 +461,7 @@ namespace Microsoft.PowerShell.SecretManagement
             InvokeOnCmdlet(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
-                args: new object[] { ModulePath, Utils.GetModuleExtensionName(ModuleName), RemoveSecretCmd, parameters },
+                args: new object[] { ModulePath, ModuleExtensionName, RemoveSecretCmd, parameters },
                 out Exception terminatingError);
 
             if (terminatingError != null)
@@ -493,7 +500,7 @@ namespace Microsoft.PowerShell.SecretManagement
             var results = InvokeOnCmdlet<SecretInformation>(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
-                args: new object[] { ModulePath, Utils.GetModuleExtensionName(ModuleName), GetSecretInfoCmd, parameters },
+                args: new object[] { ModulePath, ModuleExtensionName, GetSecretInfoCmd, parameters },
                 out Exception terminatingError);
             
             if (terminatingError != null)
@@ -531,7 +538,7 @@ namespace Microsoft.PowerShell.SecretManagement
             var results = InvokeOnCmdlet<bool>(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
-                args: new object[] { ModulePath, Utils.GetModuleExtensionName(ModuleName), TestVaultCmd, parameters },
+                args: new object[] { ModulePath, ModuleExtensionName, TestVaultCmd, parameters },
                 out Exception terminatingError);
 
             if (terminatingError != null)
