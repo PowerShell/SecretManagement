@@ -5,150 +5,300 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
 
     BeforeAll {
 
+        if (! $IsWindows)
+        {
+            $defaultParameterValues = $PSDefaultParameterValues.Clone()
+            $PSDefaultParameterValues["it:Skip"] = $true
+        }
+        else
+        {
+            if ((Get-Module -Name Microsoft.PowerShell.SecretManagement -ErrorAction Ignore) -eq $null)
+            {
+                Import-Module -Name Microsoft.PowerShell.SecretManagement
+            }
+
+            if ((Get-Module -Name Microsoft.PowerShell.CredManStore -ErrorAction Ignore) -eq $null)
+            {
+                Import-Module -Name ..\Microsoft.PowerShell.CredManStore.psd1
+            }
+        }
     }
 
     AfterAll {
 
-    }
-
-    Context "CredMan Store basic tests" {
-
-        BeforeAll {
-
-        }
-
-        if ($IsWindows)
+        if (! $IsWindows)
         {
-            
+            $global:PSDefaultParameterValues = $defaultParameterValues
         }
     }
 
     Context "CredMan Store Vault Byte[] type" {
 
-        $bytesToWrite = [System.Text.Encoding]::UTF8.GetBytes("Hello!!!")
+        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+        $bytesToWrite = [System.Text.Encoding]::UTF8.GetBytes('TestStringForBytes')
+        $errorCode = 0
 
-        It "Verifies byte[] write to local store" {
+        It "Verifies byte[] write to store" {
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::WriteObject(
+                $secretName,
+                $bytesToWrite,
+                [ref] $errorCode)
 
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
         }
 
-        It "Verifes byte[] read from local store" {
-
-        }
-
-        It "Verifes byte[] clobber error in local store" {
+        It "Verifes byte[] read from store" {
+            $outBytes = $null
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::ReadObject(
+                $secretName,
+                [ref] $outBytes,
+                [ref] $errorCode)
             
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
+            [System.Text.Encoding]::UTF8.GetString($outBytes) | Should -BeExactly 'TestStringForBytes'
         }
 
-        It "Verifies byte[] enumeration from local store" {
+        It "Verifies byte[] enumeration from store" {
+            $outInfo = $null
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::EnumerateObjectInfo(
+                $secretName,
+                [ref] $outInfo,
+                [ref] $errorCode)
             
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
+            $outInfo.Key | Should -BeExactly $secretName
+            $outInfo.Value | Should -BeExactly 'ByteArray'
         }
 
-        It "Verifies Remove byte[] secret" {
+        It "Verifies Remove byte[] secret from store" {
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::DeleteObject(
+                $secretName,
+                [ref] $errorCode)
             
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
         }
     }
 
     Context "CredMan Store Vault String type" {
 
-        It "Verifes string write to local store" {
-            
+        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+        $stringToWrite = 'TestStringForString'
+        $errorCode = 0
+
+        It "Verifes string write to store" {
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::WriteObject(
+                $secretName,
+                $stringToWrite,
+                [ref] $errorCode)
+
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
         }
 
-        It "Verifies string read from local store" {
+        It "Verifies string read from store" {
+            $outString = $null
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::ReadObject(
+                $secretName,
+                [ref] $outString,
+                [ref] $errorCode)
             
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
+            $outString | Should -BeExactly 'TestStringForString'
         }
 
-        It "Verifies string enumeration from local store" {
+        It "Verifies string enumeration from store" {
+            $outInfo = $null
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::EnumerateObjectInfo(
+                $secretName,
+                [ref] $outInfo,
+                [ref] $errorCode)
             
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
+            $outInfo.Key | Should -BeExactly $secretName
+            $outInfo.Value | Should -BeExactly 'String'
         }
 
-        It "Verifies string remove from local store" {
+        It "Verifies string remove from store" {
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::DeleteObject(
+                $secretName,
+                [ref] $errorCode)
             
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
         }
     }
 
     Context "CredMan Store Vault SecureString type" {
 
+        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
         $randomSecret = [System.IO.Path]::GetRandomFileName()
         $secureStringToWrite = ConvertTo-SecureString -String $randomSecret -AsPlainText -Force
+        $errorCode = 0
 
-        It "Verifies SecureString write to local store" {
-            
+        It "Verifies SecureString write to store" {
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::WriteObject(
+                $secretName,
+                $secureStringToWrite,
+                [ref] $errorCode)
+
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
         }
 
-        It "Verifies SecureString read from local store" {
+        It "Verifies SecureString read from store" {
+            $outSecureString = $null
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::ReadObject(
+                $secretName,
+                [ref] $outSecureString,
+                [ref] $errorCode)
             
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
+            [System.Net.NetworkCredential]::new('',$outSecureString).Password | Should -BeExactly $randomSecret
         }
 
-        It "Verifies SecureString enumeration from local store" {
+        It "Verifies SecureString enumeration from store" {
+            $outInfo = $null
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::EnumerateObjectInfo(
+                $secretName,
+                [ref] $outInfo,
+                [ref] $errorCode)
             
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
+            $outInfo.Key | Should -BeExactly $secretName
+            $outInfo.Value | Should -BeExactly 'SecureString'
         }
 
-        It "Verifies SecureString remove from local store" {
+        It "Verifies SecureString remove from store" {
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::DeleteObject(
+                $secretName,
+                [ref] $errorCode)
             
-        }
-
-        It "Verifies SecureString write with alternate parameter set" {
-            
-        }
-
-        It "Verifies SecureString read from alternate parameter set" {
-            
-        }
-
-        It "Verifes SecureString remove from alternate parameter set" {
-            
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
         }
     }
 
     Context "CredMan Store Vault PSCredential type" {
 
+        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
         $randomSecret = [System.IO.Path]::GetRandomFileName()
+        $errorCode = 0
 
-        It "Verifies PSCredential type write to local store" {
-            
+        It "Verifies PSCredential type write to store" {
+            $cred = [pscredential]::new('UserL', (ConvertTo-SecureString $randomSecret -AsPlainText -Force))
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::WriteObject(
+                $secretName,
+                $cred,
+                [ref] $errorCode)
+
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
         }
 
-        It "Verifies PSCredential read from local store" {
+        It "Verifies PSCredential read from store" {
+            $outCred = $null
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::ReadObject(
+                $secretName,
+                [ref] $outCred,
+                [ref] $errorCode)
             
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
+            $outCred.UserName | Should -BeExactly "UserL"
+            [System.Net.NetworkCredential]::new('', ($outCred.Password)).Password | Should -BeExactly $randomSecret
         }
 
-        It "Verifies PSCredential enumeration from local store" {
+        It "Verifies PSCredential enumeration from store" {
+            $outInfo = $null
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::EnumerateObjectInfo(
+                $secretName,
+                [ref] $outInfo,
+                [ref] $errorCode)
             
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
+            $outInfo.Key | Should -BeExactly $secretName
+            $outInfo.Value | Should -BeExactly 'PSCredential'
         }
 
-        It "Verifies PSCredential remove from local store" {
+        It "Verifies PSCredential remove from store" {
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::DeleteObject(
+                $secretName,
+                [ref] $errorCode)
             
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
         }
     }
 
-    Context "Local Store Vault Hashtable type" {
+    Context "CredMan Store Vault Hashtable type" {
+
+        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
         $randomSecretA = [System.IO.Path]::GetRandomFileName()
         $randomSecretB = [System.IO.Path]::GetRandomFileName()
+        $errorCode = 0
 
-        It "Verifies Hashtable type write to local store" {
+        It "Verifies Hashtable type write to store" {
             $ht = @{
                 Blob = ([byte[]] @(1,2))
-                Str = "Hello"
+                Str = "TestStoreString"
                 SecureString = (ConvertTo-SecureString $randomSecretA -AsPlainText -Force)
                 Cred = ([pscredential]::New("UserA", (ConvertTo-SecureString $randomSecretB -AsPlainText -Force)))
             }
-            
+
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::WriteObject(
+                $secretName,
+                $ht,
+                [ref] $errorCode)
+
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
         }
 
-        It "Verifies Hashtable read from local store" {
-            $ht = Get-Secret -Name __Test_Hashtable_ -Vault TestLocalVault -AsPlainText -ErrorVariable err
+        It "Verifies Hashtable read from store" {
+            $outHT = $null
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::ReadObject(
+                $secretName,
+                [ref] $outHT,
+                [ref] $errorCode)
             
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
+            $outHT.Blob.Count | Should -Be 2
+            $outHT.Str | Should -BeExactly 'TestStoreString'
+            [System.Net.NetworkCredential]::new('', ($outHT.SecureString)).Password | Should -BeExactly $randomSecretA
+            $outHT.Cred.UserName | Should -BeExactly 'UserA'
+            [System.Net.NetworkCredential]::New('', ($outHT.Cred.Password)).Password | Should -BeExactly $randomSecretB
         }
 
-        It "Verifies Hashtable enumeration from local store" {
-            $htInfo = Get-SecretInfo -Name __Test_Hashtable_ -Vault TestLocalVault -ErrorVariable err
+        It "Verifies Hashtable enumeration from store" {
+            $outInfo = $null
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::EnumerateObjectInfo(
+                $secretName,
+                [ref] $outInfo,
+                [ref] $errorCode)
             
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
+            $outInfo.Key | Should -BeExactly $secretName
+            $outInfo.Value | Should -BeExactly 'Hashtable'
         }
 
-        It "Verifies Hashtable remove from local store" {
-            Remove-Secret -Name __Test_Hashtable_ -Vault TestLocalVault -ErrorVariable err
+        It "Verifies Hashtable remove from store" {
+            $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::DeleteObject(
+                $secretName,
+                [ref] $errorCode)
             
+            $success | Should -BeTrue
+            $errorCode | Should -Be 0
         }
     }
 }

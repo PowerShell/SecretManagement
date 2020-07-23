@@ -243,8 +243,84 @@ namespace Microsoft.PowerShell.CredManStore
 
         protected override void EndProcessing()
         {
-            // TODO: Implement.
-            WriteObject(true);
+            var secretName = System.IO.Path.GetRandomFileName();
+            var secret = System.IO.Path.GetRandomFileName();
+
+            // Setting a secret
+            var success = LocalCredManStore.WriteObject(
+                name: secretName,
+                objectToWrite: secret,
+                out int errorCode);
+            if (!success)
+            {
+                var message = string.Format(CultureInfo.InvariantCulture, 
+                    @"Test-SecretVault failed to write secret on vault {0} with error: {1}", 
+                    VaultName, LocalCredManStore.GetErrorMessage(errorCode));
+                WriteError(
+                    new ErrorRecord(
+                        new PSInvalidOperationException(message),
+                        errorId: "CredManVaultTestFailWrite",
+                        errorCategory: ErrorCategory.InvalidOperation,
+                        this));
+
+                WriteObject(success);
+                return;
+            }
+
+            // Getting secret info
+            success = LocalCredManStore.EnumerateObjectInfo(
+                filter: secretName,
+                out KeyValuePair<string, SecretType>[] outObjectInfos,
+                out errorCode);
+            if (!success)
+            {
+                var message = string.Format(CultureInfo.InvariantCulture, 
+                    @"Test-SecretVault failed to get secret info on vault {0} with error: {1}", 
+                    VaultName, LocalCredManStore.GetErrorMessage(errorCode));
+                WriteError(
+                    new ErrorRecord(
+                        new PSInvalidOperationException(message),
+                        errorId: "CredManVaultTestFailReadInfo",
+                        errorCategory: ErrorCategory.InvalidOperation,
+                        this));
+            }
+
+            // Getting secret value
+            success = LocalCredManStore.ReadObject(
+                name: secretName,
+                outObject: out object outObject,
+                out errorCode);
+            if (!success)
+            {
+                var message = string.Format(CultureInfo.InvariantCulture, 
+                    @"Test-SecretVault failed to get secret value on vault {0} with error: {1}", 
+                    VaultName, LocalCredManStore.GetErrorMessage(errorCode));
+                WriteError(
+                    new ErrorRecord(
+                        new PSInvalidOperationException(message),
+                        errorId: "CredManVaultTestFailRead",
+                        errorCategory: ErrorCategory.InvalidOperation,
+                        this));
+            }
+            
+            // Removing secret
+            success = LocalCredManStore.DeleteObject(
+                name: secretName,
+                out errorCode);
+            if (!success)
+            {
+                var message = string.Format(CultureInfo.InvariantCulture, 
+                    @"Test-SecretVault failed to remove secret on vault {0} with error: {1}", 
+                    VaultName, LocalCredManStore.GetErrorMessage(errorCode));
+                WriteError(
+                    new ErrorRecord(
+                        new PSInvalidOperationException(message),
+                        errorId: "CredManVaultTestFailDelete",
+                        errorCategory: ErrorCategory.InvalidOperation,
+                        this));
+            }
+
+            WriteObject(success);
         }
 
         #endregion
