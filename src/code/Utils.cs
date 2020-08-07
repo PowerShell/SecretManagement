@@ -155,6 +155,22 @@ namespace Microsoft.PowerShell.SecretManagement
 
     #endregion
 
+    #region Exceptions
+
+    public sealed class PasswordRequiredException : InvalidOperationException
+    {
+        #region Constructor
+
+        public PasswordRequiredException(string msg)
+            : base(msg)
+        {
+        }
+
+        #endregion
+    }
+
+    #endregion
+
     #region SecretInformation class
 
     public sealed class SecretInformation
@@ -370,6 +386,8 @@ namespace Microsoft.PowerShell.SecretManagement
             
             if (terminatingError != null)
             {
+                ThrowPasswordRequiredException(terminatingError);
+
                 cmdlet.WriteError(
                     new ErrorRecord(
                         new PSInvalidOperationException(
@@ -409,6 +427,8 @@ namespace Microsoft.PowerShell.SecretManagement
             
             if (terminatingError != null)
             {
+                ThrowPasswordRequiredException(terminatingError);
+
                 cmdlet.WriteError(
                     new ErrorRecord(
                         new PSInvalidOperationException(
@@ -466,6 +486,8 @@ namespace Microsoft.PowerShell.SecretManagement
 
             if (terminatingError != null)
             {
+                ThrowPasswordRequiredException(terminatingError);
+
                 cmdlet.WriteError(
                     new ErrorRecord(
                         new PSInvalidOperationException(
@@ -505,6 +527,8 @@ namespace Microsoft.PowerShell.SecretManagement
             
             if (terminatingError != null)
             {
+                ThrowPasswordRequiredException(terminatingError);
+
                 cmdlet.WriteError(
                     new ErrorRecord(
                         new PSInvalidOperationException(
@@ -543,6 +567,8 @@ namespace Microsoft.PowerShell.SecretManagement
 
             if (terminatingError != null)
             {
+                ThrowPasswordRequiredException(terminatingError);
+
                 cmdlet.WriteError(
                     new ErrorRecord(
                         new PSInvalidOperationException(
@@ -567,6 +593,15 @@ namespace Microsoft.PowerShell.SecretManagement
         #endregion
 
         #region Private methods
+
+        private void ThrowPasswordRequiredException(Exception ex)
+        {
+            // Unwrap a PasswordRequiredException inner exception and throw directly.
+            if (ex.InnerException is PasswordRequiredException passwordRequiredEx)
+            {
+                throw passwordRequiredEx;
+            }
+        }
 
         private Hashtable GetAdditionalParams()
         {

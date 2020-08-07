@@ -596,12 +596,7 @@ namespace Microsoft.PowerShell.SecretManagement
             if (!string.IsNullOrEmpty(Vault))
             {
                 var extensionModule = GetExtensionVault(Vault);
-                WriteResults(
-                    extensionModule.InvokeGetSecretInfo(
-                        filter: Name,
-                        vaultName: extensionModule.VaultName,
-                        cmdlet: this));
-                
+                WriteExtensionResults(extensionModule);
                 return;
             }
 
@@ -711,6 +706,17 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #endregion
 
+        #region Enums
+
+        enum InvokeResult
+        {
+            Success = 0,
+            Failed,
+            FailedWithTerminatingError
+        };
+
+        #endregion
+
         #region Overrides
 
         protected override void ProcessRecord()
@@ -730,16 +736,7 @@ namespace Microsoft.PowerShell.SecretManagement
             if (!string.IsNullOrEmpty(Vault))
             {
                 var extensionModule = GetExtensionVault(Vault);
-                var result = extensionModule.InvokeGetSecret(
-                    name: Name,
-                    vaultName: Vault,
-                    cmdlet: this);
-
-                if (result != null)
-                {
-                    WriteSecret(result);
-                }
-                else
+                if (TryInvokeAndWrite(extensionModule) == InvokeResult.Failed)
                 {
                     WriteNotFoundError();
                 }
@@ -751,7 +748,7 @@ namespace Microsoft.PowerShell.SecretManagement
             if (!string.IsNullOrEmpty(RegisteredVaultCache.DefaultVaultName))
             {
                 var extensionModule = GetExtensionVault(RegisteredVaultCache.DefaultVaultName);
-                if (TryInvokeAndWrite(extensionModule))
+                if (TryInvokeAndWrite(extensionModule) == InvokeResult.Success)
                 {
                     return;
                 }
@@ -766,7 +763,7 @@ namespace Microsoft.PowerShell.SecretManagement
                     continue;
                 }
 
-                if (TryInvokeAndWrite(extensionModule))
+                if (TryInvokeAndWrite(extensionModule) == InvokeResult.Success)
                 {
                     return;
                 }
@@ -779,7 +776,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Private methods
 
-        private bool TryInvokeAndWrite(ExtensionVaultModule extensionModule)
+        private InvokeResult TryInvokeAndWrite(ExtensionVaultModule extensionModule)
         {
             try
             {
@@ -791,7 +788,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 if (result != null)
                 {
                     WriteSecret(result);
-                    return true;
+                    return InvokeResult.Success;
                 }
             }
             catch (Exception ex)
@@ -802,9 +799,10 @@ namespace Microsoft.PowerShell.SecretManagement
                         "GetSecretException",
                         ErrorCategory.InvalidOperation,
                         this));
+                return InvokeResult.FailedWithTerminatingError;
             }
 
-            return false;
+            return InvokeResult.Failed;
         }
 
         private void WriteSecret(object secret)
