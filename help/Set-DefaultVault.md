@@ -8,7 +8,7 @@ schema: 2.0.0
 # Set-DefaultVault
 
 ## SYNOPSIS
-{{ Fill in the Synopsis }}
+Sets the provided vault name as the default vault for the current user.
 
 ## SYNTAX
 
@@ -17,21 +17,48 @@ Set-DefaultVault [[-Name] <String>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
-{{ Fill in the Description }}
+This cmdlet updates the vault registry to indicate the provided vault name as the default vault.
+Only one registered vault can be the default vault.
+If this cmdlet is run without specifying the 'Name' parameter, then no registered vault is the default vault.
 
 ## EXAMPLES
 
 ### Example 1
 ```powershell
-PS C:\> {{ Add example code here }}
+PS C:\> Get-SecretVault
+
+VaultName  ModuleName                        IsDefaultVault
+---------  ----------                        --------------
+CredMan    Microsoft.PowerShell.CredManStore False
+LocalStore Microsoft.PowerShell.SecretStore  True
+
+PS C:\> Set-DefaultVault -Name CredMan
+PS C:\> Get-SecretVault
+
+VaultName  ModuleName                        IsDefaultVault
+---------  ----------                        --------------
+CredMan    Microsoft.PowerShell.CredManStore True
+LocalStore Microsoft.PowerShell.SecretStore  False
+
+PS C:\> Set-DefaultVault
+PS C:\> Get-SecretVault
+
+VaultName  ModuleName                        IsDefaultVault
+---------  ----------                        --------------
+CredMan    Microsoft.PowerShell.CredManStore False
+LocalStore Microsoft.PowerShell.SecretStore  False
 ```
 
-{{ Add example description here }}
+This cmdlet first runs 'Get-SecretVault' command to get all registered vault information, and shows that the 'LocalStore' is currently the default vault for the user.
+Next, the 'Set-DefaultVault' command is run to make the 'CredMan' vault the default vault.
+The 'Get-SecretVault' command is run a second time to verify 'CredMan' vault is now default, and 'LocalStore' vault is no longer default.
+Finally, the 'Set-DefaultVault' command is run with no 'Name' parameter, to remove the default designation from any registered vault.
+The 'Get-SecretVault' is run once again to verify there is no default vault.
 
 ## PARAMETERS
 
 ### -Name
-{{ Fill Name Description }}
+
 
 ```yaml
 Type: String
@@ -54,7 +81,6 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## OUTPUTS
 
-### System.Object
 ## NOTES
 
 ## RELATED LINKS
