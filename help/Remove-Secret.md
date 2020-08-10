@@ -8,7 +8,7 @@ schema: 2.0.0
 # Remove-Secret
 
 ## SYNOPSIS
-{{ Fill in the Synopsis }}
+Removes a secret from a specified registered extension vault.
 
 ## SYNTAX
 
@@ -17,21 +17,25 @@ Remove-Secret [-Name] <String> [-Vault] <String> [<CommonParameters>]
 ```
 
 ## DESCRIPTION
-{{ Fill in the Description }}
+This cmdlet will remove a secret by name from a registered extension vault.
+Both the secret name and extension vault name must be provided.
 
 ## EXAMPLES
 
 ### Example 1
 ```powershell
-PS C:\> {{ Add example code here }}
+PS C:\> Remove-Secret -Name secretTest -Vault CredMan
+PS C:\> Get-Secret -Name secretTest -Vault CredMan
+Get-Secret: The secret secretTest was not found.
 ```
 
-{{ Add example description here }}
+This example runs the command to remove the secret 'secretTest' from the CredMan vault.
+The 'Get-Secret' command is next run to verify the secret no longer exists in the vault.
 
 ## PARAMETERS
 
 ### -Name
-{{ Fill Name Description }}
+Name of the secret to remove.
 
 ```yaml
 Type: String
@@ -46,7 +50,7 @@ Accept wildcard characters: False
 ```
 
 ### -Vault
-{{ Fill Vault Description }}
+Name of the vault from which the secret is to be removed.
 
 ```yaml
 Type: String
@@ -69,7 +73,6 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## OUTPUTS
 
-### System.Object
 ## NOTES
 
 ## RELATED LINKS

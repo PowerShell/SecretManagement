@@ -8,7 +8,7 @@ schema: 2.0.0
 # Register-SecretVault
 
 ## SYNOPSIS
-Registers a SecretManagement extension vault module for the current user context.
+Registers a SecretManagement extension vault module for the current user.
 
 ## SYNTAX
 
@@ -20,9 +20,8 @@ Register-SecretVault [-Name] <String> [-ModuleName] <String> [-VaultParameters <
 ## DESCRIPTION
 This cmdlet adds a provided SecretManagement extension vault module to the current user vault registry.
 An extension vault module is a PowerShell module that conforms to the required extension vault format.
-This cmdlet will verify that the provided module meets all conformance requirements, and if so include it in the extension vault registry.
-The new extension vault module is then included in all secret management functions provided by SecretManagement.
-Extension vaults are registered to the current user and does not affect other user vault registrations.
+This cmdlet will first verify that the provided module meets conformance requirements, and then add it to the extension vault registry.
+Extension vaults are registered to the current user and do not affect other user vault registrations.
 
 ## EXAMPLES
 
@@ -40,7 +39,7 @@ LocalStore Microsoft.PowerShell.SecretStore  True
 This example registers the Microsoft.PowerShell.SecretStore extension vault module for the current user.
 The 'Microsoft.PowerShell.SecretStore' is installed in a known PowerShell module path, so just the module name is needed.
 It uses the 'DefaultVault' parameter switch to make it the default module for the user.
-It then runs the 'Get-SecretVault' command to list all registered vaults for the user, and verifies the vault was registered and set as the default vault.
+The 'Get-SecretVault' command is run next to list all registered vaults for the user, and verifies the vault was registered and set as the default vault.
 
 ## PARAMETERS
 
@@ -93,7 +92,6 @@ Accept wildcard characters: False
 
 ### -Name
 Name of the extension vault to be registered.
-This name can be used later in SecretManagement when scoping cmdlet operations to a specific extension vault.
 
 ```yaml
 Type: String

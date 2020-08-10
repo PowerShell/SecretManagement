@@ -8,7 +8,7 @@ schema: 2.0.0
 # Test-SecretVault
 
 ## SYNOPSIS
-{{ Fill in the Synopsis }}
+Runs an extension vault self test.
 
 ## SYNTAX
 
@@ -17,21 +17,25 @@ Test-SecretVault [-Vault] <String> [<CommonParameters>]
 ```
 
 ## DESCRIPTION
-{{ Fill in the Description }}
+This cmdlet runs an extension vault self test, by running the internal vault 'Test-SecretVault' command.
+It will return 'True' if all tests succeeded, and 'False' otherwise.
+Information on failing tests will be written to the error stream as error records.
 
 ## EXAMPLES
 
 ### Example 1
 ```powershell
-PS C:\> {{ Add example code here }}
+PS C:\> Test-SecretVault -Vault CredMan
+True
 ```
 
-{{ Add example description here }}
+This example runs self tests on the 'CredMan' extension vault.
+All tests succeeded so no errors are written and 'True' is returned.
 
 ## PARAMETERS
 
 ### -Vault
-{{ Fill Vault Description }}
+Name of vault to run self tests on.
 
 ```yaml
 Type: String
@@ -54,7 +58,7 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## OUTPUTS
 
-### System.Object
+### System.Boolean
 ## NOTES
 
 ## RELATED LINKS

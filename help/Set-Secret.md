@@ -8,7 +8,7 @@ schema: 2.0.0
 # Set-Secret
 
 ## SYNOPSIS
-{{ Fill in the Synopsis }}
+Adds a secret to a SecretManagement registered vault.
 
 ## SYNTAX
 
@@ -24,21 +24,54 @@ Set-Secret [-Name] <String> [-Secret] <Object> [[-Vault] <String>] [-NoClobber] 
 ```
 
 ## DESCRIPTION
-{{ Fill in the Description }}
+This cmdlet adds a secret value by name to SecretManagement.
+If no vault name is specified, then the secret will be added to the default vault.
+If an existing secret by the same name exists, it will be overwritten with the new value unless the 'NoClobber' parameter switch is used.
+The secret value must be one of five supported types:
+
+- byte[]
+- String
+- SecureString
+- PSCredential
+- Hashtable
+
+The default parameter set takes a SecureString object.
+So if the command is run without specifying the secret value, the user will be safely prompted to enter a SecureString which cannot be seen on the console.
 
 ## EXAMPLES
 
 ### Example 1
 ```powershell
-PS C:\> {{ Add example code here }}
+PS C:\> Set-Secret -Name Secret1 -Secret "SecretValue"
+PS C:\> Get-Secret -Name Secret1
+System.Security.SecureString
 ```
 
-{{ Add example description here }}
+This example adds a secret named 'Secret1' with a plain text value of 'SecretValue'.
+Since no vault name was specified, the secret is added to the current default vault.
+Next, the 'Get-Secret' command is run to verify the added secret.
+
+### Example 2
+```powershell
+PS C:\> Set-Secret -Name Secret2 -Vault LocalStore
+
+cmdlet Set-Secret at command pipeline position 1
+Supply values for the following parameters:
+SecureStringSecret: ***********
+
+PS C:\> Get-Secret -Name Secret2
+System.Security.SecureString
+```
+
+This example adds a secret named 'Secret2' to the LocalStore vault.
+Since no secret value was provided, the user is prompted for a SecureString value.
+The console hides the string value as it is typed.
+Next, the 'Get-Secret' command is run to verify the secret was added.
 
 ## PARAMETERS
 
 ### -Name
-{{ Fill Name Description }}
+Name of secret to add.
 
 ```yaml
 Type: String
@@ -53,7 +86,7 @@ Accept wildcard characters: False
 ```
 
 ### -NoClobber
-{{ Fill NoClobber Description }}
+When used this parameter will cause an error if the secret name already exists.
 
 ```yaml
 Type: SwitchParameter
@@ -68,7 +101,8 @@ Accept wildcard characters: False
 ```
 
 ### -Secret
-{{ Fill Secret Description }}
+A secret value to be added.
+The object type must be one of the supported types.
 
 ```yaml
 Type: Object
@@ -83,7 +117,7 @@ Accept wildcard characters: False
 ```
 
 ### -SecureStringSecret
-{{ Fill SecureStringSecret Description }}
+A secret SecretString object to be added.
 
 ```yaml
 Type: SecureString
@@ -98,7 +132,8 @@ Accept wildcard characters: False
 ```
 
 ### -Vault
-{{ Fill Vault Description }}
+Optional name of vault to which the secret is added.
+If omitted, the secret will be added to the default vault.
 
 ```yaml
 Type: String
@@ -123,7 +158,6 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## OUTPUTS
 
-### System.Object
 ## NOTES
 
 ## RELATED LINKS

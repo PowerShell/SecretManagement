@@ -1060,6 +1060,7 @@ namespace Microsoft.PowerShell.SecretManagement
     /// Runs vault internal validation test.
     /// </summary>
     [Cmdlet(VerbsDiagnostic.Test, "SecretVault")]
+    [OutputType(typeof(bool))]
     public sealed class TestSecretVaultCommand : SecretCmdlet
     {
         #region Parameters
