@@ -7,7 +7,7 @@
 RootModule = '.\Microsoft.PowerShell.SecretManagement.dll'
 
 # Version number of this module.
-ModuleVersion = '0.4.0'
+ModuleVersion = '0.5.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -73,7 +73,7 @@ PrivateData = @{
         # ReleaseNotes = ''
 
         # Prerelease string of this module
-        Prerelease = 'alpha3'
+        Prerelease = 'alpha4'
 
         # Flag to indicate whether the module requires explicit user acceptance for install/update/save
         # RequireLicenseAcceptance = $false
