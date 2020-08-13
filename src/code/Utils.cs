@@ -99,7 +99,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
         public static Hashtable ConvertJsonToHashtable(string json)
         {
-            var results = PowerShellInvoker.InvokeScriptCommon<Hashtable>(
+            var results = PowerShellInvoker.InvokeScript<Hashtable>(
                 script: ConvertJsonToHashtableScript,
                 args: new object[] { json },
                 error: out ErrorRecord _);
@@ -109,7 +109,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
         public static string ConvertHashtableToJson(Hashtable hashtable)
         {
-            var results = PowerShellInvoker.InvokeScriptCommon<string>(
+            var results = PowerShellInvoker.InvokeScript<string>(
                 script: @"param ([hashtable] $hashtable) ConvertTo-Json -InputObject $hashtable -Depth 10",
                 args: new object[] { hashtable },
                 error: out ErrorRecord _);
@@ -119,7 +119,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
         public static SecureString ConvertToSecureString(string secret)
         {
-            var results = PowerShellInvoker.InvokeScriptCommon<SecureString>(
+            var results = PowerShellInvoker.InvokeScript<SecureString>(
                 script: @"param([string] $value) ConvertTo-SecureString -String $value -AsPlainText -Force",
                 args: new object[] { secret },
                 error: out ErrorRecord _);
@@ -1036,51 +1036,6 @@ namespace Microsoft.PowerShell.SecretManagement
         #region Methods
 
         public static Collection<T> InvokeScript<T>(
-            string script,
-            object[] args,
-            out ErrorRecord[] errors)
-        {
-            using (var powerShell = System.Management.Automation.PowerShell.Create())
-            {
-                powerShell.Commands.Clear();
-                Collection<T> results;
-                try
-                {
-                    results = powerShell.AddScript(script).AddParameters(args).Invoke<T>();
-                    errors = new ErrorRecord[powerShell.Streams.Error.Count];
-                    powerShell.Streams.Error.CopyTo(errors, 0);
-                }
-                catch (Exception ex)
-                {
-                    errors = new ErrorRecord[1] {
-                        new ErrorRecord(
-                            exception: ex,
-                            errorId: "PowerShellInvokerInvalidOperation",
-                            errorCategory: ErrorCategory.InvalidOperation,
-                            targetObject: null)
-                    };
-                    results = new Collection<T>();
-                }
-
-                return results;
-            }
-        }
-
-        public static Collection<T> InvokeScript<T>(
-            string script,
-            object[] args,
-            out Exception error)
-        {
-            var results = InvokeScript<T>(
-                script,
-                args,
-                out ErrorRecord[] errors);
-            
-            error = (errors.Length > 0) ? errors[0].Exception : null;
-            return results;
-        }
-
-        public static Collection<T> InvokeScriptCommon<T>(
             string script,
             object[] args,
             out ErrorRecord error)
