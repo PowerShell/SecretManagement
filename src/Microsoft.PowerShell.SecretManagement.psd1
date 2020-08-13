@@ -26,10 +26,12 @@ Copyright = '(c) Microsoft Corporation. All rights reserved.'
 
 # Description of the functionality provided by this module
 Description = "
-This module helps manage secrets by providing a set of cmdlets that lets you store secrets
-locally using a local vault provider, and access secrets from remote vaults.
-Local and remote vaults can be registered and unregistered on the local machine, per user,
-for use in managing and retrieving secrets.
+This module provides a convenient way for a user to store and retrieve secrets. The secrets are
+stored in registered extension vaults. An extension vault can store secrets locally or remotely.
+SecretManagement coordinates access to the secrets through the registered vaults.
+
+Go to GitHub for more information about the module and to submit issues:
+https://github.com/powershell/SecretManagement
 "
 
 # Minimum version of the PowerShell engine required by this module
@@ -73,7 +75,7 @@ PrivateData = @{
         # ReleaseNotes = ''
 
         # Prerelease string of this module
-        Prerelease = 'alpha4'
+        Prerelease = 'preview3'
 
         # Flag to indicate whether the module requires explicit user acceptance for install/update/save
         # RequireLicenseAcceptance = $false

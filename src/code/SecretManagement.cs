@@ -137,12 +137,20 @@ namespace Microsoft.PowerShell.SecretManagement
             string resolvedPath = (results.Count == 1 && results[0] != null) ? (string) results[0].BaseObject : null;
             string moduleNameOrPath = resolvedPath ?? ModuleName;
 
-            var moduleInfo = GetModuleInfo(moduleNameOrPath);
+            results = InvokeCommand.InvokeScript(
+                script: "(Get-Module -Name Microsoft.PowerShell.SecretManagement).ModuleBase");
+            string secretMgtModulePath = (results.Count == 1 && results[0] != null) ? (string) results[0].BaseObject : string.Empty;
+            secretMgtModulePath = System.IO.Path.Combine(secretMgtModulePath, "Microsoft.PowerShell.SecretManagement.psd1");
+
+            var moduleInfo = GetModuleInfo(
+                modulePath: moduleNameOrPath,
+                secretMgtModulePath: secretMgtModulePath,
+                error: out ErrorRecord moduleLoadError);
             if (moduleInfo == null)
             {
                 var msg = string.Format(CultureInfo.InvariantCulture, 
-                    "Could not load and retrieve module information for module: {0}.",
-                    ModuleName);
+                    "Could not load and retrieve module information for module: {0} with error : {1}.",
+                    ModuleName, moduleLoadError?.ToString() ?? string.Empty);
 
                 ThrowTerminatingError(
                     new ErrorRecord(
@@ -158,6 +166,7 @@ namespace Microsoft.PowerShell.SecretManagement
             if (!CheckForImplementingModule(
                 dirPath: dirPath,
                 moduleName: moduleInfo.Name,
+                secretMgtModulePath: secretMgtModulePath,
                 error: out Exception error))
             {
                 var invalidException = new PSInvalidOperationException(
@@ -199,18 +208,23 @@ namespace Microsoft.PowerShell.SecretManagement
         private static bool CheckForImplementingModule(
             string dirPath,
             string moduleName,
+            string secretMgtModulePath,
             out Exception error)
         {
             // An implementing module will be in a subfolder with module name 'ModuleName.Extension',
             // and will export the five required functions: Set-Secret, Get-Secret, Remove-Secret, Get-SecretInfo, Test-SecretVault.
             var implementingModuleName = Utils.GetModuleExtensionName(moduleName);
             var implementingModulePath = System.IO.Path.Combine(dirPath, implementingModuleName);
-            var moduleInfo = GetModuleInfo(implementingModulePath);
+            var moduleInfo = GetModuleInfo(
+                modulePath: implementingModulePath,
+                secretMgtModulePath: secretMgtModulePath,
+                error: out ErrorRecord moduleLoadError);
             if (moduleInfo == null)
             {
                 error = new ItemNotFoundException(
                     string.Format(CultureInfo.InvariantCulture, 
-                    @"Implementing script module not found at : {0}.", implementingModulePath));
+                    @"Implementing script module not found at : {0} with error : {1}.", 
+                    implementingModulePath, moduleLoadError?.ToString() ?? string.Empty));
                 return false;
             }
 
@@ -334,17 +348,23 @@ namespace Microsoft.PowerShell.SecretManagement
         }
 
         private static PSModuleInfo GetModuleInfo(
-            string modulePath)
+            string modulePath,
+            string secretMgtModulePath,
+            out ErrorRecord error)
         {
             // Get module information by loading it.
             var results = PowerShellInvoker.InvokeScript<PSModuleInfo>(
                 script: @"
-                    param ([string] $ModulePath)
+                    param ([string] $ModulePath, [string] $SecretMgtModulePath)
+
+                    # ModulePath module may have a dependency on SecretManagement module,
+                    # so make sure it is loaded.
+                    $null = Import-Module -Name $SecretMgtModulePath -ErrorAction SilentlyContinue
 
                     Import-Module -Name $ModulePath -Force -PassThru
                 ",
-                args: new object[] { modulePath },
-                out Exception _);
+                args: new object[] { modulePath, secretMgtModulePath },
+                out error);
 
             return (results.Count == 1) ? results[0] : null;
         }
