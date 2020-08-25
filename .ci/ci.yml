@@ -38,7 +38,7 @@ stages:
     - task: PkgESSetupBuild@10
       displayName: 'Package ES - Setup Build'
       inputs:
-        productName: PSRemotingTools
+        productName: PSSecretManagement
         useDfs: false
 
     - pwsh: |
