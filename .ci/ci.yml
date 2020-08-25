@@ -29,10 +29,11 @@ stages:
       displayName: Install PowerShell Core
 
     - task: UseDotNet@2
-      displayName: 'Install .NET Core 3.1.100 sdk'
+      displayName: 'Install .NET Core 3.1.401 SDK'
       inputs:
         packageType: sdk
-        version: 3.1.100
+        version: 3.1.401
+        includePreviewVersions: false
 
     - task: PkgESSetupBuild@10
       displayName: 'Package ES - Setup Build'
@@ -55,16 +56,28 @@ stages:
       displayName: Import PowerShellGet Module
 
     - pwsh: |
-        Install-Module -Name "platyPS","Pester" -Force
-      displayName: Install dependencies
+        Install-Module -Name "platyPS" -Force
+      displayName: Install platyPS dependency
+
     - pwsh: |
         Install-Module -Name "PSScriptAnalyzer" -RequiredVersion 1.18.0 -Force
       displayName: Install PSScriptAnalyzer
+
     - pwsh: |
         Install-Module -Name PSPackageProject -Force
       displayName: Install PSPackageProject module
+
     - pwsh: |
-        $(Build.SourcesDirectory)/build.ps1 -Build -BuildConfiguration Release
+        dir $env:USERPROFILE\Documents\PowerShell\Modules\Pester* -Directory -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -Verbose -ErrorAction SilentlyContinue
+        Install-Module -Name "Pester" -MaximumVersion 4.99 -Force
+      displayName: Install Pester 4.0 dependency only
+
+    - pwsh: |
+        Get-Module -Name Pester -ListAvailable
+      displayName: Capture Pester module environment
+
+    - pwsh: |
+        $(Build.SourcesDirectory)/build.ps1 -Build -Clean -BuildConfiguration Release
       displayName: Build and publish artifact
 
     - pwsh: |
@@ -75,7 +88,7 @@ stages:
         if (! (Test-Path -Path $signOutPath)) {
           $null = New-Item -Path $signOutPath -ItemType Directory
         }
-        Write-Host "Signed output path is: $signOutPath"
+        Write-Host "Signed module output path is: $signOutPath"
         $signXmlPath = "$($config.SourcePath)\..\sign-module-files.xml"
         # Set signing src path variable
         $vstsCommandString = "vso[task.setvariable variable=signSrcPath]${signSrcPath}"
@@ -89,15 +102,66 @@ stages:
         $vstsCommandString = "vso[task.setvariable variable=signXmlPath]${signXmlPath}"
         Write-Host "sending " + $vstsCommandString
         Write-Host "##$vstsCommandString"
-      displayName: Set up for code signing
+      displayName: Set up for module code signing
 
     - pwsh: |
         Get-ChildItem -Path env:
-      displayName: Capture environment for code signing
+      displayName: Capture environment for module code signing
+      condition: succeededOrFailed()
+
+#    - task: PkgESCodeSign@10
+#      displayName: Sign module build files
+#      env:
+#        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+#      inputs:
+#        signConfigXml: '$(signXmlPath)'
+#        inPathRoot: '$(signSrcPath)'
+#        outPathRoot: '$(signOutPath)'
+#        binVersion: Production
+#        binVersionOverride: ''
+#      condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
+
+#    - pwsh: |
+#        if ($env:SkipSigning)
+#        {
+#          $(Build.SourcesDirectory)/build.ps1 -Publish
+#        }
+#        else
+#        {
+#          $(Build.SourcesDirectory)/build.ps1 -Publish -Signed
+#        }
+#      displayName: Create signed module artifact
+
+    - pwsh: |
+        $config = Get-PSPackageProjectConfiguration
+        $signSrcPath = Resolve-Path -Path "$($config.BuildOutputPath)"
+        Get-ChildItem $refAssemblyNuGetPath
+        $signOutPath = "$($config.SignedOutputPath)\RefAssemblyNuGet"
+        if (! (Test-Path -Path $signOutPath)) {
+          $null = New-Item -Path $signOutPath -ItemType Directory
+        }
+        $signXmlPath = "$($config.SourcePath)\..\sign-refassembly-files.xml"
+        # Set signing src path variable
+        $vstsCommandString = "vso[task.setvariable variable=signSrcPath]${signSrcPath}"
+        Write-Host "sending " + $vstsCommandString
+        Write-Host "##$vstsCommandString"
+        # Set signing out path variable
+        $vstsCommandString = "vso[task.setvariable variable=signOutPath]${signOutPath}"
+        Write-Host "sending " + $vstsCommandString
+        Write-Host "##$vstsCommandString"
+        # Set signing xml path
+        $vstsCommandString = "vso[task.setvariable variable=signXmlPath]${signXmlPath}"
+        Write-Host "sending " + $vstsCommandString
+        Write-Host "##$vstsCommandString"
+      displayName: Set up for ref assembly nuget package signing
+
+    - pwsh: |
+        Get-ChildItem -Path env:
+      displayName: Capture environment for ref assembly nuget file signing
       condition: succeededOrFailed()
 
     - task: PkgESCodeSign@10
-      displayName: Sign build files
+      displayName: Sign ref assembly nuget file
       env:
         SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       inputs:
@@ -109,28 +173,34 @@ stages:
       condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
 
     - pwsh: |
-        $(Build.SourcesDirectory)/build.ps1 -Publish -Signed
-      displayName: Create signed artifact
+        Install-Module -Name PSPackageProject -Force
+        $config = Get-PSPackageProjectConfiguration
+        $refAssemblyNuGetPath = Resolve-Path -Path "$($config.SignedOutputPath)/RefAssemblyNuGet/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
+        Get-ChildItem $refAssemblyNuGetPath
+        $artifactName = "RefAssemblyNuGet"
+        Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$refAssemblyNuGetPath"
+      displayName: Create ref assembly NuGet package artifact
 
-- stage: Compliance
-  displayName: Compliance
-  dependsOn: Build
-  jobs:
-  - job: ComplianceJob
-    pool:
-      name: Package ES CodeHub Lab E
-    steps:
-    - template: compliance.yml
 
-- stage: Test
-  displayName: Test Package
-  dependsOn: Build
-  jobs:
-  - template: test.yml
-    parameters:
-      jobName: TestPkgWin
-      displayName: PowerShell Core on Windows
-      imageName: windows-2019
+#- stage: Compliance
+#  displayName: Compliance
+#  dependsOn: Build
+#  jobs:
+#  - job: ComplianceJob
+#    pool:
+#      name: Package ES CodeHub Lab E
+#    steps:
+#    - template: compliance.yml
+
+#- stage: Test
+#  displayName: Test Package
+#  dependsOn: Build
+#  jobs:
+#  - template: test.yml
+#    parameters:
+#      jobName: TestPkgWin
+#      displayName: PowerShell Core on Windows
+#      imageName: windows-2019
 
 #  - template: test.yml
 #    parameters:

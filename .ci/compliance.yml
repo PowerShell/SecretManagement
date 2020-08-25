@@ -10,7 +10,7 @@ steps:
   displayName: Install PowerShell Core
 
 - pwsh: |
-    Install-Module -Name "platyPS","Pester" -Force
+    Install-Module -Name "platyPS" -Force
   displayName: Install platyPS
 
 - pwsh: |
@@ -31,11 +31,19 @@ steps:
 
 - pwsh: |
     $sourceName = 'pspackageproject-local-repo'
-    Register-PSRepository -Name $sourceName -SourceLocation '$(System.ArtifactsDirectory)' -ErrorAction Ignore
+    Write-Output "SourceName: $sourceName"
+    Write-Output "ArtifactsDirectory: $(System.ArtifactsDirectory)"
+    Register-PSRepository -Name $sourceName -SourceLocation '$(System.ArtifactsDirectory)' -ErrorAction Ignore -EV err
+    if ($err -ne $null)
+    {
+        Write-Output "Register-PSRepository error: $err"
+    }
     $config = Get-PSPackageProjectConfiguration
     $buildOutputPath = $config.BuildOutputPath
     $null = New-Item -ItemType Directory -Path $buildOutputPath -Verbose
     $moduleName = $config.ModuleName
+    Write-Output "BuildOutputPath: $buildOutputPath"
+    Write-Output "ModuleName: $moduleName"
     Save-Module -Repository $sourceName -Name $moduleName -Path $config.BuildOutputPath
     $vstsCommandString = "vso[task.setvariable variable=BUILD_SOURCE]$($config.BuildOutputPath)"
     Write-Host "sending " + $vstsCommandString
