@@ -17,6 +17,9 @@ function DoBuild
     $BuildSrcPath = "bin/${BuildConfiguration}/${BuildFramework}/publish"
     Write-Verbose -Verbose -Message "Module build source path: '$BuildSrcPath'"
 
+    # Reference assembly source path
+    $RefSrcPath = "bin/${BuildConfiguration}/${BuildFramework}/ref"
+
     # Copy psd1 file
     Write-Verbose -Verbose "Copy-Item ${SrcPath}/${ModuleName}.psd1 to ${OutDirectory}/${ModuleName}"
     Copy-Item "${SrcPath}/${ModuleName}.psd1" "${OutDirectory}/${ModuleName}"
@@ -34,12 +37,17 @@ function DoBuild
         # build code and place it in the staging location
         Push-Location "${SrcPath}/code"
         try {
+            # Check dotnet version
+            Write-Verbose -Verbose -Message "DotNet version: $(dotnet --version)"
+
             # Build source
             Write-Verbose -Verbose -Message "Building with configuration: $BuildConfiguration, framework: $BuildFramework"
             Write-Verbose -Verbose -Message "Building location: PSScriptRoot: $PSScriptRoot, PWD: $pwd"
             dotnet publish --configuration $BuildConfiguration --framework $BuildFramework --output $BuildSrcPath
 
-            # Debug: Check 
+            # Dump build source output directory
+            # $outResults = Get-ChildItem -Path "bin/${BuildConfiguration}/${BuildFramework}" -Recurse | Out-String
+            # Write-Verbose -Verbose -Message $outResults
 
             # Place build results
             if (! (Test-Path -Path "$BuildSrcPath/${ModuleName}.dll"))
@@ -47,13 +55,41 @@ function DoBuild
                 throw "Expected binary was not created: $BuildSrcPath/${ModuleName}.dll"
             }
 
-            Write-Verbose -Verbose -Message "Copying $BuildSrcPath/${ModuleName}.dll to $BuildOutPath"
+            Write-Verbose -Verbose -Message "Copying implementation assembly $BuildSrcPath/${ModuleName}.dll to $BuildOutPath"
             Copy-Item "$BuildSrcPath/${ModuleName}.dll" -Dest "$BuildOutPath"
             
             if (Test-Path -Path "$BuildSrcPath/${ModuleName}.pdb")
             {
-                Write-Verbose -Verbose -Message "Copying $BuildSrcPath/${ModuleName}.pdb to $BuildOutPath"
+                Write-Verbose -Verbose -Message "Copying implementation pdb $BuildSrcPath/${ModuleName}.pdb to $BuildOutPath"
                 Copy-Item -Path "$BuildSrcPath/${ModuleName}.pdb" -Dest "$BuildOutPath"
+            }
+
+            if (! (Test-Path -Path "$RefSrcPath/${ModuleName}.dll"))
+            {
+                # throw "Expected ref binary was not created: $RefSrcPath/${ModuleName}.dll"
+                Write-Verbose -Verbose -Message "Cannot find reference assembly $RefSrcPath/${ModuleName}.dll"
+                Write-Verbose -Verbose -Message "Copying implementation assembly as reference assembly $RefSrcPath/${ModuleName}.dll to $script:OutReferencePath"
+                Copy-Item -Path "$BuildSrcPath/${ModuleName}.dll" -Dest $script:OutReferencePath
+            }
+            else
+            {
+                Write-Verbose -Verbose -Message "Copying reference assembly $RefSrcPath/${ModuleName}.dll to $script:OutReferencePath"
+                Copy-Item -Path "$RefSrcPath/${ModuleName}.dll" -Dest $script:OutReferencePath
+            }
+
+            # Create nuget package for reference assembly based on Microsoft.PowerShell.SecretManagement.Library.nuspec file.
+            dotnet pack --no-build --configuration $BuildConfiguration --no-restore
+
+            # Copy ref assembly nuget package to out.
+            $NuGetSrcPath = "bin/${BuildConfiguration}/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
+            if (!(Test-Path -Path $NuGetSrcPath))
+            {
+                Write-Verbose -Verbose -Message "Expected Nuget package was not created: $NuGetSrcPath"
+            }
+            else
+            {
+                Write-Verbose -Verbose -Message "Copying reference nuget package $NuGetSrcPath to $OutDirectory"
+                Copy-Item -Path $NuGetSrcPath -Dest $OutDirectory
             }
         }
         catch {

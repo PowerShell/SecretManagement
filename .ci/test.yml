@@ -11,16 +11,29 @@ jobs:
   displayName: ${{ parameters.displayName }}
   steps:
   - ${{ parameters.powershellExecutable }}: |
-      Install-Module -Name "platyPS","Pester" -Force
-    displayName: Install dependencies
+      dir $env:USERPROFILE\Documents\PowerShell\Modules\* -Directory -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -Verbose -ErrorAction SilentlyContinue
+    displayName: Remove all user profile PowerShell modules
+
+  - ${{ parameters.powershellExecutable }}: |
+      Install-Module -Name "platyPS" -Force
+    displayName: Install platyPS dependency
 
   - ${{ parameters.powershellExecutable }}: |
         Install-Module -Name "PSScriptAnalyzer" -RequiredVersion 1.18.0 -Force
-    displayName: Install dependencies
+    displayName: Install PSScriptAnalyzer dependency
 
   - ${{ parameters.powershellExecutable }}: |
       Install-Module -Name PSPackageProject -Force
     displayName: Install PSPackageProject module
+
+  - ${{ parameters.powershellExecutable }}: |
+      dir $env:USERPROFILE\Documents\PowerShell\Modules\Pester* -Directory -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -Verbose -ErrorAction SilentlyContinue
+      Install-Module -Name "Pester" -MaximumVersion 4.99 -Force
+    displayName: Install Pester 4.0 dependency only
+
+  - ${{ parameters.powershellExecutable }}: |
+      Get-Module -Name Pester -ListAvailable
+    displayName: Capture Pester module environment
 
   - task: DownloadBuildArtifacts@0
     displayName: 'Download artifacts'

@@ -10,25 +10,47 @@ jobs:
   displayName: ${{ parameters.displayName }}
 
   steps:
+  - task: NuGetToolInstaller@1
+    displayName: 'Install NuGet'
+
   - task: DownloadBuildArtifacts@0
-    displayName: 'Download artifacts'
+    displayName: 'Download SecretManagement module artifacts'
     inputs:
       buildType: current
       downloadType: specific
       artifactName: '**/*.nupkg'
       downloadPath: '$(System.ArtifactsDirectory)'
 
-  - task: NuGetToolInstaller@1
-    displayName: 'Install NuGet'
-
   - powershell: |
-      Get-ChildItem '$(System.ArtifactsDirectory)/nupkg/Microsoft.PowerShell.SecretManagement.*.nupkg'
-    displayName: 'Capture NuGet package'
+      Get-ChildItem '$(System.ArtifactsDirectory)/nupkg/Microsoft.PowerShell.SecretManagement.*.nupkg' -ErrorAction SilentlyContinue
+      Get-ChildItem '$(System.ArtifactsDirectory)/RefAssemblyNuGet/Microsoft.PowerShell.SecretManagement.Library*.nupkg' -ErrorAction SilentlyContinue
+      # Get-ChildItem '$(System.ArtifactsDirectory)' -Recurse
+    displayName: 'Capture SecretManagement NuGet packages'
 
   - task: NuGetCommand@2
-    displayName: 'Push Microsoft.PowerShell.SecretManagement artifacts to AzArtifactsFeed'
+    displayName: 'Push Microsoft.PowerShell.SecretManagement.Library reference assembly nuget package to NuGet'
     inputs:
       command: push
-      packagesToPush: '$(System.ArtifactsDirectory)/nupkg/Microsoft.PowerShell.SecretManagement.*.nupkg'
+      packagesToPush: '$(System.ArtifactsDirectory)/RefAssemblyNuGet/Microsoft.PowerShell.SecretManagement.Library*.nupkg'
       nuGetFeedType: external
-      publishFeedCredentials: AzArtifactFeed
+      publishFeedCredentials: PowerShellNuGetOrgPush
+
+  #- powershell: |
+  #    Get-ChildItem '$(System.ArtifactsDirectory)' -Recurse
+  #  displayName: 'Capture SecretManagement downloaded artifacts'
+
+  #- task: NuGetCommand@2
+  #  displayName: 'Push Microsoft.PowerShell.SecretManagement module artifacts to AzArtifacts feed'
+  #  inputs:
+  #    command: push
+  #    packagesToPush: '$(System.ArtifactsDirectory)/nupkg/Microsoft.PowerShell.SecretManagement.*.nupkg'
+  #    nuGetFeedType: external
+  #    publishFeedCredentials: AzArtifactsFeed
+
+  #- task: NuGetCommand@2
+  #  displayName: 'Push Microsoft.PowerShell.SecretManagement module artifacts to PSGallery feed'
+  #  inputs:
+  #    command: push
+  #    packagesToPush: '$(System.ArtifactsDirectory)/nupkg/Microsoft.PowerShell.SecretManagement.*.nupkg'
+  #    nuGetFeedType: external
+  #    publishFeedCredentials: PHPowerShellGalleryFeed

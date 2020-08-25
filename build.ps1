@@ -69,7 +69,7 @@ if ($env:TF_BUILD) {
     Write-Host "##$vstsCommandString"
 }
 
-. $PSScriptRoot/doBuild.ps1
+. $PSScriptRoot/dobuild.ps1
 
 if ($Clean -and (Test-Path $OutDirectory))
 {
@@ -89,10 +89,12 @@ if ($Clean -and (Test-Path $OutDirectory))
 if (-not (Test-Path $OutDirectory))
 {
     $script:OutModule = New-Item -ItemType Directory -Path (Join-Path $OutDirectory $ModuleName)
+    $script:OutReferencePath = New-Item -ItemType Directory -Path (Join-Path $OutDirectory "Ref")
 }
 else
 {
     $script:OutModule = Join-Path $OutDirectory $ModuleName
+    $script:OutReferencePath = Join-Path $OutDirectory "Ref"
 }
 
 if ($Build.IsPresent)
