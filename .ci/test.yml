@@ -10,31 +10,6 @@ jobs:
     vmImage: ${{ parameters.imageName }}
   displayName: ${{ parameters.displayName }}
   steps:
-  - ${{ parameters.powershellExecutable }}: |
-      dir $env:USERPROFILE\Documents\PowerShell\Modules\* -Directory -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -Verbose -ErrorAction SilentlyContinue
-    displayName: Remove all user profile PowerShell modules
-
-  - ${{ parameters.powershellExecutable }}: |
-      Install-Module -Name "platyPS" -Force
-    displayName: Install platyPS dependency
-
-  - ${{ parameters.powershellExecutable }}: |
-        Install-Module -Name "PSScriptAnalyzer" -RequiredVersion 1.18.0 -Force
-    displayName: Install PSScriptAnalyzer dependency
-
-  - ${{ parameters.powershellExecutable }}: |
-      Install-Module -Name PSPackageProject -Force
-    displayName: Install PSPackageProject module
-
-  - ${{ parameters.powershellExecutable }}: |
-      dir $env:USERPROFILE\Documents\PowerShell\Modules\Pester* -Directory -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -Verbose -ErrorAction SilentlyContinue
-      Install-Module -Name "Pester" -MaximumVersion 4.99 -Force
-    displayName: Install Pester 4.0 dependency only
-
-  - ${{ parameters.powershellExecutable }}: |
-      Get-Module -Name Pester -ListAvailable
-    displayName: Capture Pester module environment
-
   - task: DownloadBuildArtifacts@0
     displayName: 'Download artifacts'
     inputs:
@@ -44,21 +19,94 @@ jobs:
       downloadPath: '$(System.ArtifactsDirectory)'
 
   - ${{ parameters.powershellExecutable }}: |
+      Get-ChildItem -Path "$(System.ArtifactsDirectory)" -Recurse
+    displayName: Capture artifacts directory
+
+  - ${{ parameters.powershellExecutable }}: |
+      $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+      if (Test-Path -Path $modulePath) {
+        Write-Verbose -Verbose "Deleting existing temp module path: $modulePath"
+        Remove-Item -Path $modulePath -Recurse -Force -ErrorAction Ignore
+      }
+      if (! (Test-Path -Path $modulePath)) {
+        Write-Verbose -Verbose "Creating new temp module path: $modulePath"
+        $null = New-Item -Path $modulePath -ItemType Directory
+      }
+    displayName: Create temporary module path for PSPackageProject
+  
+  - ${{ parameters.powershellExecutable }}: |
+      $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+      Save-Module -Name "platyPS" -Path $modulePath -Force
+    displayName: Install platyPS dependency
+
+  - ${{ parameters.powershellExecutable }}: |
+      $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+      Save-Module -Name "PSScriptAnalyzer" -Path $modulePath -RequiredVersion 1.18.0 -Force
+    displayName: Install PSScriptAnalyzer dependency
+
+  - ${{ parameters.powershellExecutable }}: |
+      $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+      Save-Module -Name PSPackageProject -Path $modulePath -Force
+    displayName: Install PSPackageProject module
+
+  - ${{ parameters.powershellExecutable }}: |
+      $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+      Save-Module -Name PowerShellGet -Path $modulePath -MinimumVersion 3.0.0-beta10 -AllowPrerelease -Force
+    displayName: Install PowerShellGet Module
+
+  - ${{ parameters.powershellExecutable }}: |
+      $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+      Save-Module -Name "Pester" -Path $modulePath -MaximumVersion 4.99 -Force
+    displayName: Install Pester 4.0
+
+  - ${{ parameters.powershellExecutable }}: |
+      $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+      $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
+      $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
+      Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
+      Import-Module -Name $modPath -Force
+      #
       $sourceName = 'pspackageproject-local-repo'
-      Register-PSRepository -Name $sourceName -SourceLocation '$(System.ArtifactsDirectory)' -ErrorAction Ignore
+      Register-PackageSource -Name $sourceName -Location "$(System.ArtifactsDirectory)" -ProviderName PowerShellGet -Force -ErrorAction Ignore
+      Get-PackageSource -Name $sourceName
       $config = Get-PSPackageProjectConfiguration
       $buildOutputPath = $config.BuildOutputPath
+      Write-Verbose -Verbose -Message "PSPackage build output path: $buildOutputPath"
       $null = New-Item -ItemType Directory -Path $buildOutputPath -Verbose
       $moduleName = $config.ModuleName
-      Save-Module -Repository $sourceName -Name $moduleName -Path $config.BuildOutputPath
+      Write-Verbose -Verbose "Saving package $sourceName to $($config.BuildOutputPath)"
+      Save-Package -Name $moduleName -Source $sourceName -ProviderName PowerShellGet -Path $config.BuildOutputPath -AllowPrereleaseVersions -Force
     displayName: Extract product artifact
 
-  - ${{ parameters.powershellExecutable }}: |
-      Invoke-PSPackageProjectTest -Type Functional
-    displayName: Execute functional tests
-    errorActionPreference: continue
+#  - ${{ parameters.powershellExecutable }}: |
+#      $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+#      $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
+#      $modPath = Join-Path -Path $modulePath -ChildPath Pester
+#      Write-Verbose -Verbose "Importing Pester 4 from: $modPath"
+#      Import-Module -Name $modPath -MaximumVersion 4.99 -Force
+#      Get-Module
+#      $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
+#      Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
+#      Import-Module -Name $modPath -Force
+#      Get-Module
+#      #
+#      Invoke-PSPackageProjectTest -Type Functional
+#    displayName: Execute functional tests
+#    errorActionPreference: continue
 
   - ${{ parameters.powershellExecutable }}: |
+      $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+      $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
+      Get-Module Pester | Remove-Module -Force
+      $modPath = Join-Path -Path $modulePath -ChildPath Pester
+      Write-Verbose -Verbose "Importing Pester 4 from: $modPath"
+      Import-Module -Name $modPath -Force
+      Get-Module Pester
+      $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
+      Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
+      Import-Module -Name $modPath -Force
+      Get-Module
+      #
       Invoke-PSPackageProjectTest -Type StaticAnalysis
     displayName: Execute static analysis tests
     errorActionPreference: continue

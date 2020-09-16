@@ -21,12 +21,12 @@ function DoBuild
     $RefSrcPath = "bin/${BuildConfiguration}/${BuildFramework}/ref"
 
     # Copy psd1 file
-    Write-Verbose -Verbose "Copy-Item ${SrcPath}/${ModuleName}.psd1 to ${OutDirectory}/${ModuleName}"
-    Copy-Item "${SrcPath}/${ModuleName}.psd1" "${OutDirectory}/${ModuleName}"
+    Write-Verbose -Verbose "Copy-Item ${SrcPath}/${ModuleName}.psd1 to $BuildOutPath"
+    Copy-Item "${SrcPath}/${ModuleName}.psd1" "$BuildOutPath"
 
     # Copy format files here
-    Write-Verbose -Verbose "Copy-Item ${SrcPath}/${ModuleName}.format.ps1xml to ${OutDirectory}/${ModuleName}"
-    copy-item "${SrcPath}/${ModuleName}.format.ps1xml" "${OutDirectory}/${ModuleName}"
+    Write-Verbose -Verbose "Copy-Item ${SrcPath}/${ModuleName}.format.ps1xml to $BuildOutPath"
+    copy-item "${SrcPath}/${ModuleName}.format.ps1xml" "$BuildOutPath"
 
     # Copy help
     Write-Verbose -Verbose -Message "Copying help files to '$BuildOutPath'"

@@ -160,11 +160,8 @@ namespace Microsoft.PowerShell.SecretManagement
                         this));
             }
 
-            var modulePath = moduleInfo.Path;
-            var dirPath = System.IO.File.Exists(modulePath) ? System.IO.Path.GetDirectoryName(modulePath) : modulePath;
-
             if (!CheckForImplementingModule(
-                dirPath: dirPath,
+                dirPath: moduleInfo.ModuleBase,
                 moduleName: moduleInfo.Name,
                 secretMgtModulePath: secretMgtModulePath,
                 error: out Exception error))
@@ -179,6 +176,22 @@ namespace Microsoft.PowerShell.SecretManagement
                         "RegisterSecretVaultCantFindImplementingScriptModule",
                         ErrorCategory.ObjectNotFound,
                         this));
+            }
+
+            // Find base path of module without version folder, to store in vault registry.
+            string dirPath;
+            if (System.IO.Path.GetFileName(moduleInfo.ModuleBase).Equals(moduleInfo.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                dirPath = moduleInfo.ModuleBase;
+            }
+            else
+            {
+                var parent = System.IO.Directory.GetParent(moduleInfo.ModuleBase);
+                while (parent != null && !parent.Name.Equals(moduleInfo.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    parent = parent.Parent;
+                }
+                dirPath = parent?.FullName ?? moduleInfo.ModuleBase;
             }
 
             // Store module information.
@@ -361,7 +374,7 @@ namespace Microsoft.PowerShell.SecretManagement
                     # so make sure it is loaded.
                     $null = Import-Module -Name $SecretMgtModulePath -ErrorAction SilentlyContinue
 
-                    Import-Module -Name $ModulePath -Force -PassThru
+                    Import-Module -Name $ModulePath -PassThru
                 ",
                 args: new object[] { modulePath, secretMgtModulePath },
                 out error);
