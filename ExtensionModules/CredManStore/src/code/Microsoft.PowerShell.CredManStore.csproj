@@ -16,9 +16,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Reference Include="Microsoft.PowerShell.SecretManagement">
-      <HintPath>..\..\..\..\out\Microsoft.PowerShell.SecretManagement\Microsoft.PowerShell.SecretManagement.dll</HintPath>
-    </Reference>
+    <PackageReference Include="Microsoft.PowerShell.SecretManagement.Library" Version="0.5.1-*" />
     <PackageReference Include="PowerShellStandard.Library" Version="5.1.0-*" />
     <PackageReference Include="Microsoft.CSharp" version="4.5.0-*" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" version="4.7.0" />

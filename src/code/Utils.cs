@@ -770,25 +770,32 @@ namespace Microsoft.PowerShell.SecretManagement
         /// Add item to cache.
         /// </summary>
         /// <param name="vaultInfo">Hashtable of vault information.</param>
-        /// <param name="defaultName">When true, this vault is designated as the default vault.</param>
+        /// <param name="defaultVault">When true, this vault is designated as the default vault.</param>
+        /// <param name="overWriteExisting">When true, this will overwrite an existing vault with the same name.</param>
         /// <returns>True when item is successfully added.</returns>
         public static bool Add(
             string keyName,
             Hashtable vaultInfo,
-            bool defaultVault)
+            bool defaultVault,
+            bool overWriteExisting)
         {
             var vaultItems = GetAll();
-            if (!vaultItems.ContainsKey(keyName))
+            if (vaultItems.ContainsKey(keyName))
             {
-                vaultItems.Add(keyName, vaultInfo);
-                _defaultVaultName = defaultVault ? keyName : _defaultVaultName;
-                WriteSecretVaultRegistry(
-                    vaultInfo: vaultItems,
-                    defaultVaultName: _defaultVaultName);
-                return true;
+                if (!overWriteExisting)
+                {
+                    return false;
+                }
+                
+                vaultItems.Remove(keyName);
             }
 
-            return false;
+            vaultItems.Add(keyName, vaultInfo);
+            WriteSecretVaultRegistry(
+                vaultInfo: vaultItems,
+                defaultVaultName: defaultVault ? keyName : _defaultVaultName);
+            
+            return true;
         }
 
         public static void SetDefaultVault(

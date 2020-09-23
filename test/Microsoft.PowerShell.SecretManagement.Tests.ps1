@@ -365,7 +365,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         }
 
         It "Verifies Test-SecretVault fails with errors" {
-            Test-SecretVault -Vault ScriptTestVault 2>$null | Should -BeFalse
+            Test-SecretVault -Name ScriptTestVault 2>$null | Should -BeFalse
         }
 
         It "Verifies the script vault extension is *not* designated as the default vault" {
@@ -394,7 +394,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         }
 
         It "Verifies Test-SecretVault succeeds" {
-            Test-SecretVault -Vault ScriptTestVault | Should -BeTrue
+            Test-SecretVault -Name ScriptTestVault | Should -BeTrue
         }
     }
 
