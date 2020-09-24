@@ -74,6 +74,9 @@ Since each extension vault module exports the same five cmdlets, the module must
 Therefore the extension vault module itself does not export the five required cmdlets directly, but are instead exported from a nested module that resides within the extension vault module directory.
 This nested module must have a name that is the parent module name with '.Extension' appended to it.  
 
+It is recommended that the parent module manifest file (.psd1) include the 'SecretManagement' tag in its PrivateData section.
+This allows [PowerShellGallery](https://www.powershellgallery.com) to associate it with the SecretManagement module.  
+
 ### Example: Script module vault extension
 
 This is a minimal vault extension example to demonstrate the directory structure and functional requirements of an extension vault module.
@@ -96,6 +99,11 @@ The extension vault module name is 'TestVault'.
     RootModule = '.\TestStoreImplementation.dll'
     NestedModules = @('.\TestVault.Extension')
     CmdletsToExport = @('Set-TestStoreConfiguration','Get-TestStoreConfiguration')
+    PrivateData = @{
+        PSData = @{
+            Tags = @('SecretManagement')
+        }
+    }
 }
 ```
 

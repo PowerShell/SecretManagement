@@ -177,7 +177,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
             // Resolve the module name path in calling context, if it is a path and not a name.
             var results = InvokeCommand.InvokeScript(
-                    script: @"param([string] $path) (Resolve-Path -Path $path -EA Silent).Path",
+                    script: @"param([string] $path) (Resolve-Path -Path $path -ErrorAction Ignore).Path",
                     useNewScope: true,
                     writeToPipeline: PipelineResultTypes.Error,
                     input: null,
@@ -421,7 +421,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
                     # ModulePath module may have a dependency on SecretManagement module,
                     # so make sure it is loaded.
-                    $null = Import-Module -Name $SecretMgtModulePath -ErrorAction SilentlyContinue
+                    $null = Import-Module -Name $SecretMgtModulePath -ErrorAction Ignore
 
                     Import-Module -Name $ModulePath -Force -PassThru
                 ",
