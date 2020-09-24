@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Management.Automation;
+using System.Management.Automation.Runspaces;
 using System.Security;
 
 using Dbg = System.Diagnostics.Debug;
@@ -24,7 +25,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets name of extension vault.
         /// </summary>
-        public string VaultName { get; }
+        public string Name { get; }
 
         /// <summary>
         /// Gets name of extension vault module.
@@ -54,7 +55,7 @@ namespace Microsoft.PowerShell.SecretManagement
             string name,
             ExtensionVaultModule vaultInfo)
         {
-            VaultName = name;
+            Name = name;
             ModuleName = vaultInfo.ModuleName;
             ModulePath = vaultInfo.ModulePath;
             VaultParameters = vaultInfo.VaultParameters;
@@ -77,19 +78,20 @@ namespace Microsoft.PowerShell.SecretManagement
         #region Parameters
 
         /// <summary>
-        /// Gets or sets a friendly name for the registered secret vault.
-        /// The name must be unique.
+        /// Gets or sets the module name or file path of the vault extension module to register.
         /// </summary>
         [Parameter(Position=0, Mandatory=true)]
         [ValidateNotNullOrEmpty]
-        public string Name { get; set; }
+        public string ModuleName { get; set; }
 
         /// <summary>
-        /// Gets or sets the module name or file path of the vault extension module to register.
+        /// Gets or sets a friendly name for the registered secret vault.
+        /// The name must be unique.
+        /// If no Name is provided then the ModuleName is used as the friendly name.
         /// </summary>
-        [Parameter(Position=1, Mandatory=true)]
+        [Parameter(Position=1)]
         [ValidateNotNullOrEmpty]
-        public string ModuleName { get; set; }
+        public string Name { get; set; }
 
         /// <summary>
         /// Gets or sets an optional Hashtable of parameters by name/value pairs.
@@ -105,9 +107,52 @@ namespace Microsoft.PowerShell.SecretManagement
         [Parameter]
         public SwitchParameter DefaultVault { get; set; }
 
+        /// <summary>
+        /// Gets or sets a flag that overwrites an existing secret vault with the same name.
+        /// </summary>
+        [Parameter]
+        public SwitchParameter AllowClobber { get; set; }
+
         #endregion
 
         #region Overrides
+
+        protected override void BeginProcessing()
+        {
+            if (!this.MyInvocation.BoundParameters.ContainsKey(nameof(Name)))
+            {
+                // Let the friendly Name be the module name.
+                var results = InvokeCommand.InvokeScript(
+                    script: @"param([string] $path) Split-Path -Path $path -Leaf",
+                    useNewScope: true,
+                    writeToPipeline: PipelineResultTypes.Error,
+                    input: null,
+                    args: new object[] { ModuleName });
+                string moduleName = (results.Count == 1 && results[0] != null) ? (string) results[0].BaseObject : null;
+                if (string.IsNullOrEmpty(moduleName))
+                {
+                    var msg = string.Format(CultureInfo.InvariantCulture,
+                        @"Unable to get friendly name from ModuleName : {0}",
+                        ModuleName);
+
+                    ThrowTerminatingError(
+                        new ErrorRecord(
+                            exception: new PSInvalidOperationException(msg),
+                            errorId: "RegisterSecretVaultCommandCannotParseModuleName",
+                            errorCategory: ErrorCategory.InvalidOperation,
+                            this));
+                }
+
+                var extension = System.IO.Path.GetExtension(moduleName);
+                if (extension.Equals(".psd1", StringComparison.OrdinalIgnoreCase) ||
+                    extension.Equals(".psm1", StringComparison.OrdinalIgnoreCase))
+                {
+                    moduleName = System.IO.Path.GetFileNameWithoutExtension(moduleName);
+                }
+
+                Name = moduleName;
+            }
+        }
 
         protected override void EndProcessing()
         {
@@ -115,7 +160,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
             // Validate mandatory parameters.
             var vaultItems = RegisteredVaultCache.GetAll();
-            if (vaultItems.ContainsKey(Name))
+            if (vaultItems.ContainsKey(Name) && !(AllowClobber.IsPresent))
             {
                 ThrowTerminatingError(
                     new ErrorRecord(
@@ -125,15 +170,18 @@ namespace Microsoft.PowerShell.SecretManagement
                         this));
             }
 
-            if (!ShouldProcess(Name, VerbsLifecycle.Register))
+            if (!ShouldProcess(Name, "Register module as a SecretManagement extension vault for current user"))
             {
                 return;
             }
 
             // Resolve the module name path in calling context, if it is a path and not a name.
             var results = InvokeCommand.InvokeScript(
-                script: "param([string] $path) (Resolve-Path -Path $path -EA Silent).Path",
-                args: new object[] { ModuleName });
+                    script: @"param([string] $path) (Resolve-Path -Path $path -ErrorAction Ignore).Path",
+                    useNewScope: true,
+                    writeToPipeline: PipelineResultTypes.Error,
+                    input: null,
+                    args: new object[] { ModuleName });
             string resolvedPath = (results.Count == 1 && results[0] != null) ? (string) results[0].BaseObject : null;
             string moduleNameOrPath = resolvedPath ?? ModuleName;
 
@@ -211,7 +259,8 @@ namespace Microsoft.PowerShell.SecretManagement
             RegisteredVaultCache.Add(
                 keyName: Name,
                 vaultInfo: vaultInfo,
-                defaultVault: DefaultVault);
+                defaultVault: DefaultVault,
+                overWriteExisting: true);
         }
 
         #endregion
@@ -236,7 +285,7 @@ namespace Microsoft.PowerShell.SecretManagement
             {
                 error = new ItemNotFoundException(
                     string.Format(CultureInfo.InvariantCulture, 
-                    @"Implementing script module not found at : {0} with error : {1}.", 
+                    @"Implementing script module could not be found or loaded at : {0} with error : {1}.", 
                     implementingModulePath, moduleLoadError?.ToString() ?? string.Empty));
                 return false;
             }
@@ -372,9 +421,9 @@ namespace Microsoft.PowerShell.SecretManagement
 
                     # ModulePath module may have a dependency on SecretManagement module,
                     # so make sure it is loaded.
-                    $null = Import-Module -Name $SecretMgtModulePath -ErrorAction SilentlyContinue
+                    $null = Import-Module -Name $SecretMgtModulePath -ErrorAction Ignore
 
-                    Import-Module -Name $ModulePath -PassThru
+                    Import-Module -Name $ModulePath -Force -PassThru
                 ",
                 args: new object[] { modulePath, secretMgtModulePath },
                 out error);
@@ -405,7 +454,8 @@ namespace Microsoft.PowerShell.SecretManagement
         /// </summary>
         [Parameter(ParameterSetName = NameParameterSet,
                    Position = 0, 
-                   Mandatory = true)]
+                   Mandatory = true,
+                   ValueFromPipeline = true)]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
 
@@ -426,7 +476,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// </summary>
         protected override void ProcessRecord()
         {
-            if (!ShouldProcess(Name, VerbsLifecycle.Unregister))
+            if (!ShouldProcess(Name, "Unregister SecretManagement extension vault module for current user"))
             {
                 return;
             }
@@ -439,7 +489,7 @@ namespace Microsoft.PowerShell.SecretManagement
                     break;
                 
                 case SecretVaultParameterSet:
-                    vaultName = SecretVault.VaultName;
+                    vaultName = SecretVault.Name;
                     break;
 
                 default:
@@ -474,13 +524,31 @@ namespace Microsoft.PowerShell.SecretManagement
     /// <summary>
     /// Cmdlet sets the provided registered vault name as the default vault.
     /// </summary>
-    [Cmdlet(VerbsCommon.Set, "DefaultVault")]
+    [Cmdlet(VerbsCommon.Set, "DefaultVault", SupportsShouldProcess = true)]
     public sealed class SetDefaultVaultCommand : PSCmdlet
     {
         #region Parameters
 
-        [Parameter (Position=0)]
+        private const string NameParameterSet = "NameParameterSet";
+        private const string SecretVaultParameterSet = "SecretVaultParameterSet";
+
+        /// <summary>
+        /// Gets or sets a name of the secret vault to unregister.
+        /// </summary>
+        [Parameter(ParameterSetName = NameParameterSet,
+                   Position = 0, 
+                   Mandatory = true,
+                   ValueFromPipeline = true)]
+        [ValidateNotNullOrEmpty]
         public string Name { get; set; }
+
+        [Parameter(ParameterSetName = SecretVaultParameterSet,
+                   Position = 0,
+                   Mandatory = true,
+                   ValueFromPipeline = true,
+                   ValueFromPipelineByPropertyName = true)]
+        [ValidateNotNull]
+        public SecretVaultInfo SecretVault { get; set; }
 
         #endregion
 
@@ -488,9 +556,31 @@ namespace Microsoft.PowerShell.SecretManagement
 
         protected override void EndProcessing()
         {
+            if (!ShouldProcess(Name, "Set vault as default"))
+            {
+                return;
+            }
+
+            string vaultName;
+            switch (ParameterSetName)
+            {
+                case NameParameterSet:
+                    vaultName = Name;
+                    break;
+                
+                case SecretVaultParameterSet:
+                    vaultName = SecretVault.Name;
+                    break;
+
+                default:
+                    Dbg.Assert(false, "Invalid parameter set");
+                    vaultName = string.Empty;
+                    break;
+            }
+
             try
             {
-                RegisteredVaultCache.SetDefaultVault(Name);
+                RegisteredVaultCache.SetDefaultVault(vaultName);
             }
             catch (Exception ex)
             {
@@ -906,7 +996,7 @@ namespace Microsoft.PowerShell.SecretManagement
     /// Adds a provided secret to the specified extension vault, 
     /// or the built-in default store if an extension vault is not specified.
     /// </summary>
-    [Cmdlet(VerbsCommon.Set, "Secret", 
+    [Cmdlet(VerbsCommon.Set, "Secret", SupportsShouldProcess = true,
             DefaultParameterSetName = SecureStringParameterSet)]
     public sealed class SetSecretCommand : SecretCmdlet
     {
@@ -914,6 +1004,8 @@ namespace Microsoft.PowerShell.SecretManagement
 
         private const string SecureStringParameterSet = "SecureStringParameterSet";
         private const string ObjectParameterSet = "ObjectParameterSet";
+        private const string SecretInfoParameterSet = "SecretInfoParameterSet";
+        private const string SecretExistsError = "A secret with name {0} already exists in vault {1}.";
 
         #endregion
 
@@ -922,7 +1014,8 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets a name of the secret to be added.
         /// </summary>
-        [Parameter(Position=0, Mandatory=true)]
+        [Parameter(ParameterSetName = ObjectParameterSet, Position=0, Mandatory=true)]
+        [Parameter(ParameterSetName = SecureStringParameterSet, Position=0, Mandatory=true)]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
 
@@ -946,10 +1039,16 @@ namespace Microsoft.PowerShell.SecretManagement
                    ParameterSetName = SecureStringParameterSet)]
         public SecureString SecureStringSecret { get; set; }
 
+        [Parameter(Position=1, Mandatory=true, ValueFromPipeline=true,
+                   ParameterSetName = SecretInfoParameterSet)]
+        public SecretInformation SecretInfo { get; set; }
+
         /// <summary>
         /// Gets or sets an optional extension vault name.
         /// </summary>
-        [Parameter(Position=2)]
+        [Parameter(Position=2, ParameterSetName = ObjectParameterSet)]
+        [Parameter(Position=2, ParameterSetName = SecureStringParameterSet)]
+        [Parameter(ParameterSetName = SecretInfoParameterSet, Mandatory=true)]
         public string Vault { get; set; }
 
         /// <summary>
@@ -962,14 +1061,59 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Overrides
 
-        protected override void EndProcessing()
+        protected override void ProcessRecord()
         {
-            if (ParameterSetName == SecureStringParameterSet)
+            if (!ShouldProcess(Vault, "Write secret to vault and override any existing secret of the same name"))
             {
-                Secret = SecureStringSecret;
+                return;
             }
 
-            var secretToWrite = (Secret is PSObject psObject) ? psObject.BaseObject : Secret;
+            object secretToWrite = null;
+            switch (ParameterSetName)
+            {
+                case SecretInfoParameterSet:
+                    // Get and add secret to specified vault.
+                    // Get secret from secretinfo.
+                    var sourceExtensionModule = GetExtensionVault(SecretInfo.VaultName);
+                    var secret = sourceExtensionModule.InvokeGetSecret(
+                        name: SecretInfo.Name,
+                        vaultName: SecretInfo.VaultName,
+                        cmdlet: this);
+
+                    // Check for overwrite error.
+                    var destExtensionModule = GetExtensionVault(Vault);
+                    if (NoClobber &&
+                        SecretExistsInVault(
+                            extensionModule: destExtensionModule,
+                            name: SecretInfo.Name))
+                    {
+                        var msg = string.Format(CultureInfo.InvariantCulture, 
+                            SecretExistsError, SecretInfo.Name, destExtensionModule.VaultName);
+                        WriteError(
+                            new ErrorRecord(
+                                new PSInvalidOperationException(msg),
+                                "SetSecretAlreadyExistsWithNoClobber",
+                                ErrorCategory.ResourceExists,
+                                this));
+                        return;
+                    }
+                    
+                    // Set secret to specified vault name.
+                    destExtensionModule.InvokeSetSecret(
+                        name: SecretInfo.Name,
+                        secret: secret,
+                        vaultName: Vault,
+                        cmdlet: this);
+                    return;
+
+                case SecureStringParameterSet:
+                    secretToWrite = SecureStringSecret;
+                    break;
+
+                case ObjectParameterSet:
+                    secretToWrite = (Secret is PSObject psObject) ? psObject.BaseObject : Secret;
+                    break;
+            }
 
             // Add to specified vault.
             if (!string.IsNullOrEmpty(Vault))
@@ -1008,24 +1152,19 @@ namespace Microsoft.PowerShell.SecretManagement
             object secretToWrite)
         {
             // If NoClobber is selected, then check to see if it already exists.
-            if (NoClobber)
+            if (NoClobber &&
+                SecretExistsInVault(
+                    extensionModule: extensionModule,
+                    name: Name))
             {
-                var result = extensionModule.InvokeGetSecret(
-                    name: Name,
-                    vaultName: extensionModule.VaultName,
-                    cmdlet: this);
-
-                if (result != null)
-                {
-                    var msg = string.Format(CultureInfo.InvariantCulture, 
-                        "A secret with name {0} already exists in vault {1}.", Name, extensionModule.VaultName);
-                    ThrowTerminatingError(
-                        new ErrorRecord(
-                            new PSInvalidOperationException(msg),
-                            "AddSecretAlreadyExists",
-                            ErrorCategory.ResourceExists,
-                            this));
-                }
+                var msg = string.Format(CultureInfo.InvariantCulture, 
+                    SecretExistsError, Name, extensionModule.VaultName);
+                ThrowTerminatingError(
+                    new ErrorRecord(
+                        new PSInvalidOperationException(msg),
+                        "SetSecretAlreadyExistsWithNoClobber",
+                        ErrorCategory.ResourceExists,
+                        this));
             }
 
             // Add new secret to vault.
@@ -1034,6 +1173,18 @@ namespace Microsoft.PowerShell.SecretManagement
                 secret: secretToWrite,
                 vaultName: extensionModule.VaultName,
                 cmdlet: this);
+        }
+
+        private bool SecretExistsInVault(
+            ExtensionVaultModule extensionModule,
+            string name)
+        {
+            var result = extensionModule.InvokeGetSecret(
+                    name: name,
+                    vaultName: extensionModule.VaultName,
+                    cmdlet: this);
+
+            return (result != null);
         }
 
         #endregion
@@ -1046,7 +1197,7 @@ namespace Microsoft.PowerShell.SecretManagement
     /// <summary>
     /// Removes a secret by name from the local default vault.
     /// <summary>
-    [Cmdlet(VerbsCommon.Remove, "Secret")]
+    [Cmdlet(VerbsCommon.Remove, "Secret", SupportsShouldProcess = true)]
     public sealed class RemoveSecretCommand : SecretCmdlet
     {
         #region Parameters
@@ -1074,6 +1225,11 @@ namespace Microsoft.PowerShell.SecretManagement
 
         protected override void ProcessRecord()
         {
+            if (!ShouldProcess(Vault, "Remove secret by name from vault"))
+            {
+                return;
+            }
+
             // Remove from extension vault.
             var extensionModule = GetExtensionVault(Vault);
             extensionModule.InvokeRemoveSecret(
@@ -1098,24 +1254,27 @@ namespace Microsoft.PowerShell.SecretManagement
     {
         #region Parameters
 
-        [Parameter(Position=1, Mandatory=true)]
+        [Parameter(Position=0, 
+                   Mandatory=true,
+                   ValueFromPipeline=true,
+                   ValueFromPipelineByPropertyName=true)]
         [ValidateNotNullOrEmpty]
-        public string Vault { get; set; }
+        public string Name { get; set; }
 
         #endregion
 
         #region Overrides
 
-        protected override void EndProcessing()
+        protected override void ProcessRecord()
         {
-            var extensionModule = GetExtensionVault(Vault);
+            var extensionModule = GetExtensionVault(Name);
             var success = extensionModule.InvokeTestVault(
-                vaultName: Vault,
+                vaultName: Name,
                 cmdlet: this);
 
             var resultMessage = success ?
-                string.Format(CultureInfo.InvariantCulture, @"Vault {0} succeeded validation test", Vault) :
-                string.Format(CultureInfo.InvariantCulture, @"Vault {0} failed validation test", Vault);
+                string.Format(CultureInfo.InvariantCulture, @"Vault {0} succeeded validation test", Name) :
+                string.Format(CultureInfo.InvariantCulture, @"Vault {0} failed validation test", Name);
             WriteVerbose(resultMessage);
 
             // Return boolean for test result

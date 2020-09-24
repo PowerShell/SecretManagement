@@ -7,7 +7,7 @@
 RootModule = '.\Microsoft.PowerShell.SecretManagement.dll'
 
 # Version number of this module.
-ModuleVersion = '0.5.2'
+ModuleVersion = '0.5.3'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -66,7 +66,7 @@ PrivateData = @{
         LicenseUri = 'https://github.com/PowerShell/Modules/License.txt'
 
         # A URL to the main website for this project.
-        # ProjectUri = ''
+        ProjectUri = 'https://github.com/powershell/secretmanagement'
 
         # A URL to an icon representing this module.
         # IconUri = ''
@@ -75,7 +75,7 @@ PrivateData = @{
         # ReleaseNotes = ''
 
         # Prerelease string of this module
-        Prerelease = 'preview3'
+        Prerelease = 'preview4'
 
         # Flag to indicate whether the module requires explicit user acceptance for install/update/save
         # RequireLicenseAcceptance = $false
