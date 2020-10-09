@@ -689,6 +689,7 @@ namespace Microsoft.PowerShell.SecretManagement
         private static readonly FileSystemWatcher _registryWatcher;
         private static readonly Dictionary<string, ExtensionVaultModule> _vaultCache;
         private static Hashtable _vaultInfoCache;
+        private static object _syncObject;
         private static string _defaultVaultName = string.Empty;
         private static bool _allowAutoRefresh;
 
@@ -703,7 +704,7 @@ namespace Microsoft.PowerShell.SecretManagement
         {
             get 
             {
-                lock (_vaultInfoCache)
+                lock (_syncObject)
                 {
                     var returnVaults = new SortedDictionary<string, ExtensionVaultModule>(StringComparer.OrdinalIgnoreCase);
                     foreach (var vaultName in _vaultCache.Keys)
@@ -733,6 +734,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 Directory.CreateDirectory(RegistryDirectoryPath);
             }
 
+            _syncObject = new object();
             _vaultInfoCache = new Hashtable();
             _vaultCache = new Dictionary<string, ExtensionVaultModule>(StringComparer.OrdinalIgnoreCase);
 
@@ -759,7 +761,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <returns>Hashtable of vault items.</returns>
         public static Hashtable GetAll()
         {
-            lock (_vaultInfoCache)
+            lock (_syncObject)
             {
                 var vaultItems = (Hashtable) _vaultInfoCache.Clone();
                 return vaultItems;
@@ -893,7 +895,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
             try
             {
-                lock (_vaultInfoCache)
+                lock (_syncObject)
                 {
                     _vaultInfoCache = vaultItems;
 
@@ -926,8 +928,8 @@ namespace Microsoft.PowerShell.SecretManagement
             out Hashtable vaultInfo,
             out string defaultVaultName)
         {
-            vaultInfo = null;
-            defaultVaultName = "";
+            defaultVaultName = string.Empty;
+            vaultInfo =  new Hashtable();
 
             if (!File.Exists(RegistryFilePath))
             {
@@ -941,8 +943,17 @@ namespace Microsoft.PowerShell.SecretManagement
                 {
                     string jsonInfo = File.ReadAllText(RegistryFilePath);
                     var registryInfo = Utils.ConvertJsonToHashtable(jsonInfo);
-                    defaultVaultName = (string) registryInfo["DefaultVaultName"];
-                    vaultInfo = (Hashtable) registryInfo["Vaults"];
+                    var fileDefaultVaultName = (string) registryInfo["DefaultVaultName"];
+                    var fileVaultInfo = (Hashtable) registryInfo["Vaults"];
+                    if (fileDefaultVaultName == null || fileVaultInfo == null)
+                    {
+                        // Missing expected values.  Assume file is corrupt.
+                        DeleteSecretVaultRegistryFile();
+                        return false;
+                    }
+
+                    defaultVaultName = fileDefaultVaultName;
+                    vaultInfo = fileVaultInfo;
                     return true;
                 }
                 catch (IOException)
