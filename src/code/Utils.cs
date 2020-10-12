@@ -888,7 +888,7 @@ namespace Microsoft.PowerShell.SecretManagement
         {
             if (!TryReadSecretVaultRegistry(
                 vaultInfo: out Hashtable vaultItems,
-                defaultVaultName: out _defaultVaultName))
+                defaultVaultName: out string defaultVaultName))
             {
                 return;
             }
@@ -897,6 +897,7 @@ namespace Microsoft.PowerShell.SecretManagement
             {
                 lock (_syncObject)
                 {
+                    _defaultVaultName = defaultVaultName;
                     _vaultInfoCache = vaultItems;
 
                     _vaultCache.Clear();
