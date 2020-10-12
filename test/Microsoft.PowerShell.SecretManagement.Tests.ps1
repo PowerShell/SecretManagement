@@ -415,8 +415,6 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         It "Verifies setting default vault works as default" {
             Set-DefaultVault -Name ScriptTestVault
             (Get-SecretVault -Name ScriptTestVault).IsDefault | Should -BeTrue
-            $msg = Get-SecretVault | Out-String
-            Write-Verbose -Verbose -Message $msg
             Set-Secret -Name GoesToDefaultVault -Secret $randomSecretE
             Get-Secret -Name GoesToDefaultVault -Vault ScriptTestVault -AsPlainText | Should -BeExactly $randomSecretE
         }
