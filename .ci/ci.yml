@@ -10,6 +10,9 @@ pr:
     include:
     - master
 
+variables:
+  - group: ESRP
+
 stages:
 - stage: Build
   displayName: Build PowerShell Package
@@ -41,14 +44,6 @@ stages:
         checkLatest: false
         version: 5.6.0
 
-    - task: PkgESSetupBuild@10
-      displayName: 'Package ES - Setup Build'
-      inputs:
-        productName: PSSecretManagement
-        useDfs: false
-        branchVersion: true
-        disableMsbuildVersion: true
-
     - pwsh: |
         Get-ChildItem -Path env:
       displayName: Capture environment for build
@@ -64,32 +59,21 @@ stages:
           Write-Verbose -Verbose "Creating new temp module path: $modulePath"
           $null = New-Item -Path $modulePath -ItemType Directory
         }
-      displayName: Create temporary module path for PSPackageProject
+      displayName: Create temporary module path
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
-        Save-Module PowerShellGet -MinimumVersion 3.0.0-beta10 -AllowPrerelease -Path $modulePath -Force
-      displayName: Install PowerShellGet Module
-
-    - pwsh: |
-        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+        Write-Verbose -Verbose "Install PowerShellGet V3 to temp module path"
+        Save-Module -Name PowerShellGet -Path $modulePath -MinimumVersion 3.0.0-beta10 -AllowPrerelease -Force
+        Write-Verbose -Verbose "Install PlatyPS to temp module path"
         Save-Module -Name "platyPS" -Path $modulePath -Force
-      displayName: Install platyPS dependency
-
-    - pwsh: |
-        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
-        Save-Module -Name "PSScriptAnalyzer" -RequiredVersion 1.18.0 -Path $modulePath -Force
-      displayName: Install PSScriptAnalyzer dependency
-
-    - pwsh: |
-        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+        Write-Verbose -Verbose "Install PSScriptAnalyzer to temp module path"
+        Save-Module -Name "PSScriptAnalyzer" -Path $modulePath -RequiredVersion 1.18.0 -Force
+        Write-Verbose -Verbose "Install Pester 4.X to temp module path"
         Save-Module -Name "Pester" -MaximumVersion 4.99 -Path $modulePath -Force
-      displayName: Install Pester version 4
-
-    - pwsh: |
-        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+        Write-Verbose -Verbose "Install PSPackageProject to temp module path"
         Save-Module -Name PSPackageProject -Path $modulePath -Force
-      displayName: Install PSPackageProject module
+      displayName: Install PSPackageProject and dependencies
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
@@ -114,18 +98,14 @@ stages:
         if (! (Test-Path -Path $signOutPath)) {
           $null = New-Item -Path $signOutPath -ItemType Directory
         }
-        Write-Host "Signed module output path is: $signOutPath"
-        $signXmlPath = "$($config.SourcePath)\..\sign-module-files.xml"
+        
         # Set signing src path variable
         $vstsCommandString = "vso[task.setvariable variable=signSrcPath]${signSrcPath}"
         Write-Host "sending " + $vstsCommandString
         Write-Host "##$vstsCommandString"
+
         # Set signing out path variable
         $vstsCommandString = "vso[task.setvariable variable=signOutPath]${signOutPath}"
-        Write-Host "sending " + $vstsCommandString
-        Write-Host "##$vstsCommandString"
-        # Set signing xml path
-        $vstsCommandString = "vso[task.setvariable variable=signXmlPath]${signXmlPath}"
         Write-Host "sending " + $vstsCommandString
         Write-Host "##$vstsCommandString"
       displayName: Set up for module code signing
@@ -135,17 +115,12 @@ stages:
       displayName: Capture environment for module code signing
       condition: succeededOrFailed()
 
-    - task: PkgESCodeSign@10
-      displayName: Sign module build files
-      env:
-        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-      inputs:
-        signConfigXml: '$(signXmlPath)'
-        inPathRoot: '$(signSrcPath)'
-        outPathRoot: '$(signOutPath)'
-        binVersion: Production
-        binVersionOverride: ''
-      condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
+    - template: ./templates/sign.yml
+      parameters:
+        buildOutputPath: $(signSrcPath)
+        signOutputPath: $(signOutPath)
+        certificateId: "CP-230012"
+        pattern: '*.dll,*.psd1,*.ps1xml'
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
@@ -198,39 +173,39 @@ stages:
       displayName: Capture environment for ref assembly nuget file signing
       condition: succeededOrFailed()
 
-    - task: PkgESCodeSign@10
-      displayName: Sign ref assembly nuget file
-      env:
-        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-      inputs:
-        signConfigXml: '$(signXmlPath)'
-        inPathRoot: '$(signSrcPath)'
-        outPathRoot: '$(signOutPath)'
-        binVersion: Production
-        binVersionOverride: ''
-      condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
+    #- task: PkgESCodeSign@10
+    #  displayName: Sign ref assembly nuget file
+    #  env:
+    #    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+    #  inputs:
+    #    signConfigXml: '$(signXmlPath)'
+    #    inPathRoot: '$(signSrcPath)'
+    #    outPathRoot: '$(signOutPath)'
+    #    binVersion: Production
+    #    binVersionOverride: ''
+    #  condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
 
-    - pwsh: |
-        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
-        $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
-        $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
-        Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
-        Import-Module -Name $modPath -Force
-        #
-        $config = Get-PSPackageProjectConfiguration
-        Write-Verbose -Verbose "SkipSigning: $($env:SkipSigning)"
-        if ($env:SkipSigning -eq 'True')
-        {
-          $refAssemblyNuGetPath = Resolve-Path -Path "$($config.BuildOutputPath)/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
-        }
-        else
-        {
-          $refAssemblyNuGetPath = Resolve-Path -Path "$($config.SignedOutputPath)/RefAssemblyNuGet/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
-        }
-        Get-ChildItem $refAssemblyNuGetPath
-        $artifactName = "RefAssemblyNuGet"
-        Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$refAssemblyNuGetPath"
-      displayName: Create ref assembly NuGet package artifact
+    #- pwsh: |
+    #    $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+    #    $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
+    #    $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
+    #    Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
+    #    Import-Module -Name $modPath -Force
+    #    #
+    #    $config = Get-PSPackageProjectConfiguration
+    #    Write-Verbose -Verbose "SkipSigning: $($env:SkipSigning)"
+    #    if ($env:SkipSigning -eq 'True')
+    #    {
+    #      $refAssemblyNuGetPath = Resolve-Path -Path "$($config.BuildOutputPath)/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
+    #    }
+    #    else
+    #    {
+    #      $refAssemblyNuGetPath = Resolve-Path -Path "$($config.SignedOutputPath)/RefAssemblyNuGet/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
+    #    }
+    #    Get-ChildItem $refAssemblyNuGetPath
+    #    $artifactName = "RefAssemblyNuGet"
+    #    Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$refAssemblyNuGetPath"
+    #  displayName: Create ref assembly NuGet package artifact
 
 - stage: Compliance
   displayName: Compliance
@@ -259,21 +234,20 @@ stages:
   #    imageName: windows-2019
   #    powershellExecutable: powershell
 
-  #- template: test.yml
-  #  parameters:
-  #    jobName: TestPkgUbuntu16
-  #    displayName: PowerShell Core on Ubuntu 16.04
-  #    imageName: ubuntu-16.04
+  - template: test.yml
+    parameters:
+      jobName: TestPkgUbuntu16
+      displayName: PowerShell Core on Ubuntu 16.04
+      imageName: ubuntu-16.04
 
-  #- template: test.yml
-  #  parameters:
-  #    jobName: TestPkgWinMacOS
-  #    displayName: PowerShell Core on macOS
-  #    imageName: macOS-10.14
+  - template: test.yml
+    parameters:
+      jobName: TestPkgWinMacOS
+      displayName: PowerShell Core on macOS
+      imageName: macOS-10.14
 
 - stage: Release
   displayName: Release Package
   condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), eq(variables['Publish'], 'True'))
   jobs:
   - template: release.yml
-

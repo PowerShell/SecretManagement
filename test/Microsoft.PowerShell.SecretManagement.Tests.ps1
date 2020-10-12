@@ -139,6 +139,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
     AfterAll {
 
         Unregister-SecretVault -Name ScriptTestVault -ErrorAction Ignore
+        Remove-Module -Name TVaultScript -Force -ErrorAction Ignore
     }
 
     function VerifyByteArrayType
@@ -413,6 +414,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
         It "Verifies setting default vault works as default" {
             Set-DefaultVault -Name ScriptTestVault
+            (Get-SecretVault -Name ScriptTestVault).IsDefault | Should -BeTrue
             Set-Secret -Name GoesToDefaultVault -Secret $randomSecretE
             Get-Secret -Name GoesToDefaultVault -Vault ScriptTestVault -AsPlainText | Should -BeExactly $randomSecretE
         }
