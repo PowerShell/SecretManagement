@@ -50,12 +50,7 @@ jobs:
 
   - ${{ parameters.powershellExecutable }}: |
       $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
-      if ($IsWindows) {
-        $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
-      }
-      else {
-        $env:PSModulePath = $modulePath + ':' + $env:PSModulePath
-      }
+      $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
       $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
       Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
       Import-Module -Name $modPath -Force
@@ -74,12 +69,7 @@ jobs:
 
   - ${{ parameters.powershellExecutable }}: |
       $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
-      if ($IsWindows) {
-        $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
-      }
-      else {
-        $env:PSModulePath = $modulePath + ':' + $env:PSModulePath
-      }
+      $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
       $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
       Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
       Import-Module -Name $modPath -Force
@@ -91,12 +81,7 @@ jobs:
 
   - ${{ parameters.powershellExecutable }}: |
       $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
-      if ($IsWindows) {
-        $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
-      }
-      else {
-        $env:PSModulePath = $modulePath + ':' + $env:PSModulePath
-      }
+      $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
       $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
       Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
       Import-Module -Name $modPath -Force
