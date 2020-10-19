@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8" ?>
-
-<!-- Config files for Azure DevOps code-signing pipeline. -->
-<!-- Sign SecretManagement reference assembly nuget package -->
-<SignConfigXML>
-  <job platform="" configuration="" dest="__OUTPATHROOT__\signed" jobname="SecretManagementRef" approvers="vigarg;gstolt">
-    <file src="__INPATHROOT__\Microsoft.PowerShell.SecretManagement.Library.0.5.3-preview.4.nupkg" signType="NuGet" dest="__OUTPATHROOT__\Microsoft.PowerShell.SecretManagement.Library.0.5.3-preview.4.nupkg" />
-  </job>
-</SignConfigXML>

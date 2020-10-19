@@ -49,7 +49,7 @@ steps:
 
 - pwsh: |
     $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
-    $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
+    $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
     $sourceName = 'pspackageproject-local-repo'
     Register-PackageSource -Name $sourceName -Location "$(System.ArtifactsDirectory)" -ProviderName PowerShellGet -Force -ErrorAction Ignore
     Get-PackageSource -Name $sourceName
@@ -68,7 +68,7 @@ steps:
 
 - pwsh: |
     $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
-    $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
+    $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
     $config = Get-PSPackageProjectConfiguration
     dir "$($config.BuildOutputPath)/*" -r 2>$null
   displayName: 'BuildOutputPath directory'
