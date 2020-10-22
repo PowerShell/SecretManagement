@@ -113,6 +113,12 @@ namespace Microsoft.PowerShell.SecretManagement
         [Parameter]
         public SwitchParameter AllowClobber { get; set; }
 
+        /// <summary>
+        /// Gets or sets a flag that will return the registered extension vault information.
+        /// </summary>
+        [Parameter]
+        public SwitchParameter PassThru { get; set; }
+
         #endregion
 
         #region Overrides
@@ -261,6 +267,19 @@ namespace Microsoft.PowerShell.SecretManagement
                 vaultInfo: vaultInfo,
                 defaultVault: DefaultVault,
                 overWriteExisting: true);
+
+            if (PassThru.IsPresent)
+            {
+                if (RegisteredVaultCache.VaultExtensions.TryGetValue(
+                    key: Name,
+                    out ExtensionVaultModule extensionVault))
+                {
+                    WriteObject(
+                        new SecretVaultInfo(
+                            extensionVault.VaultName,
+                            extensionVault));
+                }
+            }
         }
 
         #endregion
@@ -498,8 +517,10 @@ namespace Microsoft.PowerShell.SecretManagement
                     break;
             }
 
-            var removedVaultInfo = RegisteredVaultCache.Remove(vaultName);
-            if (removedVaultInfo == null)
+            // Invoke the optional 'Unregister-SecretVault' method on the extension vault
+            if (!RegisteredVaultCache.VaultExtensions.TryGetValue(
+                key: vaultName,
+                out ExtensionVaultModule extensionVault))
             {
                 var msg = string.Format(CultureInfo.InvariantCulture,
                     "Unable to find secret vault {0} to unregister it.", vaultName);
@@ -512,6 +533,15 @@ namespace Microsoft.PowerShell.SecretManagement
 
                 return;
             }
+
+            extensionVault.InvokeUnregisterVault(this);
+
+            // Remove vault from registry
+            RegisteredVaultCache.Remove(vaultName);
+            WriteVerbose(
+                string.Format(CultureInfo.InvariantCulture, 
+                    "Removed vault {0} from registry.", extensionVault.VaultName)
+            );
         }
 
         #endregion
@@ -645,7 +675,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// Gets or sets an optional name of the secret vault to return.
         /// <summary>
         [Parameter (Position=0)]
-        public string Name { get; set; }
+        public string[] Name { get; set; }
 
         #endregion
 
@@ -653,23 +683,45 @@ namespace Microsoft.PowerShell.SecretManagement
 
         protected override void EndProcessing()
         {
-            var namePattern = new WildcardPattern(
-                (!string.IsNullOrEmpty(Name)) ? Name : "*", 
-                WildcardOptions.IgnoreCase);
-
-            // List extension vaults in sorted order.
+            Name = Name ?? new string[] { "*" };
             var vaultExtensions = RegisteredVaultCache.VaultExtensions;
-            foreach (var vaultName in vaultExtensions.Keys)
+
+            foreach (var name in Name)
             {
-                if (namePattern.IsMatch(vaultName))
+                if (WildcardPattern.ContainsWildcardCharacters(name))
                 {
-                    if (vaultExtensions.TryGetValue(vaultName, out ExtensionVaultModule extensionModule))
+                    var namePattern = new WildcardPattern(name, WildcardOptions.IgnoreCase);
+                    foreach (var vaultName in vaultExtensions.Keys)
                     {
-                        WriteObject(
-                            new SecretVaultInfo(
-                                vaultName,
-                                extensionModule));
+                        if (namePattern.IsMatch(vaultName))
+                        {
+                            if (vaultExtensions.TryGetValue(vaultName, out ExtensionVaultModule extensionModule))
+                            {
+                                WriteObject(
+                                    new SecretVaultInfo(
+                                        extensionModule.VaultName,
+                                        extensionModule));
+                            }
+                        }
                     }
+                }
+                else if (vaultExtensions.TryGetValue(name, out ExtensionVaultModule extensionModule))
+                {
+                    WriteObject(
+                        new SecretVaultInfo(
+                            extensionModule.VaultName,
+                            extensionModule));
+                }
+                else
+                {
+                    var msg = string.Format(CultureInfo.InvariantCulture,
+                        "Vault {0} does not exist in registry.", name);
+                    WriteError(
+                        new ErrorRecord(
+                            new ItemNotFoundException(msg),
+                            "GetSecretVaultNotFound",
+                            ErrorCategory.ObjectNotFound,
+                            this));
                 }
             }
         }
@@ -844,17 +896,6 @@ namespace Microsoft.PowerShell.SecretManagement
 
         protected override void ProcessRecord()
         {
-            // Wild card characters are not supported in this cmdlet.
-            if (WildcardPattern.ContainsWildcardCharacters(Name))
-            {
-                WriteError(
-                    new ErrorRecord(
-                        new ArgumentException("Name parameter cannot contain wildcard characters."),
-                        "GetSecretNoWildcardCharsAllowed",
-                        ErrorCategory.InvalidArgument,
-                        this));
-            }
-
             // Search single vault.
             if (!string.IsNullOrEmpty(Vault))
             {
@@ -1254,12 +1295,10 @@ namespace Microsoft.PowerShell.SecretManagement
     {
         #region Parameters
 
-        [Parameter(Position=0, 
-                   Mandatory=true,
+        [Parameter(Position=0,
                    ValueFromPipeline=true,
                    ValueFromPipelineByPropertyName=true)]
-        [ValidateNotNullOrEmpty]
-        public string Name { get; set; }
+        public string[] Name { get; set; }
 
         #endregion
 
@@ -1267,18 +1306,86 @@ namespace Microsoft.PowerShell.SecretManagement
 
         protected override void ProcessRecord()
         {
-            var extensionModule = GetExtensionVault(Name);
-            var success = extensionModule.InvokeTestVault(
-                vaultName: Name,
-                cmdlet: this);
+            Name = Name ?? new string[] { "*" };
+            var vaultExtensions = RegisteredVaultCache.VaultExtensions;
+            var count = 0;
+            var result = true;
 
-            var resultMessage = success ?
-                string.Format(CultureInfo.InvariantCulture, @"Vault {0} succeeded validation test", Name) :
-                string.Format(CultureInfo.InvariantCulture, @"Vault {0} failed validation test", Name);
-            WriteVerbose(resultMessage);
+            foreach (var name in Name)
+            {
+                if (WildcardPattern.ContainsWildcardCharacters(name))
+                {
+                    var namePattern = new WildcardPattern(name, WildcardOptions.IgnoreCase);
+                    foreach (var vaultName in vaultExtensions.Keys)
+                    {
+                        if (namePattern.IsMatch(vaultName))
+                        {
+                            ++count;
+                            RunTest(
+                                vaultName,
+                                vaultExtensions,
+                                out bool success);
+                            if (!success && result)
+                            {
+                                result = false;
+                            }
+                        }
+                    }
+                }
+                else if (RunTest(
+                    vaultName: name,
+                    vaultExtensions: vaultExtensions,
+                    out bool success))
+                {
+                    ++count;
+                    if (!success && result)
+                    {
+                        result = false;
+                    }
+                }
+            }
 
-            // Return boolean for test result
-            WriteObject(success);
+            if (count > 0)
+            {
+                // Return boolean result from test(s)
+                WriteObject(result);
+            }
+        }
+
+        #endregion
+
+        #region Private methods
+
+        private bool RunTest(
+            string vaultName,
+            SortedDictionary<string, ExtensionVaultModule> vaultExtensions,
+            out bool result)
+        {
+            if (vaultExtensions.TryGetValue(vaultName, out ExtensionVaultModule extensionModule))
+            {
+                result = extensionModule.InvokeTestVault(
+                    vaultName: vaultName,
+                    cmdlet: this);
+
+                var resultMessage = result ?
+                    string.Format(CultureInfo.InvariantCulture, @"Vault {0} succeeded validation test", extensionModule.VaultName) :
+                    string.Format(CultureInfo.InvariantCulture, @"Vault {0} failed validation test", extensionModule.VaultName);
+                WriteVerbose(resultMessage);
+
+                return true;
+            }
+
+            var msg = string.Format(CultureInfo.InvariantCulture,
+                "Vault {0} does not exist in registry.", vaultName);
+            WriteError(
+                new ErrorRecord(
+                    new ItemNotFoundException(msg),
+                    "TestSecretVaultNotFound",
+                    ErrorCategory.ObjectNotFound,
+                    this));
+
+            result = false;
+            return false;
         }
 
         #endregion

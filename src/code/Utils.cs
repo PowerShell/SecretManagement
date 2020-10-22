@@ -238,7 +238,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Script
 
-        // Invokes Get-Secret, Set-Secret, Get-SecretInfo, Remove-Secret commands in
+        // Invokes Get-Secret, Set-Secret, Get-SecretInfo, Remove-Secret, Test-SecretVault commands in
         // nested module within provided module path.
         // Assumes the following directory structure:
         //  Module directory (parent module)
@@ -254,9 +254,40 @@ namespace Microsoft.PowerShell.SecretManagement
                 [string] $Command,
                 [hashtable] $Params
             )
-        
-            $module = Import-Module -Name $ModulePath -Passthru
+
+            $verboseEnabled = $Params.AdditionalParameters.ContainsKey('Verbose') -and ($Params.AdditionalParameters['Verbose'] -eq $true)
+            $module = Import-Module -Name $ModulePath -PassThru
+            Write-Verbose ""Invoking command $Command on module $ImplementingModuleName"" -Verbose:$verboseEnabled
             & $module ""$ImplementingModuleName\$Command"" @Params
+        ";
+
+        // Conditionally invokes an optional command if supported by the implementing module.
+        // Assumes the following directory structure:
+        //  Module directory (parent module)
+        //      Module.psd1
+        //      Module.psm1
+        //      ImplementingModule directory (nested module)
+        //          ImplementingModule.psd1
+        //          ImplementingModule.psm1
+        private const string RunIfCommandScript = @"
+            param (
+                [string] $ModulePath,
+                [string] $ImplementingModuleName,
+                [string] $Command,
+                [hashtable] $Params
+            )
+        
+            $verboseEnabled = $Params.AdditionalParameters.ContainsKey('Verbose') -and ($Params.AdditionalParameters['Verbose'] -eq $true)
+            $module = Import-Module -Name $ModulePath -PassThru
+            try
+            {
+                Write-Verbose ""Invoking command $Command on module $ImplementingModuleName"" -Verbose:$verboseEnabled
+                & $module ""$ImplementingModuleName\$Command"" @Params
+            }
+            catch [System.Management.Automation.CommandNotFoundException]
+            {
+                Write-Verbose ""Module $ImplementingModuleName does not support command : $Command"" -Verbose:$verboseEnabled
+            }
         ";
 
         #endregion
@@ -266,6 +297,7 @@ namespace Microsoft.PowerShell.SecretManagement
         internal const string SetSecretCmd = "Set-Secret";
         internal const string RemoveSecretCmd = "Remove-Secret";
         internal const string TestVaultCmd = "Test-SecretVault";
+        internal const string UnregisterSecretVaultCommand = "Unregister-SecretVault";
         internal const string ModuleNameStr = "ModuleName";
         internal const string ModulePathStr = "ModulePath";
         internal const string VaultParametersStr = "VaultParameters";
@@ -370,7 +402,7 @@ namespace Microsoft.PowerShell.SecretManagement
             string vaultName,
             PSCmdlet cmdlet)
         {
-            var additionalParameters = GetAdditionalParams();
+            var additionalParameters = GetAdditionalParams(cmdlet);
             var parameters = new Hashtable() {
                 { "Name", name },
                 { "Secret", secret },
@@ -407,12 +439,13 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Looks up a single secret by name.
         /// </summary>
+        /// <returns>Secret object</returns>
         public object InvokeGetSecret(
             string name,
             string vaultName,
             PSCmdlet cmdlet)
         {
-            var additionalParameters = GetAdditionalParams();
+            var additionalParameters = GetAdditionalParams(cmdlet);
             var parameters = new Hashtable() {
                 { "Name", name },
                 { "VaultName", vaultName },
@@ -471,7 +504,7 @@ namespace Microsoft.PowerShell.SecretManagement
             string vaultName,
             PSCmdlet cmdlet)
         {
-            var additionalParameters = GetAdditionalParams();
+            var additionalParameters = GetAdditionalParams(cmdlet);
             var parameters = new Hashtable() {
                 { "Name", name },
                 { "VaultName", vaultName },
@@ -512,7 +545,7 @@ namespace Microsoft.PowerShell.SecretManagement
             string vaultName,
             PSCmdlet cmdlet)
         {
-            var additionalParameters = GetAdditionalParams();
+            var additionalParameters = GetAdditionalParams(cmdlet);
             var parameters = new Hashtable() {
                 { "Filter", filter },
                 { "VaultName", vaultName },
@@ -553,7 +586,7 @@ namespace Microsoft.PowerShell.SecretManagement
             string vaultName,
             PSCmdlet cmdlet)
         {
-            var additionalParameters = GetAdditionalParams();
+            var additionalParameters = GetAdditionalParams(cmdlet);
             var parameters = new Hashtable() {
                 { "VaultName", VaultName },
                 { "AdditionalParameters", additionalParameters }
@@ -582,6 +615,30 @@ namespace Microsoft.PowerShell.SecretManagement
             return (results.Count > 0) ? results[0] : false;
         }
 
+        /// <Summary>
+        /// Optional Unregister-Vault extension command.  Will invoke if available.
+        /// </Summary>
+        public void InvokeUnregisterVault(
+            PSCmdlet cmdlet)
+        {
+            var additionalParameters = GetAdditionalParams(cmdlet);
+            var parameters = new Hashtable() {
+                { "VaultName", VaultName },
+                { "AdditionalParameters", additionalParameters }
+            };
+
+            InvokeOnCmdlet(
+                cmdlet: cmdlet,
+                script: RunIfCommandScript,
+                args: new object[] { ModulePath, ModuleExtensionName, UnregisterSecretVaultCommand, parameters },
+                out Exception terminatingError);
+            
+            if (terminatingError != null)
+            {
+                ThrowPasswordRequiredException(terminatingError);
+            }
+        }
+
         /// <summary>
         /// Creates copy of this extension module object instance.
         /// </summary>
@@ -603,8 +660,11 @@ namespace Microsoft.PowerShell.SecretManagement
             }
         }
 
-        private Hashtable GetAdditionalParams()
+        private Hashtable GetAdditionalParams(PSCmdlet cmdlet)
         {
+            bool verboseEnabled = cmdlet.MyInvocation.BoundParameters.TryGetValue("Verbose", out dynamic verbose)
+                ? verbose.IsPresent : false;
+
             var additionalParams = new Hashtable();
             foreach (var item in VaultParameters)
             {
@@ -612,6 +672,7 @@ namespace Microsoft.PowerShell.SecretManagement
                     key: item.Key,
                     value: item.Value);
             }
+            additionalParams.Add("Verbose", verboseEnabled);
 
             return additionalParams;
         }
@@ -831,17 +892,19 @@ namespace Microsoft.PowerShell.SecretManagement
         public static Hashtable Remove(string keyName)
         {
             var vaultItems = GetAll();
-            if (vaultItems.ContainsKey(keyName))
+            if (!vaultItems.ContainsKey(keyName))
             {
-                Hashtable vaultInfo = (Hashtable) vaultItems[keyName];
-                vaultItems.Remove(keyName);
-                WriteSecretVaultRegistry(
-                    vaultInfo: vaultItems,
-                    defaultVaultName: _defaultVaultName.Equals(keyName, StringComparison.OrdinalIgnoreCase) ? string.Empty : _defaultVaultName);
-                return vaultInfo;
+                return null;
             }
 
-            return null;
+            // Remove vault from registry
+            Hashtable vaultInfo = (Hashtable) vaultItems[keyName];
+            vaultItems.Remove(keyName);
+            WriteSecretVaultRegistry(
+                vaultInfo: vaultItems,
+                defaultVaultName: _defaultVaultName.Equals(keyName, StringComparison.OrdinalIgnoreCase) ? string.Empty : _defaultVaultName);
+
+            return vaultInfo;
         }
 
         #endregion
