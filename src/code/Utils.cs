@@ -636,6 +636,16 @@ namespace Microsoft.PowerShell.SecretManagement
             if (terminatingError != null)
             {
                 ThrowPasswordRequiredException(terminatingError);
+
+                cmdlet.WriteError(
+                    new ErrorRecord(
+                        new PSInvalidOperationException(
+                            message: string.Format("An error occurred while running Unregister-SecretVault on vault {0}, Error: {1}", 
+                                VaultName, terminatingError.Message),
+                            innerException: terminatingError),
+                        "UnregisterSecretVaultInvalidOperation",
+                        ErrorCategory.InvalidOperation,
+                        this));
             }
         }
 
