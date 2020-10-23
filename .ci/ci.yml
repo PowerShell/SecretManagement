@@ -114,7 +114,7 @@ stages:
     - pwsh: |
         Get-ChildItem -Path env:
       displayName: Capture environment for module code signing
-      condition: succeededOrFailed()
+      condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
 
     - template: ./templates/sign.yml
       parameters:
@@ -162,11 +162,12 @@ stages:
         Write-Host "sending " + $vstsCommandString
         Write-Host "##$vstsCommandString"
       displayName: Set up for ref assembly nuget package signing
+      condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
 
     - pwsh: |
         Get-ChildItem -Path env:
       displayName: Capture environment for ref assembly nuget file signing
-      condition: succeededOrFailed()
+      condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
 
     - template: ./templates/sign.yml
       parameters:
@@ -216,6 +217,8 @@ stages:
       displayName: PowerShell Core on Windows
       imageName: windows-2019
 
+  # Tests do not run under Windows PowerShell
+  # because of missing Dictionary.TryAdd() method.
   #- template: test.yml
   #  parameters:
   #    jobName: TestPkgWinPS
