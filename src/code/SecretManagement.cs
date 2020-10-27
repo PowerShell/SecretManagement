@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Management.Automation;
+using System.Management.Automation.Language;
 using System.Management.Automation.Runspaces;
 using System.Security;
 
@@ -67,6 +68,40 @@ namespace Microsoft.PowerShell.SecretManagement
 
     #endregion
 
+    #region VaultNameCompleter
+
+    internal class VaultNameCompleter : IArgumentCompleter
+    {
+        private SortedDictionary<string, ExtensionVaultModule> _vaultExtensions;
+
+        public IEnumerable<CompletionResult> CompleteArgument(
+            string commandName,
+            string parameterName,
+            string wordToComplete,
+            CommandAst commandAst,
+            IDictionary fakeBoundParameters)
+        {
+            if (_vaultExtensions == null)
+            {
+                _vaultExtensions = RegisteredVaultCache.VaultExtensions;
+            }
+
+            var wordToCompletePattern = WildcardPattern.Get(
+                pattern: string.IsNullOrWhiteSpace(wordToComplete) ? "*" : wordToComplete + "*",
+                options: WildcardOptions.IgnoreCase);
+            
+            foreach (var vaultName in _vaultExtensions.Keys)
+            {
+                if (wordToCompletePattern.IsMatch(vaultName))
+                {
+                    yield return new CompletionResult(vaultName, vaultName, CompletionResultType.Text, vaultName);
+                }
+            }
+        }
+    }
+
+    #endregion
+    
     #region Register-SecretVault
 
     /// <summary>
@@ -475,6 +510,7 @@ namespace Microsoft.PowerShell.SecretManagement
                    Position = 0, 
                    Mandatory = true,
                    ValueFromPipeline = true)]
+        [ArgumentCompleter(typeof(VaultNameCompleter))]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
 
@@ -569,6 +605,7 @@ namespace Microsoft.PowerShell.SecretManagement
                    Position = 0, 
                    Mandatory = true,
                    ValueFromPipeline = true)]
+        [ArgumentCompleter(typeof(VaultNameCompleter))]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
 
@@ -659,6 +696,54 @@ namespace Microsoft.PowerShell.SecretManagement
 
     #endregion
 
+    #region SecretNameCompleter
+
+    internal class SecretNameCompleter : IArgumentCompleter
+    {
+        private List<string> _secretNames;
+
+        public IEnumerable<CompletionResult> CompleteArgument(
+            string commandName,
+            string parameterName,
+            string wordToComplete,
+            CommandAst commandAst,
+            IDictionary fakeBoundParameters)
+        {
+            if (_secretNames == null)
+            {
+                var results = PowerShellInvoker.InvokeScript<SecretInformation>(
+                    script: "Get-SecretInfo",
+                    args: new object[] {},
+                    out ErrorRecord error);
+
+                if (error != null || results == null)
+                {
+                    yield break;
+                }
+                
+                _secretNames = new List<string>();
+                foreach (var secretInfo in results)
+                {
+                    _secretNames.Add(secretInfo.Name);
+                }
+            }
+
+            var wordToCompletePattern = WildcardPattern.Get(
+                pattern: string.IsNullOrWhiteSpace(wordToComplete) ? "*" : wordToComplete + "*",
+                options: WildcardOptions.IgnoreCase);
+            
+            foreach (var secretName in _secretNames)
+            {
+                if (wordToCompletePattern.IsMatch(secretName))
+                {
+                    yield return new CompletionResult(secretName, secretName, CompletionResultType.Text, secretName);
+                }
+            }
+        }
+    }
+
+    #endregion
+
     #region Get-SecretVault
 
     /// <summary>
@@ -675,6 +760,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// Gets or sets an optional name of the secret vault to return.
         /// <summary>
         [Parameter (Position=0)]
+        [ArgumentCompleter(typeof(VaultNameCompleter))]
         public string[] Name { get; set; }
 
         #endregion
@@ -748,12 +834,14 @@ namespace Microsoft.PowerShell.SecretManagement
         /// Gets or sets a name used to match and return secret information.
         /// </summary>
         [Parameter(Position=0)]
+        [ArgumentCompleter(typeof(SecretNameCompleter))]
         public string Name { get; set; }
 
         /// <summary>
         /// Gets or sets an optional name of the vault to retrieve the secret from.
         /// </summary>
         [Parameter(Position=1)]
+        [ArgumentCompleter(typeof(VaultNameCompleter))]
         public string Vault { get; set; }
 
         #endregion
@@ -864,12 +952,14 @@ namespace Microsoft.PowerShell.SecretManagement
                    Mandatory=true,
                    ValueFromPipeline=true,
                    ValueFromPipelineByPropertyName=true)]
+        [ArgumentCompleter(typeof(SecretNameCompleter))]
         public string Name { get; set; }
 
         /// <summary>
         /// Gets or sets an optional name of the vault to retrieve the secret from.
         /// </summary>
         [Parameter(Position=1)]
+        [ArgumentCompleter(typeof(VaultNameCompleter))]
         public string Vault { get; set; }
 
         /// <summary>
@@ -1090,6 +1180,7 @@ namespace Microsoft.PowerShell.SecretManagement
         [Parameter(Position=2, ParameterSetName = ObjectParameterSet)]
         [Parameter(Position=2, ParameterSetName = SecureStringParameterSet)]
         [Parameter(ParameterSetName = SecretInfoParameterSet, Mandatory=true)]
+        [ArgumentCompleter(typeof(VaultNameCompleter))]
         public string Vault { get; set; }
 
         /// <summary>
@@ -1250,6 +1341,7 @@ namespace Microsoft.PowerShell.SecretManagement
                    Mandatory=true,
                    ValueFromPipeline=true,
                    ValueFromPipelineByPropertyName=true)]
+        [ArgumentCompleter(typeof(SecretNameCompleter))]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
 
@@ -1257,6 +1349,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// Gets or sets an optional extension vault name.
         /// </summary>
         [Parameter(Position=1, Mandatory=true)]
+        [ArgumentCompleter(typeof(VaultNameCompleter))]
         [ValidateNotNullOrEmpty]
         public string Vault { get; set; }
 
@@ -1298,6 +1391,7 @@ namespace Microsoft.PowerShell.SecretManagement
         [Parameter(Position=0,
                    ValueFromPipeline=true,
                    ValueFromPipelineByPropertyName=true)]
+        [ArgumentCompleter(typeof(VaultNameCompleter))]
         public string[] Name { get; set; }
 
         #endregion
