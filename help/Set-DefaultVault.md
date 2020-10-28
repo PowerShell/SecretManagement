@@ -12,8 +12,14 @@ Sets the provided vault name as the default vault for the current user.
 
 ## SYNTAX
 
+### NameParameterSet (Default)
 ```
-Set-DefaultVault [[-Name] <String>] [<CommonParameters>]
+Set-DefaultVault [-Name] <string> [-WhatIf] [-Confirm] [<CommonParameters>]
+```
+
+### SecretVaultParameterSet
+```
+Set-DefaultVault [-SecretVault] <SecretVaultInfo> [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -59,13 +65,26 @@ The 'Get-SecretVault' is run once again to verify there is no default vault.
 
 ### -Name
 
-
 ```yaml
 Type: String
-Parameter Sets: (All)
+Parameter Sets: NameParameterSet
 Aliases:
 
-Required: False
+Required: True
+Position: 0
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -SecretVault
+
+```yaml
+Type: SecretVaultInfo
+Parameter Sets: SecretVaultParameterSet
+Aliases:
+
+Required: True
 Position: 0
 Default value: None
 Accept pipeline input: False

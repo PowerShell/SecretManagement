@@ -15,12 +15,19 @@ Adds a secret to a SecretManagement registered vault.
 ### SecureStringParameterSet (Default)
 ```
 Set-Secret [-Name] <String> [-SecureStringSecret] <SecureString> [[-Vault] <String>] [-NoClobber]
- [<CommonParameters>]
+ [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### ObjectParameterSet
 ```
-Set-Secret [-Name] <String> [-Secret] <Object> [[-Vault] <String>] [-NoClobber] [<CommonParameters>]
+Set-Secret [-Name] <String> [-Secret] <Object> [[-Vault] <String>] [-NoClobber] [-WhatIf]
+ [-Confirm] [<CommonParameters>]
+```
+
+### SecretInfoParameterSet
+```
+Set-Secret [-SecretInfo] <SecretInformation> -Vault <string> [-NoClobber] [-WhatIf] [-Confirm]
+ [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -107,6 +114,22 @@ The object type must be one of the supported types.
 ```yaml
 Type: Object
 Parameter Sets: ObjectParameterSet
+Aliases:
+
+Required: True
+Position: 1
+Default value: None
+Accept pipeline input: True (ByValue)
+Accept wildcard characters: False
+```
+
+### -SecretInfo
+A SecretInformation object describing a stored secret returned by `Get-SecretInfo`.
+This allows moving secrets from one extension vault to another.
+
+```yaml
+Type: SecretInformation
+Parameter Sets: SecretInfoParameterSet
 Aliases:
 
 Required: True

@@ -13,8 +13,8 @@ Registers a SecretManagement extension vault module for the current user.
 ## SYNTAX
 
 ```
-Register-SecretVault [-Name] <String> [-ModuleName] <String> [-VaultParameters <Hashtable>] [-DefaultVault]
- [-WhatIf] [-Confirm] [<CommonParameters>]
+Register-SecretVault [-ModuleName] <string> [[-Name] <string>] [-VaultParameters <Hashtable>] [-DefaultVault]
+[-AllowClobber] [-PassThru] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -42,6 +42,21 @@ It uses the 'DefaultVault' parameter switch to make it the default module for th
 The 'Get-SecretVault' command is run next to list all registered vaults for the user, and verifies the vault was registered and set as the default vault.
 
 ## PARAMETERS
+
+### -AllowClobber
+When used this parameter will overwrite an existing registered extension vault with the same name.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
 
 ### -Confirm
 Prompts you for confirmation before running the cmdlet.
@@ -92,15 +107,31 @@ Accept wildcard characters: False
 
 ### -Name
 Name of the extension vault to be registered.
+If no name is provide, the module name will be used.
 
 ```yaml
 Type: String
 Parameter Sets: (All)
 Aliases:
 
-Required: True
+Required: False
 Position: 0
 Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -PassThru
+When used this parameter will return the SecretVaultInfo object for the successfully registered extension vault.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
