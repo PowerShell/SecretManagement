@@ -108,6 +108,7 @@ namespace Microsoft.PowerShell.SecretManagement
     /// Cmdlet to register a remote secret vaults provider module
     /// </summary>
     [Cmdlet(VerbsLifecycle.Register, "SecretVault", SupportsShouldProcess = true)]
+    [OutputType(typeof(SecretVaultInfo))]
     public sealed class RegisterSecretVaultCommand : PSCmdlet
     {
         #region Parameters
@@ -590,7 +591,7 @@ namespace Microsoft.PowerShell.SecretManagement
     /// <summary>
     /// Cmdlet sets the provided registered vault name as the default vault.
     /// </summary>
-    [Cmdlet(VerbsCommon.Set, "DefaultVault", SupportsShouldProcess = true)]
+    [Cmdlet(VerbsCommon.Set, "DefaultVault", SupportsShouldProcess = true, DefaultParameterSetName = NameParameterSet)]
     public sealed class SetDefaultVaultCommand : PSCmdlet
     {
         #region Parameters
@@ -711,20 +712,24 @@ namespace Microsoft.PowerShell.SecretManagement
         {
             if (_secretNames == null)
             {
-                var results = PowerShellInvoker.InvokeScript<SecretInformation>(
-                    script: "Get-SecretInfo",
-                    args: new object[] {},
-                    out ErrorRecord error);
-
-                if (error != null || results == null)
+                using (var ps = System.Management.Automation.PowerShell.Create(RunspaceMode.NewRunspace))
                 {
-                    yield break;
-                }
-                
-                _secretNames = new List<string>();
-                foreach (var secretInfo in results)
-                {
-                    _secretNames.Add(secretInfo.Name);
+                    var results = PowerShellInvoker.InvokeScriptOnPowerShell<SecretInformation>(
+                        script: "Get-SecretInfo",
+                        args: new object[] {},
+                        psToUse: ps,
+                        out ErrorRecord error);
+                    
+                    if (error != null || results == null)
+                    {
+                        yield break;
+                    }
+                    
+                    _secretNames = new List<string>();
+                    foreach (var secretInfo in results)
+                    {
+                        _secretNames.Add(secretInfo.Name);
+                    }
                 }
             }
 
@@ -1002,7 +1007,12 @@ namespace Microsoft.PowerShell.SecretManagement
             if (!string.IsNullOrEmpty(RegisteredVaultCache.DefaultVaultName))
             {
                 var extensionModule = GetExtensionVault(RegisteredVaultCache.DefaultVaultName);
-                if (TryInvokeAndWrite(extensionModule) == InvokeResult.Success)
+                var info = extensionModule.InvokeGetSecretInfo(
+                    filter: Name,
+                    vaultName: extensionModule.VaultName,
+                    this);
+                if (info.Length > 0 &&
+                    TryInvokeAndWrite(extensionModule) == InvokeResult.Success)
                 {
                     return;
                 }

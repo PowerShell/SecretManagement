@@ -1132,11 +1132,24 @@ namespace Microsoft.PowerShell.SecretManagement
             object[] args,
             out ErrorRecord error)
         {
+            return InvokeScriptOnPowerShell<T>(
+                script,
+                args,
+                _powershell,
+                out error);
+        }
+
+        public static Collection<T> InvokeScriptOnPowerShell<T>(
+            string script,
+            object[] args,
+            System.Management.Automation.PowerShell psToUse,
+            out ErrorRecord error)
+        {
             Collection<T> results;
             try
             {
-                results = _powershell.AddScript(script).AddParameters(args).Invoke<T>();
-                error = (_powershell.Streams.Error.Count > 0) ? _powershell.Streams.Error[0] : null;
+                results = psToUse.AddScript(script).AddParameters(args).Invoke<T>();
+                error = (psToUse.Streams.Error.Count > 0) ? psToUse.Streams.Error[0] : null;
             }
             catch (Exception ex)
             {
@@ -1149,7 +1162,7 @@ namespace Microsoft.PowerShell.SecretManagement
             }
             finally
             {
-                _powershell.Commands.Clear();
+                psToUse.Commands.Clear();
             }
 
             return results;
