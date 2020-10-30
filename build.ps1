@@ -40,7 +40,7 @@ param (
     [string] $BuildFramework = "netstandard2.0"
 )
 
-if ( ! ( Get-Module -ErrorAction SilentlyContinue PSPackageProject) ) {
+if ( ! (Get-Module -ErrorAction SilentlyContinue PSPackageProject -ListAvailable) ) {
     Install-Module PSPackageProject
 }
 

@@ -720,11 +720,6 @@ namespace Microsoft.PowerShell.SecretManagement
                         psToUse: ps,
                         out ErrorRecord error);
                     
-                    if (error != null || results == null)
-                    {
-                        yield break;
-                    }
-                    
                     _secretNames = new List<string>();
                     foreach (var secretInfo in results)
                     {

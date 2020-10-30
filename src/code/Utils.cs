@@ -256,7 +256,13 @@ namespace Microsoft.PowerShell.SecretManagement
             )
 
             $verboseEnabled = $Params.AdditionalParameters.ContainsKey('Verbose') -and ($Params.AdditionalParameters['Verbose'] -eq $true)
-            $module = Import-Module -Name $ModulePath -PassThru
+            $module = Get-Module -Name ([System.IO.Path]::GetFileNameWithoutExtension($ImplementingModuleName)) -ErrorAction SilentlyContinue
+            if ($null -eq $module) {
+                $module = Import-Module -Name $ModulePath -PassThru
+            }
+            if ($null -eq $module) {
+                return
+            }
             Write-Verbose ""Invoking command $Command on module $ImplementingModuleName"" -Verbose:$verboseEnabled
             & $module ""$ImplementingModuleName\$Command"" @Params
         ";
@@ -278,7 +284,13 @@ namespace Microsoft.PowerShell.SecretManagement
             )
         
             $verboseEnabled = $Params.AdditionalParameters.ContainsKey('Verbose') -and ($Params.AdditionalParameters['Verbose'] -eq $true)
-            $module = Import-Module -Name $ModulePath -PassThru
+            $module = Get-Module -Name ([System.IO.Path]::GetFileNameWithoutExtension($ImplementingModuleName)) -ErrorAction SilentlyContinue
+            if ($null -eq $module) {
+                $module = Import-Module -Name $ModulePath -PassThru
+            }
+            if ($null -eq $module) {
+                return
+            }
             try
             {
                 Write-Verbose ""Invoking command $Command on module $ImplementingModuleName"" -Verbose:$verboseEnabled
