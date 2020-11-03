@@ -13,6 +13,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         Get-SecretVault | Unregister-SecretVault
 
         $global:store = [System.Collections.Generic.Dictionary[[string],[object]]]::new()
+        $global:UnRegisterSecretVaultCalled = $false
 
         # Script extension module
         $scriptModuleName = "TVaultScript"
@@ -119,6 +120,16 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
                 return $valid
             }
+
+            function Unregister-SecretVault
+            {
+                param (
+                    [string] $VaultName,
+                    [hashtable] $AdditionalParameters
+                )
+
+                $global:UnRegisterSecretVaultCalled = $true
+            }
 '@
 
         $implementingModulePath = Join-Path $scriptModulePath $implementingModuleName
@@ -128,7 +139,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         @{{
             ModuleVersion = '1.0'
             RootModule = '{0}'
-            FunctionsToExport = @('Set-Secret','Get-Secret','Remove-Secret','Get-SecretInfo','Test-SecretVault')
+            FunctionsToExport = @('Set-Secret','Get-Secret','Remove-Secret','Get-SecretInfo','Test-SecretVault','Unregister-SecretVault')
         }}
         " -f $implementingModuleName
         $manifestInfo | Out-File -FilePath $implementingManifestFilePath
@@ -453,5 +464,22 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         $global:store.Clear()
 
         VerifyHashType -Title "script" -VaultName "ScriptTestVault"
+    }
+
+    Context "Unregister-SecretVault cmdlet tests" {
+
+        It "Verifies unregister operation calls the extension 'Unregister-SecretVault' function before unregistering" {
+            $global:UnRegisterSecretVaultCalled = $false
+            { Unregister-SecretVault -Name ScriptTestVault -ErrorVariable err } | Should -Not -Throw
+            $err.Count | Should -Be 0
+            $global:UnRegisterSecretVaultCalled | Should -BeTrue
+
+            <#
+            # Restore the extension module registration.
+            $additionalParameters = @{ AccessId = "AccessAT"; SubscriptionId = "1234567890" }
+            { Register-SecretVault -Name ScriptTestVault -ModuleName $script:scriptModuleFilePath -VaultParameters $additionalParameters -ErrorVariable err } | Should -Not -Throw
+            $err.Count | Should -Be 0
+            #>
+        }
     }
 }

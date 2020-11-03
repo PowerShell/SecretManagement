@@ -66,6 +66,7 @@ steps:
     Copy-Item ${{ parameters.buildOutputPath }}\* ${{ parameters.signOutputPath }}\ -Recurse -Force -Verbose
   displayName: Prepare output folder
   timeoutInMinutes: 10
+  condition: and(and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True')), ne(variables['SigningServer'], ''))
 
 - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
   displayName: Sign files

@@ -13,12 +13,12 @@ Finds and returns registered vault information.
 ## SYNTAX
 
 ```
-Get-SecretVault [[-Name] <String>] [<CommonParameters>]
+Get-SecretVault [[-Name] <string[]>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 This cmdlet finds and returns information of registered vaults.
-It takes a single 'Name' parameter, which can contain wildcard characters.
+It takes an array of vault name strings, which can contain wildcard characters.
 If no 'Name' parameter is specified, all registered vault information is returned.
 The registered vault information includes the vault name, vault implementing module name, and optional default parameters.
 
@@ -44,7 +44,7 @@ This parameter takes a String argument, including wildcard characters.
 It is used to filter the search results on vault names that match the provided name pattern.
 
 ```yaml
-Type: String
+Type: string[]
 Parameter Sets: (All)
 Aliases:
 
@@ -52,7 +52,7 @@ Required: False
 Position: 0
 Default value: None
 Accept pipeline input: False
-Accept wildcard characters: False
+Accept wildcard characters: True
 ```
 
 ### CommonParameters

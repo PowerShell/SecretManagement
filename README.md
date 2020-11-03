@@ -200,19 +200,33 @@ function Test-SecretVault
     # return [TestStore]::TestVault()
     return $true
 }
+
+function Unregister-SecretVault
+{
+    [CmdletBinding()]
+    param (
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    # Perform optional work to extension vault before it is unregistered
+}
 ```
 
-This module script implements the five functions, as cmdlets, required by SecretManagement.  
+This module script implements the five functions, as cmdlets, required by SecretManagement, plus one optional function.  
 
-The Set-Secret, Remove-Secret, Test-SecretVault cmdlets write a boolean to the pipeline on return, indicating success.  
+The `Set-Secret`, `Remove-Secret`, `Test-SecretVault` cmdlets write a boolean to the pipeline on return, indicating success.  
 
-The Get-Secret cmdlet writes the retrieved secret value to the output pipeline on return, or null if no secret was found.
+The `Get-Secret` cmdlet writes the retrieved secret value to the output pipeline on return, or null if no secret was found.
 It should write an error only if an abnormal condition occurs.  
 
-The Get-SecretInfo cmdlet writes an array of `Microsoft.PowerShell.SecretManagement.SecretInformation` type objects to the output pipeline or an empty array if no matches were found.  
+The `Get-SecretInfo` cmdlet writes an array of `Microsoft.PowerShell.SecretManagement.SecretInformation` type objects to the output pipeline or an empty array if no matches were found.  
 
-The Test-SecretVault cmdlet should write all errors that occur during the test.
+The `Test-SecretVault` cmdlet should write all errors that occur during the test.
 But only a single true/false boolean should be written the the output pipeline indicating success.  
+
+The `Unregister-SecretVault` cmdlet is optional and will be called on the extension vault if available.
+It is called before the extension vault is unregistered to allow it to perform any needed clean up work.  
 
 In general, these cmdlets should write to the error stream only for abnormal conditions that prevent successful completion.
 And write to the output stream only the data as indicated above, and expected by SecretManagement.  

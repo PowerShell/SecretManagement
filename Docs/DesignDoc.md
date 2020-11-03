@@ -79,7 +79,7 @@ Validation checks are performed on each module before being registered.
 
 ## Extension vaults
 
-Vault extensions are PowerShell modules that provide five required functions
+Vault extensions are PowerShell modules that provide five required functions, and one optional function
 
 ### Extension vault module required functions
 
@@ -102,6 +102,10 @@ Returns information about one or more secrets (but not the secret itself)
 #### Test-SecretVault
 
 Tests that extension vault functions and returns True or diagnostic errors
+
+#### Unregister-SecretVault
+
+This function is called if provided by the extension vault, to allow the extension vault to perform an clean up tasks before the vault extension is unregistered
 
 ### Script module vault extension example
 
@@ -221,9 +225,21 @@ function Test-SecretVault
     # return [TestStore]::TestVault()
     return $true
 }
+
+function Unregister-SecretVault
+{
+    [CmdletBinding()]
+    param (
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    # Perform optional work to extension vault before it is unregistered
+}
 ```
 
-This module script implements the five functions, as cmdlets, required by SecretManagement.  
+This module script implements the five functions, as cmdlets, required by SecretManagement.
+It also implements an optional function that is called during vault extension un-registration.
 
 The Set-Secret, Remove-Secret, Test-SecretVault cmdlets write a boolean to the pipeline on return, indicating success.  
 
