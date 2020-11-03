@@ -79,7 +79,7 @@ Validation checks are performed on each module before being registered.
 
 ## Extension vaults
 
-Vault extensions are PowerShell modules that provide five required functions, and one optional one
+Vault extensions are PowerShell modules that provide five required functions, and one optional function
 
 ### Extension vault module required functions
 
