@@ -99,12 +99,16 @@ namespace Microsoft.PowerShell.SecretManagement
 
         public static Hashtable ConvertJsonToHashtable(string json)
         {
-            var results = PowerShellInvoker.InvokeScript<Hashtable>(
-                script: ConvertJsonToHashtableScript,
-                args: new object[] { json },
-                error: out ErrorRecord _);
+            using (var ps = System.Management.Automation.PowerShell.Create(RunspaceMode.NewRunspace))
+            {
+                var results = PowerShellInvoker.InvokeScriptOnPowerShell<Hashtable>(
+                    script: ConvertJsonToHashtableScript,
+                    args: new object[] { json },
+                    psToUse: ps,
+                    error: out ErrorRecord _);
 
-            return (results.Count > 0) ? results[0] : null;
+                return (results.Count > 0) ? results[0] : null;
+            }
         }
 
         public static string ConvertHashtableToJson(Hashtable hashtable)
