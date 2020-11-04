@@ -55,7 +55,13 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
                     [hashtable] $AdditionalParameters
                 )
 
-                return $global:store.TryAdd($Name, $Secret)
+                try {
+                    $global:store.Add($Name, $Secret)
+                    return $true
+                }
+                catch { }
+
+                return $false
             }
 
             function Remove-Secret

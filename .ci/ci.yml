@@ -82,7 +82,7 @@ stages:
         Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
         Import-Module -Name $modPath -Force
         #
-        $(Build.SourcesDirectory)/build.ps1 -Build -Clean -BuildConfiguration Release
+        $(Build.SourcesDirectory)/build.ps1 -Build -Clean -BuildConfiguration Release -BuildFramework net472
       displayName: Build and publish artifact
 
     - pwsh: |
@@ -217,14 +217,12 @@ stages:
       displayName: PowerShell Core on Windows
       imageName: windows-2019
 
-  # Tests do not run under Windows PowerShell
-  # because of missing Dictionary.TryAdd() method.
-  #- template: test.yml
-  #  parameters:
-  #    jobName: TestPkgWinPS
-  #    displayName: Windows PowerShell on Windows
-  #    imageName: windows-2019
-  #    powershellExecutable: powershell
+  - template: test.yml
+    parameters:
+      jobName: TestPkgWinPS
+      displayName: Windows PowerShell on Windows
+      imageName: windows-2019
+      powershellExecutable: powershell
 
   - template: test.yml
     parameters:
