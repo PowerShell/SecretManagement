@@ -1,0 +1,50 @@
+parameters:
+  - name: "buildOutputPath"
+    default: "$(Build.ArtifactStagingDirectory)\\build"
+  - name: "signOutputPath"
+    default: "$(Build.ArtifactStagingDirectory)\\signed"
+  - name: "pattern"
+    default: "*.nupkg"
+  - name: "certificateId"
+    default: "CP-401405"
+
+steps:
+- pwsh: |
+    [string] $CertificateId = "${{ parameters.certificateId }}"
+    Write-Verbose "CertificateId - $CertificateId" -Verbose
+    [string] $VariableName = "EsrpJson"
+    $esrp = @(
+        @{
+         keyCode = $CertificateId
+         operationSetCode = "NuGetSign"
+         toolName = "sign"
+         toolVersion = "1.0"
+        }
+    )
+    $vstsCommandString = "vso[task.setvariable variable=$VariableName][$($esrp | ConvertTo-Json -Compress)]"
+    Write-Verbose -Message ("sending " + $vstsCommandString) -Verbose
+    Write-Host "##$vstsCommandString"
+    $vstsCommandString = "vso[task.setvariable variable=GDN_CODESIGN_TARGETDIRECTORY]${{ parameters.signOutputPath }}"
+    Write-Verbose -Message ("sending " + $vstsCommandString) -Verbose
+    Write-Host "##$vstsCommandString"
+  displayName: Generate signing JSON
+  condition: and(and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True')), ne(variables['SigningServer'], ''))
+
+- pwsh: |
+    Write-Verbose "BUILD_OUTPUT_PATH- ${{ parameters.buildOutputPath}}" -Verbose
+    Write-Verbose "SIGNED_OUTPUT_PATH- ${{ parameters.signOutputPath }}" -Verbose
+    Copy-Item ${{ parameters.buildOutputPath }}\* ${{ parameters.signOutputPath }}\ -Recurse -Force -Verbose
+  displayName: Prepare output folder
+  timeoutInMinutes: 10
+  condition: and(and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True')), ne(variables['SigningServer'], ''))
+
+- task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
+  displayName: Sign files
+  inputs:
+    ConnectedServiceName: pwshSigning
+    FolderPath: '${{ parameters.signOutputPath }}'
+    UseMinimatch: false
+    signConfigType: inlineSignParams
+    inlineOperation: $(EsrpJson)
+    Pattern: ${{ parameters.pattern }}
+  condition: and(and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True')), ne(variables['SigningServer'], ''))

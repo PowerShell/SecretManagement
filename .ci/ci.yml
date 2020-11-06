@@ -82,7 +82,7 @@ stages:
         Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
         Import-Module -Name $modPath -Force
         #
-        $(Build.SourcesDirectory)/build.ps1 -Build -Clean -BuildConfiguration Release -BuildFramework net472
+        $(Build.SourcesDirectory)/build.ps1 -Build -Clean -BuildConfiguration Release
       displayName: Build and publish artifact
 
     - pwsh: |
@@ -169,12 +169,12 @@ stages:
       displayName: Capture environment for ref assembly nuget file signing
       condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
 
-    - template: ./templates/sign.yml
+    - template: ./templates/sign-nuget.yml
       parameters:
         buildOutputPath: $(signSrcPath)
         signOutputPath: $(signOutPath)
         certificateId: "CP-401405"
-        pattern: '*.dll,*.psd1,*.ps1xml'
+        pattern: '*.nupkg'
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
@@ -192,6 +192,7 @@ stages:
         {
           $refAssemblyNuGetPath = Resolve-Path -Path "$($config.SignedOutputPath)/RefAssemblyNuGet/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
         }
+        Get-ChildItem $config.SignedOutputPath -Recurse
         Get-ChildItem $refAssemblyNuGetPath
         $artifactName = "RefAssemblyNuGet"
         Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$refAssemblyNuGetPath"

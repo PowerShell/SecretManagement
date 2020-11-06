@@ -36,8 +36,8 @@ param (
     [ValidateSet("Debug", "Release")]
     [string] $BuildConfiguration = "Debug",
 
-    [ValidateSet("netstandard2.0","net472","net461")]
-    [string] $BuildFramework = "net472"
+    [ValidateSet("net461")]
+    [string] $BuildFramework = "net461"
 )
 
 if ( ! (Get-Module -ErrorAction SilentlyContinue PSPackageProject -ListAvailable) ) {
