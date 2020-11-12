@@ -22,6 +22,11 @@ Set-DefaultVault [-Name] <string> [-WhatIf] [-Confirm] [<CommonParameters>]
 Set-DefaultVault [-SecretVault] <SecretVaultInfo> [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
+### ClearParameterSet
+```
+Set-DefaultVault [-ClearDefault] [-WhatIf] [-Confirm] [<CommonParameters>]
+```
+
 ## DESCRIPTION
 This cmdlet updates the vault registry to indicate the provided vault name as the default vault.
 Only one registered vault can be the default vault.
@@ -63,7 +68,23 @@ The 'Get-SecretVault' is run once again to verify there is no default vault.
 
 ## PARAMETERS
 
+### -ClearDefault
+Makes no registered vault the default vault.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: ClearParameterSet
+Aliases:
+
+Required: False
+Position: 0
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -Name
+Name of registered vault to be made the default vault.
 
 ```yaml
 Type: String
@@ -78,6 +99,7 @@ Accept wildcard characters: False
 ```
 
 ### -SecretVault
+A SecretVaultInfo object that represents the registered vault to be made the default vault.
 
 ```yaml
 Type: SecretVaultInfo

@@ -14,7 +14,7 @@ Un-registers an extension vault from SecretManagement for the current user.
 
 ### NameParameterSet
 ```
-Unregister-SecretVault [-Name] <String> [-WhatIf] [-Confirm] [<CommonParameters>]
+Unregister-SecretVault [-Name] <string[]> [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### SecretVaultParameterSet
@@ -98,7 +98,7 @@ Accept wildcard characters: False
 Name of the vault to un-register.
 
 ```yaml
-Type: String
+Type: string[]
 Parameter Sets: NameParameterSet
 Aliases:
 
@@ -106,7 +106,7 @@ Required: True
 Position: 0
 Default value: None
 Accept pipeline input: False
-Accept wildcard characters: False
+Accept wildcard characters: True
 ```
 
 ### -SecretVault

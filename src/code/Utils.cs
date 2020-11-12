@@ -99,12 +99,16 @@ namespace Microsoft.PowerShell.SecretManagement
 
         public static Hashtable ConvertJsonToHashtable(string json)
         {
-            var results = PowerShellInvoker.InvokeScript<Hashtable>(
-                script: ConvertJsonToHashtableScript,
-                args: new object[] { json },
-                error: out ErrorRecord _);
+            using (var ps = System.Management.Automation.PowerShell.Create(RunspaceMode.NewRunspace))
+            {
+                var results = PowerShellInvoker.InvokeScriptOnPowerShell<Hashtable>(
+                    script: ConvertJsonToHashtableScript,
+                    args: new object[] { json },
+                    psToUse: ps,
+                    error: out ErrorRecord _);
 
-            return (results.Count > 0) ? results[0] : null;
+                return (results.Count > 0) ? results[0] : null;
+            }
         }
 
         public static string ConvertHashtableToJson(Hashtable hashtable)
@@ -313,6 +317,7 @@ namespace Microsoft.PowerShell.SecretManagement
         internal const string ModuleNameStr = "ModuleName";
         internal const string ModulePathStr = "ModulePath";
         internal const string VaultParametersStr = "VaultParameters";
+        internal const string DescriptionStr = "Description";
         
         #endregion
 
@@ -345,6 +350,8 @@ namespace Microsoft.PowerShell.SecretManagement
 
         public bool IsDefault { get; }
 
+        public string Description { get; }
+
         #endregion
 
         #region Constructor
@@ -367,6 +374,7 @@ namespace Microsoft.PowerShell.SecretManagement
             ModuleName = (string) vaultInfo[ModuleNameStr];
             ModuleExtensionName = Utils.GetModuleExtensionName(ModuleName);
             ModulePath = (string) vaultInfo[ModulePathStr];
+            Description = vaultInfo.ContainsKey(DescriptionStr) ? (string) vaultInfo[DescriptionStr] : string.Empty;
 
             // Additional parameters.
             var vaultParameters = new Dictionary<string, object>();
@@ -393,6 +401,7 @@ namespace Microsoft.PowerShell.SecretManagement
             ModuleName = module.ModuleName;
             ModuleExtensionName = module.ModuleExtensionName;
             ModulePath = module.ModulePath;
+            Description = module.Description;
             VaultParameters = module.VaultParameters;
             IsDefault = module.IsDefault;
         }
@@ -684,15 +693,19 @@ namespace Microsoft.PowerShell.SecretManagement
 
         private Hashtable GetAdditionalParams(PSCmdlet cmdlet)
         {
-            bool verboseEnabled = cmdlet.MyInvocation.BoundParameters.TryGetValue("Verbose", out dynamic verbose)
-                ? verbose.IsPresent : false;
-
             var additionalParams = new Hashtable();
             foreach (var item in VaultParameters)
             {
                 additionalParams.Add(
                     key: item.Key,
                     value: item.Value);
+            }
+
+            bool verboseEnabled = cmdlet.MyInvocation.BoundParameters.TryGetValue("Verbose", out dynamic verbose)
+                ? verbose.IsPresent : false;
+            if (additionalParams.ContainsKey("Verbose"))
+            {
+                additionalParams.Remove("Verbose");
             }
             additionalParams.Add("Verbose", verboseEnabled);
 
@@ -942,12 +955,8 @@ namespace Microsoft.PowerShell.SecretManagement
           "Vaults": {
             "TestLocalBin": {
               "ModuleName": "TestLocalBin",
-              "ImplementingType": {
-                "AssemblyName": "TestLocalBin",
-                "TypeName": "TestLocalBin.TestLocalBinExtension"
-              },
               "ModulePath": "E:\\temp\\Modules\\Microsoft.PowerShell.SecretManagement\\ExtModules\\TestLocalBin",
-              "ImplementingFunctions": false,
+              "Description": "Simple local store binary extension vault module",
               "VaultParameters": {
                 "Param1": "Hello",
                 "Param2": 102
@@ -955,15 +964,11 @@ namespace Microsoft.PowerShell.SecretManagement
             },
             "TestLocalScript": {
               "ModuleName": "TestLocalScript",
-              "ImplementingType": {
-                "AssemblyName": "",
-                "TypeName": ""
-              },
-              "ImplementingFunctions": true,
+              "ModulePath": "E:\\temp\\Modules\\Microsoft.PowerShell.SecretManagement\\ExtModules\\TestLocalScript"
+              "Description": "Simple local store script extension vault module",
               "VaultParameters": {
                 "Param": "SessionId"
               },
-              "ModulePath": "E:\\temp\\Modules\\Microsoft.PowerShell.SecretManagement\\ExtModules\\TestLocalScript"
             }
           }
         }

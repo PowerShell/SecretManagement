@@ -14,7 +14,7 @@ Registers a SecretManagement extension vault module for the current user.
 
 ```
 Register-SecretVault [-ModuleName] <string> [[-Name] <string>] [-VaultParameters <Hashtable>] [-DefaultVault]
-[-AllowClobber] [-PassThru] [-WhatIf] [-Confirm] [<CommonParameters>]
+[-AllowClobber] [-PassThru] [-Description <string>] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -78,6 +78,21 @@ This parameter switch makes the new extension vault the default vault for the cu
 
 ```yaml
 Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Description
+This parameter takes a description string that is included in the vault registry information.
+
+```yaml
+Type: string
 Parameter Sets: (All)
 Aliases:
 
