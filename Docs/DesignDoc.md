@@ -107,6 +107,36 @@ Tests that extension vault functions and returns True or diagnostic errors
 
 This function is called if provided by the extension vault, to allow the extension vault to perform an clean up tasks before the vault extension is unregistered
 
+#### Verbose and AdditionalParameters
+
+Each extension vault function takes a set of parameter arguments that includes an `AdditionalParameters` hash table.
+The values of the hash table come from the `VaultParameters` field of the registered vault, which are additional parameters an extension vault implementation might need beyond the specific parameters of a particular function.
+The `AdditionalParameters` hash table can also include an automatic `Verbose` boolean parameter.
+If the extension vault function is being called with the `-Verbose` common parameter, then the `Verbose` boolean parameter will be included in the `AdditionalParameters` hash table.
+The `Verbose` parameter is reserved and provided automatically by SecretManagement when verbose output is specified.
+It cannot be included in `VaultParameters`.
+
+Example:
+
+```powershell
+function Get-Secret
+{
+    [CmdletBinding()]
+    param (
+        [string] $Name,
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    # Enable verbose output if directed
+    if ($AdditionalParameters.ContainsKey('Verbose') -and ($AdditionalParameters['Verbose'] -eq $true)) {
+        $VerbosePreference = 'Continue'
+    }
+
+    ...
+}
+```
+
 ### Script module vault extension example
 
 This is a minimal vault extension example to demonstrate the directory structure and functional requirements of an extension vault module.

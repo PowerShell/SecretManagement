@@ -376,6 +376,10 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
         $randomSecretD = [System.IO.Path]::GetRandomFileName()
 
+        It "Verifies reserved 'Verbose' keyword in VaultParameters throws expected error" {
+            { Register-SecretVault -Name ScriptTestVault -ModuleName $script:scriptModuleFilePath -VaultParameters @{ Verbose = $true } } | Should -Throw -ErrorId 'RegisterSecretVaultCommandCannotUseReservedName,Microsoft.PowerShell.SecretManagement.RegisterSecretVaultCommand'
+        }
+
         It "Should register the script vault extension successfully but with invalid parameters" {
             $additionalParameters = @{ Hello = "There" }
             { Register-SecretVault -Name ScriptTestVault -ModuleName $script:scriptModuleFilePath -VaultParameters $additionalParameters -ErrorVariable err } | Should -Not -Throw
@@ -386,13 +390,13 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
             Test-SecretVault -Name ScriptTestVault 2>$null | Should -BeFalse
         }
 
-        It "Verifies the script vault extension is *not* designated as the default vault" {
+        It "Verifies the only script vault extension is designated as the default vault" {
             $vaultInfo = Get-SecretVault -Name ScriptTestVault
-            $vaultInfo.IsDefault | Should -BeFalse
+            $vaultInfo.IsDefault | Should -BeTrue
         }
 
-        It "Verifies that a secret item added with no default vault designated results in error" {
-            { Set-Secret -Name TestDefaultItem -Secret $randomSecretD } | Should -Throw -ErrorId 'SetSecretFailNoVault,Microsoft.PowerShell.SecretManagement.SetSecretCommand'
+        It "Verifies that a secret item added with default vault designated results in no error" {
+            { Set-Secret -Name TestDefaultItem -Secret $randomSecretD } | Should -Not -Throw
         }
 
         It "Should successfully unregister script vault extension" {
@@ -402,8 +406,13 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
         It "Should register the script vault extension successfully" {
             $additionalParameters = @{ AccessId = "AccessAT"; SubscriptionId = "1234567890" }
-            { Register-SecretVault -Name ScriptTestVault -ModuleName $script:scriptModuleFilePath -VaultParameters $additionalParameters -ErrorVariable err } | Should -Not -Throw
+            { Register-SecretVault -Name ScriptTestVault -ModuleName $script:scriptModuleFilePath -VaultParameters $additionalParameters `
+                -Description 'ScriptTestVaultDescription' -ErrorVariable err } | Should -Not -Throw
             $err.Count | Should -Be 0
+        }
+
+        It "Verifies description field for registered test vault" {
+            (Get-SecretVault -Name ScriptTestVault).Description | Should -BeExactly 'ScriptTestVaultDescription'
         }
 
         It "Should throw error when registering existing registered vault extension" {
@@ -427,6 +436,11 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         It "Verifies cmdlet successfully sets default vault" {
             Set-DefaultVault -Name ScriptTestVault
             (Get-SecretVault -Name ScriptTestVault).IsDefault | Should -BeTrue
+        }
+
+        It "Verifies cmdlet successfully clears default vault" {
+            Set-DefaultVault -ClearDefault
+            (Get-SecretVault -Name ScriptTestVault).IsDefault | Should -BeFalse
         }
 
         It "Verifies setting default vault works as default" {

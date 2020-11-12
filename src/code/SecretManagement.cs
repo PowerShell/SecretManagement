@@ -39,6 +39,11 @@ namespace Microsoft.PowerShell.SecretManagement
         public string ModulePath { get; }
 
         /// <summary>
+        /// Gets extension vault description.
+        /// </summary>
+        public string Description { get; }
+
+        /// <summary>
         /// Additional parameters used by vault module.
         /// </summary>
         public IReadOnlyDictionary<string, object> VaultParameters { get; }
@@ -59,6 +64,7 @@ namespace Microsoft.PowerShell.SecretManagement
             Name = name;
             ModuleName = vaultInfo.ModuleName;
             ModulePath = vaultInfo.ModulePath;
+            Description = vaultInfo.Description;
             VaultParameters = vaultInfo.VaultParameters;
             IsDefault = vaultInfo.IsDefault;
         }
@@ -155,13 +161,32 @@ namespace Microsoft.PowerShell.SecretManagement
         [Parameter]
         public SwitchParameter PassThru { get; set; }
 
+        /// <summary>
+        /// Gets or sets a description string for the vault.
+        /// </summary>
+        [Parameter]
+        public string Description { get; set; } = string.Empty;
+
         #endregion
 
         #region Overrides
 
         protected override void BeginProcessing()
         {
-            if (!this.MyInvocation.BoundParameters.ContainsKey(nameof(Name)))
+            // Disallow 'Verbose' in VaultParameters because it is reserved.
+            if (VaultParameters != null && VaultParameters.ContainsKey("Verbose"))
+            {
+                var msg = "The 'Verbose' parameter name is reserved and cannot be used in 'VaultParameters'";
+
+                ThrowTerminatingError(
+                    new ErrorRecord(
+                        exception: new PSInvalidOperationException(msg),
+                        errorId: "RegisterSecretVaultCommandCannotUseReservedName",
+                        errorCategory: ErrorCategory.InvalidOperation,
+                        this));
+            }
+
+            if (!MyInvocation.BoundParameters.ContainsKey(nameof(Name)))
             {
                 // Let the friendly Name be the module name.
                 var results = InvokeCommand.InvokeScript(
@@ -297,11 +322,20 @@ namespace Microsoft.PowerShell.SecretManagement
                 key: ExtensionVaultModule.VaultParametersStr,
                 value: VaultParameters);
 
+            // Store optional description string.
+            vaultInfo.Add(
+                key: ExtensionVaultModule.DescriptionStr,
+                value: Description);
+
+            // Make an only registered vault the default vault, if not otherwise specified.
+            bool isDefaultVault = MyInvocation.BoundParameters.ContainsKey(nameof(DefaultVault))
+                ? (bool) DefaultVault : (vaultItems.Count == 0);
+
             // Register new secret vault information.
             RegisteredVaultCache.Add(
                 keyName: Name,
                 vaultInfo: vaultInfo,
-                defaultVault: DefaultVault,
+                defaultVault: isDefaultVault,
                 overWriteExisting: true);
 
             if (PassThru.IsPresent)
@@ -513,7 +547,7 @@ namespace Microsoft.PowerShell.SecretManagement
                    ValueFromPipeline = true)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         [ValidateNotNullOrEmpty]
-        public string Name { get; set; }
+        public string[] Name { get; set; }
 
         [Parameter(ParameterSetName = SecretVaultParameterSet,
                    Position = 0,
@@ -532,29 +566,55 @@ namespace Microsoft.PowerShell.SecretManagement
         /// </summary>
         protected override void ProcessRecord()
         {
-            if (!ShouldProcess(Name, "Unregister SecretManagement extension vault module for current user"))
-            {
-                return;
-            }
-
-            string vaultName;
+            string[] vaultNames;
             switch (ParameterSetName)
             {
                 case NameParameterSet:
-                    vaultName = Name;
+                    vaultNames = Name;
                     break;
                 
                 case SecretVaultParameterSet:
-                    vaultName = SecretVault.Name;
+                    vaultNames = new string[] { SecretVault.Name };
                     break;
 
                 default:
                     Dbg.Assert(false, "Invalid parameter set");
-                    vaultName = string.Empty;
+                    vaultNames = new string[] { string.Empty };
                     break;
             }
 
-            // Invoke the optional 'Unregister-SecretVault' method on the extension vault
+            foreach (var vaultName in vaultNames)
+            {
+                if (WildcardPattern.ContainsWildcardCharacters(vaultName))
+                {
+                    var pattern = new WildcardPattern(vaultName, WildcardOptions.IgnoreCase);
+                    foreach (var name in RegisteredVaultCache.VaultExtensions.Keys)
+                    {
+                        if (pattern.IsMatch(name))
+                        {
+                            RemoveVault(name);
+                        }
+                    }
+
+                    return;
+                }
+
+                RemoveVault(vaultName);
+            }
+        }
+
+        #endregion
+
+        #region Private methods
+
+        private void RemoveVault(string vaultName)
+        {
+            if (!ShouldProcess(vaultName, "Unregister SecretManagement extension vault module for current user"))
+            {
+                return;
+            }
+
+            // Retrieve extension vault by name
             if (!RegisteredVaultCache.VaultExtensions.TryGetValue(
                 key: vaultName,
                 out ExtensionVaultModule extensionVault))
@@ -571,10 +631,12 @@ namespace Microsoft.PowerShell.SecretManagement
                 return;
             }
 
+            // Invoke the optional 'Unregister-SecretVault' method on the extension vault
             extensionVault.InvokeUnregisterVault(this);
 
             // Remove vault from registry
             RegisteredVaultCache.Remove(vaultName);
+
             WriteVerbose(
                 string.Format(CultureInfo.InvariantCulture, 
                     "Removed vault {0} from registry.", extensionVault.VaultName)
@@ -598,6 +660,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
         private const string NameParameterSet = "NameParameterSet";
         private const string SecretVaultParameterSet = "SecretVaultParameterSet";
+        private const string ClearParameterSet = "ClearParameterSet";
 
         /// <summary>
         /// Gets or sets a name of the secret vault to unregister.
@@ -610,6 +673,9 @@ namespace Microsoft.PowerShell.SecretManagement
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
 
+        /// <summary>
+        /// Gets or sets a SecretVaultInfo object that describes a vault that will be made the default vault
+        /// </summary>
         [Parameter(ParameterSetName = SecretVaultParameterSet,
                    Position = 0,
                    Mandatory = true,
@@ -617,6 +683,12 @@ namespace Microsoft.PowerShell.SecretManagement
                    ValueFromPipelineByPropertyName = true)]
         [ValidateNotNull]
         public SecretVaultInfo SecretVault { get; set; }
+
+        /// <summary>
+        /// Gets or sets a flag that designates no registered vault as the default vault.
+        /// </summary>
+        [Parameter(ParameterSetName = ClearParameterSet)]
+        public SwitchParameter ClearDefault { get; set; }
 
         #endregion
 
@@ -638,6 +710,10 @@ namespace Microsoft.PowerShell.SecretManagement
                 
                 case SecretVaultParameterSet:
                     vaultName = SecretVault.Name;
+                    break;
+
+                case ClearParameterSet:
+                    vaultName = string.Empty;
                     break;
 
                 default:

@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## 0.5.5-Preview5 - 2020-11-16
+
+### Fixes
+
+- Incompatibility with WindowsPowerShell 5.1 (Issue #73)
+
+### Changes
+
+- The first extension vault added will automatically be designated the default vault (Issue #61)
+
+- `Unregister-SecretVault` `-Name` property now supports string[] type and wild cards (Issue #57,#58)
+
+- `Register-SecretVault` now checks `-VaultParameters` hashtable for reserved `Verbose` entry and throws error if found
+
+- `Set-DefaultVault` now has a `-ClearDefault` parameter that designates no registered vault as the default vault
+
+### New Features
+
+- `Register-SecretVault` now supports a `-Description` parameter and registration information will include an optional extension vault description (Issue #46)
+
 ## 0.5.4-Preview5 - 2020-11-4
 
 ### Fixes
