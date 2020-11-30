@@ -13,6 +13,13 @@ pr:
 variables:
   - group: ESRP
 
+resources:
+  repositories:
+  - repository: ComplianceRepo
+    type: github
+    endpoint: ComplianceGHRepo
+    name: PowerShell/compliance
+
 stages:
 - stage: Build
   displayName: Build SecretManagement Module Package
@@ -20,7 +27,7 @@ stages:
   - job: BuildPkg
     displayName: Build Package
     pool:
-      name: Package ES CodeHub Lab E
+      name: Package ES Standard Build
     steps:
     - powershell: |
         $powerShellPath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'powershell'
@@ -116,12 +123,16 @@ stages:
       displayName: Capture environment for module code signing
       condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
 
-    - template: ./templates/sign.yml
+    - template: EsrpSign.yml@ComplianceRepo
       parameters:
         buildOutputPath: $(signSrcPath)
         signOutputPath: $(signOutPath)
         certificateId: "CP-230012"
-        pattern: '*.dll,*.psd1,*.ps1xml'
+        pattern: |
+          *.dll
+          *.psd1
+          *.ps1xml
+        useMinimatch: true
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
@@ -169,12 +180,14 @@ stages:
       displayName: Capture environment for ref assembly nuget file signing
       condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
 
-    - template: ./templates/sign-nuget.yml
+    - template: EsrpSign.yml@ComplianceRepo
       parameters:
         buildOutputPath: $(signSrcPath)
         signOutputPath: $(signOutPath)
         certificateId: "CP-401405"
-        pattern: '*.nupkg'
+        pattern: | 
+          *.nupkg
+        useMinimatch: true
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
@@ -186,14 +199,18 @@ stages:
         $config = Get-PSPackageProjectConfiguration
         if ($env:SkipSigning -eq 'True')
         {
+          $srcModulePath = Resolve-Path -Path "$($config.BuildOutputPath)/$($config.ModuleName)"
           $refAssemblyNuGetPath = Resolve-Path -Path "$($config.BuildOutputPath)/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
         }
         else
         {
+          $srcModulePath = Resolve-Path -Path "$($config.SignedOutputPath)/$($config.ModuleName)"
           $refAssemblyNuGetPath = Resolve-Path -Path "$($config.SignedOutputPath)/RefAssemblyNuGet/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
         }
-        Get-ChildItem $config.SignedOutputPath -Recurse
+        Get-ChildItem $srcModulePath
         Get-ChildItem $refAssemblyNuGetPath
+        $artifactName = "$($config.ModuleName)"
+        Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$srcModulePath"
         $artifactName = "RefAssemblyNuGet"
         Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$refAssemblyNuGetPath"
       displayName: Create ref assembly NuGet package artifact
@@ -204,9 +221,30 @@ stages:
   jobs:
   - job: ComplianceJob
     pool:
-      name: Package ES CodeHub Lab E
+      name: Package ES Standard Build
     steps:
-    - template: compliance.yml
+    - checkout: self
+      clean: true
+    - checkout: ComplianceRepo
+      clean: true
+    - download: current
+      artifact: 'Microsoft.PowerShell.SecretManagement'
+    - template: assembly-module-compliance.yml@ComplianceRepo
+      parameters:
+        # binskim
+        AnalyzeTarget: '$(Pipeline.Workspace)/Microsoft.PowerShell.SecretManagement/*.dll'
+        AnalyzeSymPath: 'SRV*'
+        # component-governance
+        sourceScanPath: '$(Build.SourcesDirectory)'
+        # credscan
+        suppressionsFile: ''
+        # TermCheck
+        optionsRulesDBPath: ''
+        optionsFTPath: ''
+        # tsa-upload
+        codeBaseName: 'PSSecretsManagement_202001'
+        # selections
+        APIScan: false # set to false when not using Windows APIs
 
 - stage: Test
   displayName: Test Package
@@ -216,13 +254,13 @@ stages:
     parameters:
       jobName: TestPkgWin
       displayName: PowerShell Core on Windows
-      imageName: windows-2019
+      imageName: windows-latest
 
   - template: test.yml
     parameters:
       jobName: TestPkgWinPS
       displayName: Windows PowerShell on Windows
-      imageName: windows-2019
+      imageName: windows-latest
       powershellExecutable: powershell
 
   - template: test.yml

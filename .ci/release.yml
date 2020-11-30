@@ -1,6 +1,6 @@
 parameters:
   jobName: release
-  imageName: windows-2019
+  imageName: windows-latest
   displayName: 'Release Microsoft.PowerShell.SecretManagement to NuGet'
 
 jobs:
@@ -37,18 +37,6 @@ jobs:
       packagesToPush: '$(System.ArtifactsDirectory)/RefAssemblyNuGet/Microsoft.PowerShell.SecretManagement.Library*.nupkg'
       nuGetFeedType: external
       publishFeedCredentials: PowerShellNuGetOrgPush
-
-  #- powershell: |
-  #    Get-ChildItem '$(System.ArtifactsDirectory)' -Recurse
-  #  displayName: 'Capture SecretManagement downloaded artifacts'
-
-  #- task: NuGetCommand@2
-  #  displayName: 'Push Microsoft.PowerShell.SecretManagement module artifacts to AzArtifacts feed'
-  #  inputs:
-  #    command: push
-  #    packagesToPush: '$(System.ArtifactsDirectory)/nupkg/Microsoft.PowerShell.SecretManagement.*.nupkg'
-  #    nuGetFeedType: external
-  #    publishFeedCredentials: AzArtifactsFeed
 
   #- task: NuGetCommand@2
   #  displayName: 'Push Microsoft.PowerShell.SecretManagement module artifacts to PSGallery feed'
