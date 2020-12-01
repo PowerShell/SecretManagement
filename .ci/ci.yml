@@ -10,9 +10,6 @@ pr:
     include:
     - master
 
-variables:
-  - group: ESRP
-
 resources:
   repositories:
   - repository: ComplianceRepo
@@ -27,7 +24,8 @@ stages:
   - job: BuildPkg
     displayName: Build Package
     pool:
-      name: Package ES Standard Build
+      vmImage: windows-latest
+
     steps:
     - powershell: |
         $powerShellPath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'powershell'
@@ -99,56 +97,7 @@ stages:
         Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
         Import-Module -Name $modPath -Force
         #
-        $config = Get-PSPackageProjectConfiguration
-        $signSrcPath = "$($config.BuildOutputPath)\$($config.ModuleName)"
-        $signOutPath = "$($config.SignedOutputPath)\$($config.ModuleName)"
-        if (! (Test-Path -Path $signOutPath)) {
-          $null = New-Item -Path $signOutPath -ItemType Directory
-        }
-        
-        # Set signing src path variable
-        $vstsCommandString = "vso[task.setvariable variable=signSrcPath]${signSrcPath}"
-        Write-Host "sending " + $vstsCommandString
-        Write-Host "##$vstsCommandString"
-
-        # Set signing out path variable
-        $vstsCommandString = "vso[task.setvariable variable=signOutPath]${signOutPath}"
-        Write-Host "sending " + $vstsCommandString
-        Write-Host "##$vstsCommandString"
-      displayName: Set up for module code signing
-      condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
-
-    - pwsh: |
-        Get-ChildItem -Path env:
-      displayName: Capture environment for module code signing
-      condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
-
-    - template: EsrpSign.yml@ComplianceRepo
-      parameters:
-        buildOutputPath: $(signSrcPath)
-        signOutputPath: $(signOutPath)
-        certificateId: "CP-230012"
-        pattern: |
-          *.dll
-          *.psd1
-          *.ps1xml
-        useMinimatch: true
-
-    - pwsh: |
-        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
-        $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
-        $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
-        Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
-        Import-Module -Name $modPath -Force
-        #
-        if ($env:SkipSigning -eq 'True')
-        {
-          $(Build.SourcesDirectory)/build.ps1 -Publish
-        }
-        else
-        {
-          $(Build.SourcesDirectory)/build.ps1 -Publish -Signed
-        }
+        $(Build.SourcesDirectory)/build.ps1 -Publish
       displayName: Create module artifact
 
     - pwsh: |
@@ -157,60 +106,15 @@ stages:
         $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
         Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
         Import-Module -Name $modPath -Force
-        #
         $config = Get-PSPackageProjectConfiguration
-        $signSrcPath = Resolve-Path -Path "$($config.BuildOutputPath)"
-        $signOutPath = "$($config.SignedOutputPath)\RefAssemblyNuGet"
-        if (! (Test-Path -Path $signOutPath)) {
-          $null = New-Item -Path $signOutPath -ItemType Directory
-        }
-        # Set signing src path variable
-        $vstsCommandString = "vso[task.setvariable variable=signSrcPath]${signSrcPath}"
-        Write-Host "sending " + $vstsCommandString
-        Write-Host "##$vstsCommandString"
-        # Set signing out path variable
-        $vstsCommandString = "vso[task.setvariable variable=signOutPath]${signOutPath}"
-        Write-Host "sending " + $vstsCommandString
-        Write-Host "##$vstsCommandString"
-      displayName: Set up for ref assembly nuget package signing
-      condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
-
-    - pwsh: |
-        Get-ChildItem -Path env:
-      displayName: Capture environment for ref assembly nuget file signing
-      condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
-
-    - template: EsrpSign.yml@ComplianceRepo
-      parameters:
-        buildOutputPath: $(signSrcPath)
-        signOutputPath: $(signOutPath)
-        certificateId: "CP-401405"
-        pattern: | 
-          *.nupkg
-        useMinimatch: true
-
-    - pwsh: |
-        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
-        $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
-        $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
-        Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
-        Import-Module -Name $modPath -Force
         #
-        $config = Get-PSPackageProjectConfiguration
-        if ($env:SkipSigning -eq 'True')
-        {
-          $srcModulePath = Resolve-Path -Path "$($config.BuildOutputPath)/$($config.ModuleName)"
-          $refAssemblyNuGetPath = Resolve-Path -Path "$($config.BuildOutputPath)/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
-        }
-        else
-        {
-          $srcModulePath = Resolve-Path -Path "$($config.SignedOutputPath)/$($config.ModuleName)"
-          $refAssemblyNuGetPath = Resolve-Path -Path "$($config.SignedOutputPath)/RefAssemblyNuGet/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
-        }
+        $srcModulePath = Resolve-Path -Path "$($config.BuildOutputPath)/$($config.ModuleName)"
         Get-ChildItem $srcModulePath
-        Get-ChildItem $refAssemblyNuGetPath
         $artifactName = "$($config.ModuleName)"
         Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$srcModulePath"
+        #
+        $refAssemblyNuGetPath = Resolve-Path -Path "$($config.BuildOutputPath)/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
+        Get-ChildItem $refAssemblyNuGetPath
         $artifactName = "RefAssemblyNuGet"
         Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$refAssemblyNuGetPath"
       displayName: Create ref assembly NuGet package artifact
@@ -221,7 +125,7 @@ stages:
   jobs:
   - job: ComplianceJob
     pool:
-      name: Package ES Standard Build
+      vmImage: windows-latest
     steps:
     - checkout: self
       clean: true
@@ -229,22 +133,10 @@ stages:
       clean: true
     - download: current
       artifact: 'Microsoft.PowerShell.SecretManagement'
-    - template: assembly-module-compliance.yml@ComplianceRepo
+    - template: ci-compliance.yml@ComplianceRepo
       parameters:
-        # binskim
-        AnalyzeTarget: '$(Pipeline.Workspace)/Microsoft.PowerShell.SecretManagement/*.dll'
-        AnalyzeSymPath: 'SRV*'
-        # component-governance
-        sourceScanPath: '$(Build.SourcesDirectory)'
         # credscan
         suppressionsFile: ''
-        # TermCheck
-        optionsRulesDBPath: ''
-        optionsFTPath: ''
-        # tsa-upload
-        codeBaseName: 'PSSecretsManagement_202001'
-        # selections
-        APIScan: false # set to false when not using Windows APIs
 
 - stage: Test
   displayName: Test Package
@@ -274,9 +166,3 @@ stages:
       jobName: TestPkgWinMacOS
       displayName: PowerShell Core on macOS
       imageName: macOS-10.14
-
-- stage: Release
-  displayName: Release Package
-  condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), eq(variables['Publish'], 'True'))
-  jobs:
-  - template: release.yml
