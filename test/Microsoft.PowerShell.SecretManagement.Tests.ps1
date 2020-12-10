@@ -425,26 +425,26 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         }
     }
 
-    Context "Set-DefaultVault cmdlet tests" {
+    Context "Set-SecretVaultDefault cmdlet tests" {
 
         $randomSecretE = [System.IO.Path]::GetRandomFileName()
 
         It "Should throw error when setting non existent vault as default" {
-            { Set-DefaultVault -Name NoSuchVault } | Should -Throw -ErrorId 'VaultNotFound,Microsoft.PowerShell.SecretManagement.SetDefaultVaultCommand'
+            { Set-SecretVaultDefault -Name NoSuchVault } | Should -Throw -ErrorId 'VaultNotFound,Microsoft.PowerShell.SecretManagement.SetSecretVaultDefaultCommand'
         }
 
         It "Verifies cmdlet successfully sets default vault" {
-            Set-DefaultVault -Name ScriptTestVault
+            Set-SecretVaultDefault -Name ScriptTestVault
             (Get-SecretVault -Name ScriptTestVault).IsDefault | Should -BeTrue
         }
 
         It "Verifies cmdlet successfully clears default vault" {
-            Set-DefaultVault -ClearDefault
+            Set-SecretVaultDefault -ClearDefault
             (Get-SecretVault -Name ScriptTestVault).IsDefault | Should -BeFalse
         }
 
         It "Verifies setting default vault works as default" {
-            Set-DefaultVault -Name ScriptTestVault
+            Set-SecretVaultDefault -Name ScriptTestVault
             (Get-SecretVault -Name ScriptTestVault).IsDefault | Should -BeTrue
             Set-Secret -Name GoesToDefaultVault -Secret $randomSecretE
             Get-Secret -Name GoesToDefaultVault -Vault ScriptTestVault -AsPlainText | Should -BeExactly $randomSecretE

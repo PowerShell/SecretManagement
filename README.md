@@ -24,6 +24,14 @@ All extension vault implementations must also support these data types.
 
 PowerShell SecretManagement module provides cmdlets for for accessing and manipulating secrets, and also cmdlets for registering and manipulating vault extensions.  
 
+## Installation
+
+You can install the `Microsoft.PowerShell.SecretManagement` module from the [PowerShell Gallery](https://www.powershellgallery.com/packages/Microsoft.PowerShell.SecretManagement).  
+
+```powershell
+Install-Module -Name Microsoft.PowerShell.SecretManagement -Repository PSGallery
+```
+
 ## Vault extension registration cmdlets
 
 ### Register-SecretVault
@@ -38,7 +46,7 @@ Retrieves information about one or more registered extension vaults
 
 Unregisters a single extension vault
 
-### Set-DefaultVault
+### Set-SecretVaultDefault
 
 Sets one registered extension vault as the default vault
 

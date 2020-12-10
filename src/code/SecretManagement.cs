@@ -244,7 +244,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
             // Resolve the module name path in calling context, if it is a path and not a name.
             var results = InvokeCommand.InvokeScript(
-                    script: @"param([string] $path) (Resolve-Path -Path $path -ErrorAction Ignore).Path",
+                    script: @"param([string] $path) Set-StrictMode -Off; (Resolve-Path -Path $path -ErrorAction Ignore).Path",
                     useNewScope: true,
                     writeToPipeline: PipelineResultTypes.Error,
                     input: null,
@@ -648,13 +648,13 @@ namespace Microsoft.PowerShell.SecretManagement
 
     #endregion
 
-    #region Set-DefaultVault
+    #region Set-SecretVaultDefault
 
     /// <summary>
     /// Cmdlet sets the provided registered vault name as the default vault.
     /// </summary>
-    [Cmdlet(VerbsCommon.Set, "DefaultVault", SupportsShouldProcess = true, DefaultParameterSetName = NameParameterSet)]
-    public sealed class SetDefaultVaultCommand : PSCmdlet
+    [Cmdlet(VerbsCommon.Set, "SecretVaultDefault", SupportsShouldProcess = true, DefaultParameterSetName = NameParameterSet)]
+    public sealed class SetSecretVaultDefaultCommand : PSCmdlet
     {
         #region Parameters
 
