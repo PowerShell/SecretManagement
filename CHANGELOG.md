@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 0.9.0 - 2021-1-15
+
+### Fixes
+
+- `Register-SecretVault` no longer emits error when strict language mode is set (Issue #81)
+
+### Changes
+
+- `Set-DefaultVault` cmdlet has been renamed to `Set-SecretVaultDefault` (Issue #79)
+
+- ReadME.md document now includes installation information (Issue #86)
+
+### New Features
+
 ## 0.5.5-Preview5 - 2020-11-16
 
 ### Fixes

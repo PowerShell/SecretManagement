@@ -7,7 +7,7 @@
 RootModule = '.\Microsoft.PowerShell.SecretManagement.dll'
 
 # Version number of this module.
-ModuleVersion = '0.5.5'
+ModuleVersion = '0.9.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -45,7 +45,7 @@ FunctionsToExport = @()
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = @(
-    'Register-SecretVault','Unregister-SecretVault','Get-SecretVault','Set-DefaultVault','Test-SecretVault',
+    'Register-SecretVault','Unregister-SecretVault','Get-SecretVault','Set-SecretVaultDefault','Test-SecretVault',
     'Set-Secret','Get-Secret','Get-SecretInfo','Remove-Secret')
 
 # Variables to export from this module
@@ -73,9 +73,6 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         # ReleaseNotes = ''
-
-        # Prerelease string of this module
-        Prerelease = 'preview6'
 
         # Flag to indicate whether the module requires explicit user acceptance for install/update/save
         # RequireLicenseAcceptance = $false
