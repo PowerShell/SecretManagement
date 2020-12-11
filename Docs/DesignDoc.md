@@ -299,7 +299,7 @@ The following cmdlets are provided for vault extension registration.
 Register-SecretVault
 Get-SecretVault
 Unregister-SecretVault
-Set-DefaultVault
+Set-SecretVaultDefault
 Test-SecretVault
 ```
 
@@ -316,7 +316,7 @@ Returns a list of extension vaults currently registered in the user context.
 
 Un-registers an extension vault.  
 
-### Set-DefaultVault
+### Set-SecretVaultDefault
 
 Sets one registered extension vault as the default vault.
 
