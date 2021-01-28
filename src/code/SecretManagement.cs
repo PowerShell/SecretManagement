@@ -1142,10 +1142,17 @@ namespace Microsoft.PowerShell.SecretManagement
     /// If no vault is specified then all vaults are searched.
     /// The first secret matching the Name parameter is returned.
     /// </summary>
-    [Cmdlet(VerbsCommon.Get, "Secret")]
+    [Cmdlet(VerbsCommon.Get, "Secret", DefaultParameterSetName = NameParameterSet)]
     [OutputType(typeof(object))]
     public sealed class GetSecretCommand : SecretCmdlet
     {
+        #region Members
+
+        private const string NameParameterSet = "NameParameterSet";
+        private const string InfoParameterSet = "InfoParameterSet";
+
+        #endregion
+
         #region Parameters
 
         /// <summary>
@@ -1154,16 +1161,24 @@ namespace Microsoft.PowerShell.SecretManagement
         [Parameter(Position=0, 
                    Mandatory=true,
                    ValueFromPipeline=true,
-                   ValueFromPipelineByPropertyName=true)]
+                   ParameterSetName = NameParameterSet)]
         [ArgumentCompleter(typeof(SecretNameCompleter))]
         public string Name { get; set; }
 
         /// <summary>
         /// Gets or sets an optional name of the vault to retrieve the secret from.
         /// </summary>
-        [Parameter(Position=1)]
+        [Parameter(Position=1, ParameterSetName = NameParameterSet)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         public string Vault { get; set; }
+
+        /// <summary>
+        /// Gets or sets a SecretInformation object that describes the secret to be retrieved.
+        /// </summary>
+        [Parameter(Mandatory=true,
+                   ValueFromPipeline=true,
+                   ParameterSetName = InfoParameterSet)]
+        public SecretInformation InputObject { get; set; }
 
         /// <summary>
         /// Gets or sets a switch that forces a string secret type to be returned as plain text.
@@ -1195,6 +1210,12 @@ namespace Microsoft.PowerShell.SecretManagement
 
         protected override void ProcessRecord()
         {
+            if (ParameterSetName == InfoParameterSet)
+            {
+                Name = InputObject.Name;
+                Vault = InputObject.VaultName;
+            }
+
             // Search single vault.
             if (!string.IsNullOrEmpty(Vault))
             {
