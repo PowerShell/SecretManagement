@@ -1483,7 +1483,7 @@ namespace Microsoft.PowerShell.SecretManagement
                         name: SecretInfo.Name,
                         secret: secret,
                         vaultName: Vault,
-                        metadata: Metadata,
+                        metadata: Utils.ConvertDictToHashtable(SecretInfo.Metadata),
                         cmdlet: this);
                     return;
 
@@ -1582,6 +1582,13 @@ namespace Microsoft.PowerShell.SecretManagement
     [Cmdlet(VerbsCommon.Remove, "Secret", SupportsShouldProcess = true)]
     public sealed class RemoveSecretCommand : SecretCmdlet
     {
+        #region Members
+
+        private const string NameParameterSet = "NameParameterSet";
+        private const string InfoParameterSet = "InfoParameterSet";
+
+        #endregion
+
         #region Parameters
 
         /// <summary>
@@ -1590,7 +1597,7 @@ namespace Microsoft.PowerShell.SecretManagement
         [Parameter(Position=0, 
                    Mandatory=true,
                    ValueFromPipeline=true,
-                   ValueFromPipelineByPropertyName=true)]
+                   ParameterSetName=NameParameterSet)]
         [ArgumentCompleter(typeof(SecretNameCompleter))]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
@@ -1598,10 +1605,18 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets an optional extension vault name.
         /// </summary>
-        [Parameter(Position=1, Mandatory=true)]
+        [Parameter(Position=1,
+                   Mandatory=true,
+                   ParameterSetName=NameParameterSet)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         [ValidateNotNullOrEmpty]
         public string Vault { get; set; }
+
+        [Parameter(Position=0,
+                   Mandatory=true,
+                   ValueFromPipeline=true,
+                   ParameterSetName=InfoParameterSet)]
+        public SecretInformation InputObject { get; set; }
 
         #endregion
 
@@ -1612,6 +1627,12 @@ namespace Microsoft.PowerShell.SecretManagement
             if (!ShouldProcess(Vault, "Remove secret by name from vault"))
             {
                 return;
+            }
+
+            if (ParameterSetName == InfoParameterSet)
+            {
+                Name = InputObject.Name;
+                Vault = InputObject.VaultName;
             }
 
             // Remove from extension vault.

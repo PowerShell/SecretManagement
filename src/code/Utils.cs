@@ -119,6 +119,20 @@ namespace Microsoft.PowerShell.SecretManagement
             }
         }
 
+        public static Hashtable ConvertDictToHashtable(IDictionary<string, object> dict)
+        {
+            var returnHashtable = new Hashtable();
+            if (dict != null)
+            {
+                foreach (var item in dict)
+                {
+                    returnHashtable.Add(item.Key, item.Value);
+                }
+            }
+
+            return returnHashtable;
+        }
+
         public static string ConvertHashtableToJson(Hashtable hashtable)
         {
             var results = PowerShellInvoker.InvokeScript<string>(
