@@ -10,6 +10,8 @@
 
 ### Changes
 
+- A warning is now displayed when secret cmdlets are used and no vaults are currently registered
+
 ### New Features
 
 - `SecretInformation` class now has a new `Metadata` property to support the new secret metadata support (Issue #46)
