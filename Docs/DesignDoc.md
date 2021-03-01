@@ -53,7 +53,7 @@ Secret objects supported by this module are currently limited to:
 Extension vaults can optionally support storing and retrieving additional secret metadata, that is data associated with the secret.  
 Secret metadata is not security sensitive and does not need to be stored securely in the extension vault.  
 
-Secret metadata can be included by using the `-Metadata` parameter: `Secret-Secret -Metadata @{ Name=Value }`.
+Secret metadata can be included by using the `-Metadata` parameter: `Set-Secret -Metadata @{ Name=Value }`.
 The `-Metadata` parameter takes a `Hashtable` type argument consisting of name/value pairs.  
 Extension vaults should at minimum support the following value types:  
 

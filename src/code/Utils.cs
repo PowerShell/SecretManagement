@@ -582,8 +582,9 @@ namespace Microsoft.PowerShell.SecretManagement
                 return;
             }
 
-            // If metadata is not supported but is provided then attempt to call vault Set-SecretInfo function.
-            if (metadata != null && !SetSecretSupportsMetadata &&
+            // If metadata is provided but not supported through Set-Secret parameter, then attempt to call 
+            // the separate vault Set-SecretInfo function as an alternative.
+            if (metadata?.Count > 0 && !SetSecretSupportsMetadata &&
                 !InvokeSetSecretMetadata(
                     name: name,
                     metadata: metadata,
