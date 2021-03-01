@@ -26,7 +26,7 @@ namespace Microsoft.PowerShell.SecretManagement
         There are currently no extension vaults registered.
         At least one vault must be registered before SecretManagement can add or retrieve secrets.
         You can download SecretManagement extension vault modules from PowerShellGallery.
-        https://aka.ms/SMVaults
+        https://aka.ms/SecretManagementVaults
         ";
 
         private const string ImplementingExtension = "Extension";
