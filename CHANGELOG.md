@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## 0.9.1 - 2021-3-1
+
+### Fixes
+
+- `Get-Secret` and `Remove-Secret` cmdlets now honor the `VaultName` parameter from a piped in `SecretInformation` object (Issue #97)
+
+- Secret name and vault name autocompletion now correctly handles names with spaces (Issue #91)
+
+### Changes
+
+- A warning is now displayed when secret cmdlets are used and no vaults are currently registered
+
+### New Features
+
+- `SecretInformation` class now has a new `Metadata` property to support the new secret metadata support (Issue #46)
+
+- `Set-Secret` cmdlet now has a new optional `-Metadata` property to include additional non-sensitive data associated with a secret (Issue #46)
+
+- New `Set-SecretInfo` cmdlet that takes a `-Metadata` property which sets additional non-sensitive data to a secret (Issue #46)
+
 ## 0.9.0 - 2021-1-15
 
 ### Fixes

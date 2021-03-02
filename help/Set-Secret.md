@@ -14,26 +14,30 @@ Adds a secret to a SecretManagement registered vault.
 
 ### SecureStringParameterSet (Default)
 ```
-Set-Secret [-Name] <String> [-SecureStringSecret] <SecureString> [[-Vault] <String>] [-NoClobber]
- [-WhatIf] [-Confirm] [<CommonParameters>]
+Set-Secret [-Name] <String> [-SecureStringSecret] <SecureString> [[-Vault] <String>]
+[[-Metadata] <hashtable>] [-NoClobber] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### ObjectParameterSet
 ```
-Set-Secret [-Name] <String> [-Secret] <Object> [[-Vault] <String>] [-NoClobber] [-WhatIf]
- [-Confirm] [<CommonParameters>]
+Set-Secret [-Name] <String> [-Secret] <Object> [[-Vault] <String>] [[-Metadata] <hashtable>]
+[-NoClobber] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### SecretInfoParameterSet
 ```
 Set-Secret [-SecretInfo] <SecretInformation> -Vault <string> [-NoClobber] [-WhatIf] [-Confirm]
- [<CommonParameters>]
+[<CommonParameters>]
 ```
 
 ## DESCRIPTION
 This cmdlet adds a secret value by name to SecretManagement.
 If no vault name is specified, then the secret will be added to the default vault.
 If an existing secret by the same name exists, it will be overwritten with the new value unless the 'NoClobber' parameter switch is used.
+Additional data can be included with the secret through the `-Metadata` parameter, if supported by the extension vault.
+If the extension vault does not support metadata then an error will be generated and the operation will fail.
+Metadata is not required to be stored securely, and should not contain sensitive information.  
+
 The secret value must be one of five supported types:
 
 - byte[]
@@ -75,7 +79,49 @@ Since no secret value was provided, the user is prompted for a SecureString valu
 The console hides the string value as it is typed.
 Next, the 'Get-Secret' command is run to verify the secret was added.
 
+### Example 3
+```powershell
+PS C:\> Set-Secret -Name TargetSecret -Secret $targetToken -Vault LocalStore -Metadata @{ Expiration = ([datetime]::new(2022, 5, 1)) }
+PS C:\> Get-SecretInfo -Name TargetSecret | Select-Object Name,Metadata
+
+Name         Metadata
+----         --------
+TargetSecret {[Expiration, 5/1/2022 12:00:00 AM]}
+```
+
+This example adds a secret named 'TargetSecret' to the LocalStore vault, along with extra metadata indicating the secret expiration date.
+The metadata is retrieved using the `Get-SecretInfo` cmdlet.  
+
+### Example 4
+```powershell
+PS C:\> Set-Secret -Name PublishSecret -Secret $targetToken -Vault LocalStore2 -Metadata @{ Expiration = ([datetime]::new(2022, 5, 1)) }
+Set-Secret: Cannot store secret PublishSecret. Vault LocalStore2 does not support secret metadata.
+```
+
+This example adds a secret named 'PublishSecret' to the LocalStore2 vault, along with extra metadata.
+However, vault LocalStore2 does not support secret metadata and the operation fails with error.  
+
 ## PARAMETERS
+
+### -Metadata
+Hashtable containing Name/Value pair that are stored in the vault.
+The specified extension vault may not support secret metadata, in which case the `Set-Secret` operation will fail.
+The metadata Name/Value value type must be one of the following:  
+- string
+- int
+- DateTime
+
+```yaml
+Type: Hashtable
+Parameter Sets: SecureStringParameterSet,ObjectParameterSet
+Aliases:
+
+Required: False
+Position: 3
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
 
 ### -Name
 Name of secret to add.

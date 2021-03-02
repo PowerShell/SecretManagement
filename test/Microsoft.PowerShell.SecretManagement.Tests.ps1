@@ -13,6 +13,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         Get-SecretVault | Unregister-SecretVault
 
         $global:store = [System.Collections.Generic.Dictionary[[string],[object]]]::new()
+        $global:storeMeta = [System.Collections.Generic.Dictionary[[string],[hashtable]]]::new()
         $global:UnRegisterSecretVaultCalled = $false
 
         # Script extension module
@@ -64,6 +65,25 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
                 return $false
             }
 
+            function Set-SecretInfo
+            {
+                param (
+                    [string] $Name,
+                    [hashtable] $Metadata,
+                    [string] $VaultName,
+                    [hashtable] $AdditionalParameters
+                )
+
+                if ($Metadata["Fail"] -eq $true) {
+                    throw [System.Management.Automation.CommandNotFoundException]
+                }
+
+                if ($global:storeMeta.ContainsKey($Name)) {
+                    $null = $global:storeMeta.Remove($Name)
+                }
+                $null = $global:storeMeta.Add($Name, $Metadata)
+            }
+
             function Remove-Secret
             {
                 param (
@@ -100,7 +120,15 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
                         elseif ($secret -is [hashtable]) { [Microsoft.PowerShell.SecretManagement.SecretType]::Hashtable }
                         else { [Microsoft.PowerShell.SecretManagement.SecretType]::Unknown }
 
-                        Write-Output ([Microsoft.PowerShell.SecretManagement.SecretInformation]::new($key, $type, $VaultName))
+                        $metadataDict = [System.Collections.Generic.Dictionary[[string],[object]]]::new()
+                        $metadataHashtable = if ($global:storeMeta.ContainsKey($key)) { $global:storeMeta[$key] } else { $null }
+                        if ($metadataHashtable -ne $null) {
+                            foreach ($key in $metadataHashtable.Keys) {
+                                $metadataDict.Add($key, $metadataHashtable[$key])
+                            }
+                        }
+
+                        Write-Output ([Microsoft.PowerShell.SecretManagement.SecretInformation]::new($key, $type, $VaultName, $metadataDict))
                     }
                 }
             }
@@ -145,7 +173,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         @{{
             ModuleVersion = '1.0'
             RootModule = '{0}'
-            FunctionsToExport = @('Set-Secret','Get-Secret','Remove-Secret','Get-SecretInfo','Test-SecretVault','Unregister-SecretVault')
+            FunctionsToExport = @('Set-Secret','Set-SecretInfo','Get-Secret','Remove-Secret','Get-SecretInfo','Test-SecretVault','Unregister-SecretVault')
         }}
         " -f $implementingModuleName
         $manifestInfo | Out-File -FilePath $implementingManifestFilePath
@@ -422,6 +450,28 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
         It "Verifies Test-SecretVault succeeds" {
             Test-SecretVault -Name ScriptTestVault | Should -BeTrue
+        }
+
+        It "Verifies Set-Secret with metadata succeeds" {
+            { Set-Secret -Name TestDefaultMeta -Secret $randomSecretD -Metadata @{ Fail = $false } -ErrorVariable err } | Should -Not -Throw
+            $err.Count | Should -Be 0
+            $info = Get-SecretInfo -Name TestDefaultMeta
+            $info.Metadata | Should -Not -BeNullOrEmpty
+            $info.Metadata["Fail"] | Should -BeFalse
+        }
+
+        It "Verifes Set-SecretInfo function" {
+            { Set-SecretInfo -Name TestDefaultMeta -Metadata @{ Fail = $false; Data = "MyData" } -ErrorVariable err } | Should -Not -Throw
+            $err.Count | Should -Be 0
+            $info = Get-SecretInfo -Name TestDefaultMeta
+            $info.Metadata | Should -Not -BeNullOrEmpty
+            $info.Metadata["Data"] | Should -BeExactly "MyData"
+        }
+
+        It "Verifies Set-SecretInfo fails with expected unsupported error" {
+            Set-SecretInfo -Name TestDefaultMeta -Metadata @{ Fail = $true } -ErrorVariable err 2>$null
+            $err | Should -HaveCount 2
+            $err[1].FullyQualifiedErrorId | Should -BeExactly 'SetSecretMetadataCommandNotSupported,Microsoft.PowerShell.SecretManagement.SetSecretInfoCommand'
         }
     }
 

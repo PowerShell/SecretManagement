@@ -32,6 +32,24 @@ You can install the `Microsoft.PowerShell.SecretManagement` module from the [Pow
 Install-Module -Name Microsoft.PowerShell.SecretManagement -Repository PSGallery
 ```
 
+## Secret metadata
+
+Extension vaults can optionally support storing and retrieving additional secret metadata, that is data associated with the secret.  
+Secret metadata is not security sensitive and does not need to be stored securely in the extension vault.  
+
+Secret metadata can be included by using the `-Metadata` parameter: `Set-Secret -Metadata @{ Name=Value }`.
+The `-Metadata` parameter takes a `Hashtable` type argument consisting of name/value pairs.  
+Extension vaults should at minimum support the following value types:  
+
+- string
+
+- int
+
+- DateTime
+
+The secret metadata is included in the `SecretInformation` type object returned by `Get-SecretInfo`, in a `Metadata` property.  
+The `Metadata` property is a `ReadonlyDictionary<string, object>` type.  
+
 ## Vault extension registration cmdlets
 
 ### Register-SecretVault
@@ -59,6 +77,11 @@ Runs the Test-SecretVault function provided by the extension vault
 ### Set-Secret
 
 Adds a secret to a specific extension vault, or to the default vault if no vault is specified
+
+### Set-SecretInfo
+
+Adds or replaces additional secret metadata to an existing secret in the vault.
+Metadata is not stored securely.
 
 ### Get-Secret
 
@@ -150,8 +173,7 @@ function Get-Secret
         [hashtable] $AdditionalParameters
     )
 
-    # return [TestStore]::GetItem($Name, $AdditionalParameters)
-    return $null
+    return [TestStore]::GetItem($Name, $AdditionalParameters)
 }
 
 function Get-SecretInfo
@@ -163,11 +185,11 @@ function Get-SecretInfo
         [hashtable] $AdditionalParameters
     )
 
-    # return [TestStore]::GetItemInfo($Filter, $AdditionalParameters)
     return @(,[Microsoft.PowerShell.SecretManagement.SecretInformation]::new(
         "Name",        # Name of secret
         "String",      # Secret data type [Microsoft.PowerShell.SecretManagement.SecretType]
-        $VaultName))   # Name of vault
+        $VaultName,    # Name of vault
+        $Metadata))    # Optional Metadata parameter
 }
 
 function Set-Secret
@@ -180,8 +202,21 @@ function Set-Secret
         [hashtable] $AdditionalParameters
     )
 
-    # return [TestStore]::SetItem($Name, $Secret)
-    return $false
+    [TestStore]::SetItem($Name, $Secret)
+}
+
+# Optional function
+function Set-SecretInfo
+{
+    [CmdletBinding()]
+    param (
+        [string] $Name,
+        [hashtable] $Metadata,
+        [string] $VaultName,
+        [hashtable] $Metadata
+    )
+
+    [TestStore]::SetItemMetadata($Name, $Metadata)
 }
 
 function Remove-Secret
@@ -193,8 +228,7 @@ function Remove-Secret
         [hashtable] $AdditionalParameters
     )
 
-    # return [TestStore]::RemoveItem($Name)
-    return $false
+    [TestStore]::RemoveItem($Name)
 }
 
 function Test-SecretVault
@@ -205,10 +239,10 @@ function Test-SecretVault
         [hashtable] $AdditionalParameters
     )
 
-    # return [TestStore]::TestVault()
-    return $true
+    return [TestStore]::TestVault()
 }
 
+# Optional function
 function Unregister-SecretVault
 {
     [CmdletBinding()]
@@ -217,13 +251,15 @@ function Unregister-SecretVault
         [hashtable] $AdditionalParameters
     )
 
-    # Perform optional work to extension vault before it is unregistered
+    [TestStore]::RunUnregisterCleanup()
 }
 ```
 
-This module script implements the five functions, as cmdlets, required by SecretManagement, plus one optional function.  
+This module script implements the five functions, as cmdlets, required by SecretManagement, plus one optional function.
+It also implements an optional `Unregister-SecretVault` function that is called during vault extension un-registration.
+It also implements an optional function `Set-SecretInfo` function that sets secret metadata to a specific secret in the vault.  
 
-The `Set-Secret`, `Remove-Secret`, `Test-SecretVault` cmdlets write a boolean to the pipeline on return, indicating success.  
+The `Set-Secret`, `Set-SecretInfo`, `Remove-Secret`, `Unregister-SecretVault` functions do not write any data to the pipeline, i.e., they do not return any data.  
 
 The `Get-Secret` cmdlet writes the retrieved secret value to the output pipeline on return, or null if no secret was found.
 It should write an error only if an abnormal condition occurs.  
