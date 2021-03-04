@@ -212,8 +212,7 @@ function Set-SecretInfo
     param (
         [string] $Name,
         [hashtable] $Metadata,
-        [string] $VaultName,
-        [hashtable] $Metadata
+        [string] $VaultName
     )
 
     [TestStore]::SetItemMetadata($Name, $Metadata)
