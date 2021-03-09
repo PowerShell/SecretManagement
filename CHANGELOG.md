@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 1.0.0 - 2021-4-5
+
+### Fixes
+
+- Fix manifest license link (Issue #112)
+
+- Fix help document md to xml file compilation (Issue #90, #106)
+
+### Changes
+
+### New Features
+
 ## 0.9.1 - 2021-3-1
 
 ### Fixes

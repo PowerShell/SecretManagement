@@ -13,8 +13,8 @@ Registers a SecretManagement extension vault module for the current user.
 ## SYNTAX
 
 ```
-Register-SecretVault [-ModuleName] <string> [[-Name] <string>] [-VaultParameters <Hashtable>] [-DefaultVault]
-[-AllowClobber] [-PassThru] [-Description <string>] [-WhatIf] [-Confirm] [<CommonParameters>]
+Register-SecretVault [-ModuleName] <String> [[-Name] <String>] [-VaultParameters <Hashtable>] [-DefaultVault]
+ [-AllowClobber] [-PassThru] [-Description <String>] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -26,7 +26,7 @@ Extension vaults are registered to the current user and do not affect other user
 ## EXAMPLES
 
 ### Example 1
-```powershell
+```
 PS C:\> Register-SecretVault -Name LocalStore -ModuleName Microsoft.PowerShell.SecretStore  -DefaultVault
 PS C:\> Get-SecretVault
 
@@ -58,21 +58,6 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -Confirm
-Prompts you for confirmation before running the cmdlet.
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases: cf
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
 ### -DefaultVault
 This parameter switch makes the new extension vault the default vault for the current user.
 
@@ -83,7 +68,7 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -92,7 +77,7 @@ Accept wildcard characters: False
 This parameter takes a description string that is included in the vault registry information.
 
 ```yaml
-Type: string
+Type: String
 Parameter Sets: (All)
 Aliases:
 
@@ -167,6 +152,21 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -Confirm
+Prompts you for confirmation before running the cmdlet.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: cf
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -WhatIf
 Shows what would happen if the cmdlet runs.
 The cmdlet is not run.
@@ -178,7 +178,7 @@ Aliases: wi
 
 Required: False
 Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -189,7 +189,6 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## INPUTS
 
 ### None
-
 ## OUTPUTS
 
 ## NOTES

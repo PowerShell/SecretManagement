@@ -14,20 +14,20 @@ Adds a secret to a SecretManagement registered vault.
 
 ### SecureStringParameterSet (Default)
 ```
-Set-Secret [-Name] <String> [-SecureStringSecret] <SecureString> [[-Vault] <String>]
-[[-Metadata] <hashtable>] [-NoClobber] [-WhatIf] [-Confirm] [<CommonParameters>]
+Set-Secret [-Name] <String> -SecureStringSecret <SecureString> [[-Vault] <String>] [[-Metadata] <Hashtable>]
+ [-NoClobber] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### ObjectParameterSet
 ```
-Set-Secret [-Name] <String> [-Secret] <Object> [[-Vault] <String>] [[-Metadata] <hashtable>]
-[-NoClobber] [-WhatIf] [-Confirm] [<CommonParameters>]
+Set-Secret [-Name] <String> -Secret <Object> [[-Vault] <String>] [[-Metadata] <Hashtable>] [-NoClobber]
+ [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### SecretInfoParameterSet
 ```
-Set-Secret [-SecretInfo] <SecretInformation> -Vault <string> [-NoClobber] [-WhatIf] [-Confirm]
-[<CommonParameters>]
+Set-Secret -SecretInfo <SecretInformation> [-Vault] <String> [-NoClobber] [-WhatIf] [-Confirm]
+ [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -52,7 +52,7 @@ So if the command is run without specifying the secret value, the user will be s
 ## EXAMPLES
 
 ### Example 1
-```powershell
+```
 PS C:\> Set-Secret -Name Secret1 -Secret "SecretValue"
 PS C:\> Get-Secret -Name Secret1
 System.Security.SecureString
@@ -90,7 +90,7 @@ TargetSecret {[Expiration, 5/1/2022 12:00:00 AM]}
 ```
 
 This example adds a secret named 'TargetSecret' to the LocalStore vault, along with extra metadata indicating the secret expiration date.
-The metadata is retrieved using the `Get-SecretInfo` cmdlet.  
+The metadata is retrieved using the `Get-SecretInfo` cmdlet.
 
 ### Example 4
 ```powershell
@@ -99,36 +99,36 @@ Set-Secret: Cannot store secret PublishSecret. Vault LocalStore2 does not suppor
 ```
 
 This example adds a secret named 'PublishSecret' to the LocalStore2 vault, along with extra metadata.
-However, vault LocalStore2 does not support secret metadata and the operation fails with error.  
+However, vault LocalStore2 does not support secret metadata and the operation fails with error.
 
 ## PARAMETERS
 
 ### -Metadata
 Hashtable containing Name/Value pair that are stored in the vault.
-The specified extension vault may not support secret metadata, in which case the `Set-Secret` operation will fail.
-The metadata Name/Value value type must be one of the following:  
+The specified extension vault may not support secret metadata, in which case the operation will fail.
+The metadata Name/Value value type must be one of the following:
 - string
 - int
 - DateTime
 
 ```yaml
 Type: Hashtable
-Parameter Sets: SecureStringParameterSet,ObjectParameterSet
+Parameter Sets: SecureStringParameterSet, ObjectParameterSet
 Aliases:
 
 Required: False
-Position: 3
+Position: 1
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
 ### -Name
-Name of secret to add.
+Name of secret for which the metadata is added
 
 ```yaml
 Type: String
-Parameter Sets: (All)
+Parameter Sets: SecureStringParameterSet, ObjectParameterSet
 Aliases:
 
 Required: True
@@ -139,7 +139,7 @@ Accept wildcard characters: False
 ```
 
 ### -NoClobber
-When used this parameter will cause an error if the secret name already exists.
+{{ Fill NoClobber Description }}
 
 ```yaml
 Type: SwitchParameter
@@ -163,7 +163,7 @@ Parameter Sets: ObjectParameterSet
 Aliases:
 
 Required: True
-Position: 1
+Position: Named
 Default value: None
 Accept pipeline input: True (ByValue)
 Accept wildcard characters: False
@@ -179,7 +179,7 @@ Parameter Sets: SecretInfoParameterSet
 Aliases:
 
 Required: True
-Position: 1
+Position: Named
 Default value: None
 Accept pipeline input: True (ByValue)
 Accept wildcard characters: False
@@ -194,7 +194,7 @@ Parameter Sets: SecureStringParameterSet
 Aliases:
 
 Required: True
-Position: 1
+Position: Named
 Default value: None
 Accept pipeline input: True (ByValue)
 Accept wildcard characters: False
@@ -206,11 +206,54 @@ If omitted, the secret will be added to the default vault.
 
 ```yaml
 Type: String
-Parameter Sets: (All)
+Parameter Sets: SecureStringParameterSet, ObjectParameterSet
 Aliases:
 
 Required: False
 Position: 2
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+```yaml
+Type: String
+Parameter Sets: SecretInfoParameterSet
+Aliases:
+
+Required: True
+Position: 2
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Confirm
+Prompts you for confirmation before running the cmdlet.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: cf
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -WhatIf
+Shows what would happen if the cmdlet runs.
+The cmdlet is not run.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: wi
+
+Required: False
+Position: Named
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -221,10 +264,7 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## INPUTS
 
-### System.Object
-
-### System.Security.SecureString
-
+### System.Collections.Hashtable
 ## OUTPUTS
 
 ## NOTES

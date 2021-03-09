@@ -21,7 +21,7 @@ This cmdlet finds and returns secret metadata for secrets with names that match 
 The 'Name' parameter argument can include wildcards for the search.
 If no 'Name' parameter argument is provided then metadata for all secrets is returned.
 The search is performed over all registered vaults, unless a specific vault name is specified.
-Secret metadata consists of the secret name, secret type, and vault name.
+Secret metadata consists of the secret name, secret type, vault name, and optional additional user data if supported by the extension vault.
 
 ## EXAMPLES
 
@@ -43,6 +43,17 @@ This example runs the command with the 'Name' parameter argument being a single 
 So all metadata for all stored secrets is returned.
 There are two registered vaults, LocalStore and CredMan.
 There are six secrets metadata information returned over the two vaults.
+
+### Example 2
+```powershell
+PS C:\> Get-SecretInfo -Name APIKey | Select-Object Name,VaultName,Metadata
+
+Name     VaultName    Metadata
+----     ---------    --------
+APIKey   SecretStore  {[Target, PSGallery]}
+```
+
+This example runs the command for a single secret name and displays the secret name, the vault name, and any metadata associated with the secret.
 
 ## PARAMETERS
 
@@ -84,11 +95,9 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## INPUTS
 
 ### None
-
 ## OUTPUTS
 
 ### Microsoft.PowerShell.SecretManagement.SecretInformation
-
 ## NOTES
 
 ## RELATED LINKS

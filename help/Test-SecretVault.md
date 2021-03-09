@@ -13,19 +13,19 @@ Runs an extension vault self test.
 ## SYNTAX
 
 ```
-Test-SecretVault [[-Name] <string[]>] [<CommonParameters>]
+Test-SecretVault [[-Name] <String[]>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 This cmdlet runs an extension vault self test, by running the internal vault 'Test-SecretVault' command.
 It will return 'True' if all tests succeeded, and 'False' otherwise.
 Information on failing tests will be written to the error stream as error records.
-For more information during the test run use the `-Verbose` command switch.
+For more information during the test run use the -Verbose command switch.
 
 ## EXAMPLES
 
 ### Example 1
-```powershell
+```
 PS C:\> Test-SecretVault -Name CredMan -Verbose
 VERBOSE: Invoking command Test-SecretVault on module Microsoft.PowerShell.CredManStore.Extension
 VERBOSE: Vault CredMan succeeded validation test
@@ -37,18 +37,18 @@ All tests succeeded so no errors are written and 'True' is returned.
 
 ## PARAMETERS
 
-### -Vault
+### -Name
 Name of vault to run self tests on.
 
 ```yaml
-Type: string[]
+Type: String[]
 Parameter Sets: (All)
 Aliases:
 
 Required: False
 Position: 1
 Default value: None
-Accept pipeline input: False
+Accept pipeline input: True (ByPropertyName, ByValue)
 Accept wildcard characters: True
 ```
 
@@ -58,7 +58,6 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## INPUTS
 
 ### None
-
 ## OUTPUTS
 
 ### System.Boolean

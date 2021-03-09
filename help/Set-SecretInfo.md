@@ -5,7 +5,7 @@ online version:
 schema: 2.0.0
 ---
 
-# Set-Secret
+# Set-SecretInfo
 
 ## SYNOPSIS
 Adds or replaces additional secret metadata to a secret currently stored in a vault.
@@ -13,12 +13,12 @@ Adds or replaces additional secret metadata to a secret currently stored in a va
 ## SYNTAX
 
 ```
-Set-SecretInfo [-Name] <string> [-Metadata] <hashtable> [[-Vault] <string>] [-WhatIf] [-Confirm]
-[<CommonParameters>]
+Set-SecretInfo [-Name] <String> [-Metadata] <Hashtable> [[-Vault] <String>] [-WhatIf] [-Confirm]
+ [<CommonParameters>]
 ```
 
 ## DESCRIPTION
-This cmdlet adds additional secret metadata to a currently store secret.
+This cmdlet adds additional secret metadata to an existing secret.
 Metadata support is an optional feature for an extension vault.
 An error will be thrown if a vault does not support secret metadata.  
 
@@ -30,7 +30,7 @@ The value type is restricted to the following:
 - DateTime
 
 Metadata is not stored securely in a vault.  
-Metadata should not contain sensitive information.  
+Metadata should not contain sensitive information.
 
 ## EXAMPLES
 
@@ -79,7 +79,7 @@ Accept wildcard characters: False
 ```
 
 ### -Name
-Name of secret for which the metadata is added
+Name of secret for which the metadata is added.
 
 ```yaml
 Type: String
@@ -109,6 +109,37 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -Confirm
+Prompts you for confirmation before running the cmdlet.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: cf
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -WhatIf
+Shows what would happen if the cmdlet runs.
+The cmdlet is not run.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: wi
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### CommonParameters
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
@@ -118,6 +149,7 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## OUTPUTS
 
+### System.Object
 ## NOTES
 
 ## RELATED LINKS

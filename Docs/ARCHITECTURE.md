@@ -1,4 +1,4 @@
-# PowerShell SecretManagement Module Design
+# PowerShell SecretManagement Module Architecture
 
 ## Description
 
