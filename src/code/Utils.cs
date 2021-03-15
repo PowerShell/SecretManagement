@@ -297,6 +297,25 @@ namespace Microsoft.PowerShell.SecretManagement
             Metadata = metadata;
         }
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        public SecretInformation(
+            string name,
+            SecretType type,
+            string vaultName,
+            Hashtable metadata) : this(name, type, vaultName)
+        {
+            if (metadata == null) { return; }
+
+            Dictionary<string, object> metaDictionary = new Dictionary<string, object>(metadata.Count);
+            foreach (var key in metadata.Keys)
+            {
+                metaDictionary.Add((string)key, metadata[key]);
+            }
+            Metadata = new ReadOnlyDictionary<string, object>(metaDictionary);
+        }
+
         private SecretInformation()
         {
         }

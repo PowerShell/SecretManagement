@@ -400,6 +400,24 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         }
     }
 
+    Context "API Tests" {
+
+        It "Verifies the SecretInformation constructor" {
+            $metadata = @{ Name='Name1'; Target='Target1' }
+            $secretInfo = [Microsoft.PowerShell.SecretManagement.SecretInformation]::new(
+                'MyName',
+                [Microsoft.PowerShell.SecretManagement.SecretType]::String,
+                'MyVault',
+                $metadata)
+
+            $secretInfo.Name | Should -BeExactly 'MyName'
+            $secretInfo.Type | Should -BeExactly 'String'
+            $secretInfo.VaultName | Should -BeExactly 'MyVault'
+            $secretInfo.Metadata['Name'] | Should -BeExactly 'Name1'
+            $secretInfo.Metadata['Target'] | Should -BeExactly 'Target1'
+        }
+    }
+
     Context "Script extension (non-default) vault tests" {
 
         $randomSecretD = [System.IO.Path]::GetRandomFileName()

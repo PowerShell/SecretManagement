@@ -10,6 +10,8 @@
 
 ### Changes
 
+- Add constructor for `SecretInformation` class that accepts metadata as a hash table (Issue #108)
+
 ### New Features
 
 ## 0.9.1 - 2021-3-1
