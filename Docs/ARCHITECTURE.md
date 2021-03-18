@@ -262,7 +262,7 @@ function Set-SecretInfo
         [string] $Name,
         [hashtable] $Metadata,
         [string] $VaultName,
-        [hashtable] $Metadata
+        [hashtable] $AdditionalParameters
     )
 
     [TestStore]::SetItemMetadata($Name, $Metadata)
@@ -432,3 +432,22 @@ One possible mitigation is for an extension vault to require a passphrase.
 But usually the passphrase remains valid for a period of time (e.g., sudo), and the malicious extension vault can obtain secrets during that time.  
 
 The best defense is to use known secure extension vaults from reputable sources, that are also signed certified.
+
+## Extension vault registry file location
+
+SecretManagement is designed to be installed and run within a user account on both Windows and non-Windows platforms.
+The extension vault registry file is located in a user account protected directory.  
+
+For Windows platforms the location is:  
+%LOCALAPPDATA%\Microsoft\PowerShell\secretmanagement  
+
+For non-Windows platforms the location:  
+$HOME/.secretmanagement
+
+## Windows Managed Accounts
+
+SecretManagement does not currently work for Windows managed accounts.  
+
+SecretManagement depends on both %LOCALAPPDATA% folders to store registry information, and Data Protection APIs for safely handling secrets with the .Net `SecureString` type.  
+However, Windows managed accounts do not have profiles or %LOCALAPPDATA% folders, and Windows Data Protection APIs do not work for managed accounts.  
+Consequently, SecretManagement will not run under managed accounts.

@@ -562,6 +562,7 @@ namespace Microsoft.PowerShell.SecretManagement
                    Mandatory = true,
                    ValueFromPipeline = true)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
+        [SupportsWildcards]
         [ValidateNotNullOrEmpty]
         public string[] Name { get; set; }
 
@@ -856,6 +857,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         [Parameter (Position=0)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
+        [SupportsWildcards]
         public string[] Name { get; set; }
 
         #endregion
@@ -930,6 +932,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// </summary>
         [Parameter(Position=0)]
         [ArgumentCompleter(typeof(SecretNameCompleter))]
+        [SupportsWildcards]
         public string Name { get; set; }
 
         /// <summary>
@@ -1663,6 +1666,7 @@ namespace Microsoft.PowerShell.SecretManagement
                    ValueFromPipeline=true,
                    ValueFromPipelineByPropertyName=true)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
+        [SupportsWildcards]
         public string[] Name { get; set; }
 
         #endregion
