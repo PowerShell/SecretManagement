@@ -139,7 +139,7 @@ Accept wildcard characters: False
 ```
 
 ### -NoClobber
-{{ Fill NoClobber Description }}
+When true, this command will not overwrite an existing secret and emit an error instead.
 
 ```yaml
 Type: SwitchParameter

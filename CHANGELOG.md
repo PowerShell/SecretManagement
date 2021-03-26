@@ -8,6 +8,8 @@
 
 - Fix help document md to xml file compilation (Issue #90, #106)
 
+- Remove unnecessary assert in registry write code (Issue #119)
+
 ### Changes
 
 - Add constructor for `SecretInformation` class that accepts metadata as a hash table (Issue #108)

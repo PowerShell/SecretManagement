@@ -1352,7 +1352,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 _allowAutoRefresh = true;
             }
 
-            Dbg.Assert(false, "Unable to write vault registry file!");
+            // TODO: Look into checking for missing registry file and create as needed.
         }
 
         #endregion
