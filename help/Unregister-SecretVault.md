@@ -14,7 +14,7 @@ Un-registers an extension vault from SecretManagement for the current user.
 
 ### NameParameterSet
 ```
-Unregister-SecretVault [-Name] <string[]> [-WhatIf] [-Confirm] [<CommonParameters>]
+Unregister-SecretVault [-Name] <String[]> [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### SecretVaultParameterSet
@@ -29,7 +29,7 @@ Once un-registered, the vault is no longer available to SecretManagement, for th
 ## EXAMPLES
 
 ### Example 1
-```powershell
+```
 PS C:\> Get-SecretVault
 
 VaultName  ModuleName                        IsDefaultVault
@@ -68,7 +68,7 @@ The vault is re-registered, under a different name, and set to be the default va
 Finally, the 'Secret5' secret is retrieved successfully from the new default vault.
 
 ### Example 2
-```powershell
+```
 PS C:\> Get-SecretVault | Unregister-SecretVault
 PS C:\> Get-SecretVault
 PS C:\>
@@ -79,33 +79,18 @@ Next, 'Get-SecretVault' is run again to show that no vaults are registered.
 
 ## PARAMETERS
 
-### -Confirm
-Prompts you for confirmation before running the cmdlet.
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases: cf
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
 ### -Name
 Name of the vault to un-register.
 
 ```yaml
-Type: string[]
+Type: String[]
 Parameter Sets: NameParameterSet
 Aliases:
 
 Required: True
 Position: 0
 Default value: None
-Accept pipeline input: False
+Accept pipeline input: True (ByValue)
 Accept wildcard characters: True
 ```
 
@@ -125,6 +110,21 @@ Accept pipeline input: True (ByPropertyName, ByValue)
 Accept wildcard characters: False
 ```
 
+### -Confirm
+Prompts you for confirmation before running the cmdlet.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: cf
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -WhatIf
 Shows what would happen if the cmdlet runs.
 The cmdlet is not run.
@@ -136,7 +136,7 @@ Aliases: wi
 
 Required: False
 Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -147,7 +147,6 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## INPUTS
 
 ### Microsoft.PowerShell.SecretManagement.SecretVaultInfo
-
 ## OUTPUTS
 
 ## NOTES

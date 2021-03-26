@@ -14,12 +14,12 @@ Finds and returns a secret by name from registered vaults.
 
 ### NameParameterSet (Default)
 ```
-Remove-Secret [-Name] <string> [-Vault] <string> [-WhatIf] [-Confirm] [<CommonParameters>]
+Get-Secret [-Name] <String> [[-Vault] <String>] [-AsPlainText] [<CommonParameters>]
 ```
 
 ### InfoParameterSet
 ```
-Remove-Secret [-InputObject] <SecretInformation> [-WhatIf] [-Confirm] [<CommonParameters>]
+Get-Secret [-InputObject] <SecretInformation> [-AsPlainText] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -33,7 +33,7 @@ Unless the '-AsPlainText' parameter switch is used, in which case the secret is 
 ## EXAMPLES
 
 ### Example 1
-```powershell
+```
 PS C:\> Get-Secret -Name Secret1 -Vault CredMan
 System.Security.SecureString
 
@@ -46,11 +46,11 @@ The first time returns the secret as a SecureString object.
 The second time uses the '-AsPlainText' and so the secret string is returned as a string object, and is displayed in plain text.
 
 ### Example 2
-```powershell
+```
 PS C:\> Get-SecretInfo -Name Secret2 -Vault SecretStore | Get-Secret -AsPlainText
 ```
 
-This example retrieves secret information for the secret named 'Secret2' and then pipe the result to `Get-Secret`.
+This example retrieves secret information for the secret named 'Secret2' and then pipe the result to \`Get-Secret\`.
 The secret is then looked up in the SecretStore vault and returned as plain text.
 
 ## PARAMETERS
@@ -66,7 +66,7 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -124,13 +124,10 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## INPUTS
 
 ### System.String
-
 ### Microsoft.PowerShell.SecretManagement.SecretInformation
-
 ## OUTPUTS
 
 ### System.Object
-
 ## NOTES
 
 ## RELATED LINKS
