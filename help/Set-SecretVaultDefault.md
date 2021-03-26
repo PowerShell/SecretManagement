@@ -14,7 +14,7 @@ Sets the provided vault name as the default vault for the current user.
 
 ### NameParameterSet (Default)
 ```
-Set-SecretVaultDefault [-Name] <string> [-WhatIf] [-Confirm] [<CommonParameters>]
+Set-SecretVaultDefault [-Name] <String> [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### SecretVaultParameterSet
@@ -28,14 +28,14 @@ Set-SecretVaultDefault [-ClearDefault] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
-This cmdlet updates the vault registry to indicate the provided vault name as the default vault.
+This cmdlet updates the vault registry to designate the provided vault name as the default vault.
 Only one registered vault can be the default vault.
-If this cmdlet is run without specifying the 'Name' parameter, then no registered vault is the default vault.
+If this cmdlet is run without specifying the 'Name' parameter, then no registered vault is designated as the default vault.
 
 ## EXAMPLES
 
 ### Example 1
-```powershell
+```
 PS C:\> Get-SecretVault
 
 VaultName  ModuleName                        IsDefaultVault
@@ -78,7 +78,7 @@ Aliases:
 
 Required: False
 Position: 0
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -94,7 +94,7 @@ Aliases:
 Required: True
 Position: 0
 Default value: None
-Accept pipeline input: False
+Accept pipeline input: True (ByValue)
 Accept wildcard characters: False
 ```
 
@@ -109,6 +109,37 @@ Aliases:
 Required: True
 Position: 0
 Default value: None
+Accept pipeline input: True (ByPropertyName, ByValue)
+Accept wildcard characters: False
+```
+
+### -Confirm
+Prompts you for confirmation before running the cmdlet.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: cf
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -WhatIf
+Shows what would happen if the cmdlet runs.
+The cmdlet is not run.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: wi
+
+Required: False
+Position: Named
+Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -119,7 +150,6 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## INPUTS
 
 ### None
-
 ## OUTPUTS
 
 ## NOTES

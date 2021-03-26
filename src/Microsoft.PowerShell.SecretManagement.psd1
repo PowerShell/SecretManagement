@@ -7,7 +7,7 @@
 RootModule = '.\Microsoft.PowerShell.SecretManagement.dll'
 
 # Version number of this module.
-ModuleVersion = '0.9.1'
+ModuleVersion = '1.0.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -63,7 +63,7 @@ PrivateData = @{
         # Tags = @()
 
         # A URL to the license for this module.
-        LicenseUri = 'https://github.com/PowerShell/Modules/License.txt'
+        LicenseUri = 'https://github.com/PowerShell/SecretManagement/blob/master/LICENSE'
 
         # A URL to the main website for this project.
         ProjectUri = 'https://github.com/powershell/secretmanagement'
@@ -84,6 +84,6 @@ PrivateData = @{
 } # End of PrivateData hashtable
 
 # HelpInfo URI of this module
-# HelpInfoURI = ''
+HelpInfoURI = 'https://aka.ms/ps-modules-help'
 
 }
