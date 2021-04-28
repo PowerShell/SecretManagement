@@ -74,35 +74,6 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #endregion
 
-        #region Constructor
-
-        static Utils()
-        {
-            IsWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
-                System.Runtime.InteropServices.OSPlatform.Windows);
-
-            if (IsWindows)
-            {
-                var locationPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                SecretManagementLocalPath = Path.Combine(locationPath, "Microsoft", "PowerShell", "secretmanagement");
-            }
-            else
-            {
-                var locationPath = Environment.GetEnvironmentVariable("HOME");
-                SecretManagementLocalPath = Path.Combine(locationPath, ".secretmanagement");
-            }
-        }
-
-        #endregion
-
-        #region Properties
-
-        public static string SecretManagementLocalPath { get; }
-
-        public static bool IsWindows { get; }
-
-        #endregion
-
         #region Methods
 
         public static Hashtable ConvertJsonToHashtable(string json)
@@ -1004,8 +975,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Strings
 
-        private static readonly string RegistryDirectoryPath = Path.Combine(Utils.SecretManagementLocalPath, "secretvaultregistry");
-        private static readonly string RegistryFilePath = Path.Combine(RegistryDirectoryPath, "vaultinfo");
+        private static readonly string RegistryFilePath;
 
         #endregion
 
@@ -1015,6 +985,8 @@ namespace Microsoft.PowerShell.SecretManagement
         private static object _syncObject;
         private static string _defaultVaultName = string.Empty;
         private static bool _allowAutoRefresh;
+        private static bool _isLocationPathValid;
+        private static bool _isWindows;
 
         #endregion
 
@@ -1050,19 +1022,47 @@ namespace Microsoft.PowerShell.SecretManagement
 
         static RegisteredVaultCache()
         {
-            // Verify path or create.
-            if (!Directory.Exists(RegistryDirectoryPath))
-            {
-                // TODO: Need to specify directory/file permissions.
-                Directory.CreateDirectory(RegistryDirectoryPath);
-            }
-
             _syncObject = new object();
             _vaultInfoCache = new Hashtable();
             _vaultCache = new Dictionary<string, ExtensionVaultModule>(StringComparer.OrdinalIgnoreCase);
 
+            // Create file location paths based on current user context.
+            string locationPath;
+            string secretManagementLocalPath;
+            _isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+            if (_isWindows)
+            {
+                // Windows platform.
+                locationPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                secretManagementLocalPath = Path.Combine(locationPath, "Microsoft", "PowerShell", "secretmanagement");
+            }
+            else
+            {
+                // Non-Windows platform.
+                locationPath = Environment.GetEnvironmentVariable("HOME");
+                secretManagementLocalPath = Path.Combine(locationPath, ".secretmanagement");
+            }
+
+            _isLocationPathValid = !string.IsNullOrEmpty(locationPath);
+            if (!_isLocationPathValid)
+            {
+                // File location path can be invalid for some Windows built-in account scenarios.
+                // Surface the error later when not initializing a type.
+                return;
+            }
+
+            var registryDirectoryPath = Path.Combine(secretManagementLocalPath, "secretvaultregistry");
+            RegistryFilePath = Path.Combine(registryDirectoryPath, "vaultinfo");
+
+            // Create new registry directory if needed.
+            if (!Directory.Exists(registryDirectoryPath))
+            {
+                // TODO: Need to specify directory/file permissions.
+                Directory.CreateDirectory(registryDirectoryPath);
+            }
+
             // Create file watcher.
-            _registryWatcher = new FileSystemWatcher(RegistryDirectoryPath);
+            _registryWatcher = new FileSystemWatcher(registryDirectoryPath);
             _registryWatcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
             _registryWatcher.Filter = "VaultInfo";
             _registryWatcher.EnableRaisingEvents = true;
@@ -1203,6 +1203,17 @@ namespace Microsoft.PowerShell.SecretManagement
         }
         */
 
+        private static void CheckFilePath()
+        {
+            if (!_isLocationPathValid)
+            {
+                var msg = _isWindows ? 
+                            "Unable to find a 'Local Application Data' path location for the current user, which is needed to store vault registry information." :
+                            "Unable to find a 'HOME' path location for the current user, which is needed to store vault registry information.";
+                throw new InvalidOperationException(msg);
+            }
+        }
+
         private static void RefreshCache()
         {
             if (!TryReadSecretVaultRegistry(
@@ -1314,6 +1325,10 @@ namespace Microsoft.PowerShell.SecretManagement
             Hashtable vaultInfo,
             string defaultVaultName)
         {
+            // SecretManagement vault registry relies on LocalApplicationData or HOME user context
+            // file locations.  Some Windows accounts do not support this and we surface the error here.  
+            CheckFilePath();
+
             var registryInfo = new Hashtable()
             {
                 { "DefaultVaultName", defaultVaultName },

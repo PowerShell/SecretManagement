@@ -285,15 +285,17 @@ namespace Microsoft.PowerShell.SecretManagement
                 setSecretSupportsMetadata: out bool supportsMetadata,
                 error: out Exception error))
             {
-                var invalidException = new PSInvalidOperationException(
-                    message: "Could not find a SecretManagement extension implementing script module.",
-                    innerException: error);
+                var msg = string.Format(CultureInfo.InvariantCulture,
+                    "Extension vault {0} is invalid: {1}",
+                    moduleInfo.Name, error?.Message ?? string.Empty);
 
                 ThrowTerminatingError(
                     new ErrorRecord(
-                        invalidException,
-                        "RegisterSecretVaultCantFindImplementingScriptModule",
-                        ErrorCategory.ObjectNotFound,
+                        new PSInvalidOperationException(
+                            message: msg,
+                            innerException: error),
+                        "RegisterSecretVaultInvalidExtensionVault",
+                        ErrorCategory.InvalidOperation,
                         this));
             }
 
