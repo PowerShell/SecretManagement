@@ -985,8 +985,8 @@ namespace Microsoft.PowerShell.SecretManagement
         private static object _syncObject;
         private static string _defaultVaultName = string.Empty;
         private static bool _allowAutoRefresh;
-        private static bool _isLocationPathValid;
-        private static bool _isWindows;
+        private static readonly bool _isLocationPathValid;
+        private static readonly bool _isWindows;
 
         #endregion
 
@@ -1208,7 +1208,7 @@ namespace Microsoft.PowerShell.SecretManagement
             if (!_isLocationPathValid)
             {
                 var msg = _isWindows ? 
-                            "Unable to find a 'Local Application Data' path location for the current user, which is needed to store vault registry information." :
+                            "Unable to find a Local Application Data folder location for the current user, which is needed to store vault registry information.\nWindows built-in accounts do not provide the Location Application Data folder and are not currently supported." :
                             "Unable to find a 'HOME' path location for the current user, which is needed to store vault registry information.";
                 throw new InvalidOperationException(msg);
             }

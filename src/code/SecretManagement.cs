@@ -286,7 +286,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 error: out Exception error))
             {
                 var msg = string.Format(CultureInfo.InvariantCulture,
-                    "Extension vault {0} is invalid: {1}",
+                    "Module {0} is not a valid extension vault: {1}",
                     moduleInfo.Name, error?.Message ?? string.Empty);
 
                 ThrowTerminatingError(
