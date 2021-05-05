@@ -35,7 +35,7 @@ If this cmdlet is run without specifying the 'Name' parameter, then no registere
 ## EXAMPLES
 
 ### Example 1
-```
+```powershell
 PS C:\> Get-SecretVault
 
 VaultName  ModuleName                        IsDefaultVault

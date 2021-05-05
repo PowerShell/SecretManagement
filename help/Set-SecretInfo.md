@@ -51,7 +51,7 @@ Secret1 {[Expiration, 5/1/2022 12:00:00 AM]}
 ```
 
 This example adds metadata to the 'Secret1' secret stored in 'Vault1' vault.
-The metadata is then retrieved for 'Secret1' using the `Get-SecretInfo` command.
+The metadata is then retrieved for 'Secret1' using the 'Get-SecretInfo' command.
 
 ### Example 2
 ```powershell
@@ -67,7 +67,7 @@ However, Vault2 does not support metadata and an error is generated.
 PS C:\> Get-SecretInfo -Name Secret3 | Set-SecretInfo -Metadata @{ Created = (Get-Date) }
 ```
 
-This example pipes a SecretInformation object to the `Set-SecretInfo` command and adds metadata to the associated secret.
+This example pipes a SecretInformation object to the 'Set-SecretInfo' command and adds metadata to the associated secret.
 
 ## PARAMETERS
 
@@ -91,7 +91,6 @@ Hashtable containing Name/Value pair that are stored in the vault.
 The specified extension vault may not support secret metadata, in which case the operation will fail.
 The metadata Name/Value value type must be one of the following:
 - string
-
 - int
 - DateTime
 

@@ -12,7 +12,7 @@ Un-registers an extension vault from SecretManagement for the current user.
 
 ## SYNTAX
 
-### NameParameterSet
+### NameParameterSet (Default)
 ```
 Unregister-SecretVault [-Name] <String[]> [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
@@ -29,7 +29,7 @@ Once un-registered, the vault is no longer available to SecretManagement, for th
 ## EXAMPLES
 
 ### Example 1
-```
+```powershell
 PS C:\> Get-SecretVault
 
 VaultName  ModuleName                        IsDefaultVault
@@ -68,7 +68,7 @@ The vault is re-registered, under a different name, and set to be the default va
 Finally, the 'Secret5' secret is retrieved successfully from the new default vault.
 
 ### Example 2
-```
+```powershell
 PS C:\> Get-SecretVault | Unregister-SecretVault
 PS C:\> Get-SecretVault
 PS C:\>

@@ -34,7 +34,7 @@ Set-Secret -SecretInfo <SecretInformation> [-Vault] <String> [-NoClobber] [-What
 This cmdlet adds a secret value by name to SecretManagement.
 If no vault name is specified, then the secret will be added to the default vault.
 If an existing secret by the same name exists, it will be overwritten with the new value unless the 'NoClobber' parameter switch is used.
-Additional data can be included with the secret through the `-Metadata` parameter, if supported by the extension vault.
+Additional data can be included with the secret through the '-Metadata' parameter, if supported by the extension vault.
 If the extension vault does not support metadata then an error will be generated and the operation will fail.
 Metadata is not required to be stored securely, and should not contain sensitive information.
 The secret value must be one of five supported types:
@@ -89,7 +89,7 @@ TargetSecret {[Expiration, 5/1/2022 12:00:00 AM]}
 ```
 
 This example adds a secret named 'TargetSecret' to the LocalStore vault, along with extra metadata indicating the secret expiration date.
-The metadata is retrieved using the `Get-SecretInfo` cmdlet.
+The metadata is retrieved using the 'Get-SecretInfo' cmdlet.
 
 ### Example 4
 ```powershell
@@ -169,7 +169,7 @@ Accept wildcard characters: False
 ```
 
 ### -SecretInfo
-A SecretInformation object describing a stored secret returned by `Get-SecretInfo`.
+A SecretInformation object describing a stored secret returned by 'Get-SecretInfo'.
 This allows moving secrets from one extension vault to another.
 
 ```yaml

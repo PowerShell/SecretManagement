@@ -29,7 +29,7 @@ Both the secret name and extension vault name must be provided.
 ## EXAMPLES
 
 ### Example 1
-```
+```powershell
 PS C:\> Remove-Secret -Name secretTest -Vault CredMan
 PS C:\> Get-Secret -Name secretTest -Vault CredMan
 Get-Secret: The secret secretTest was not found.
