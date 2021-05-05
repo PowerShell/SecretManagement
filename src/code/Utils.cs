@@ -12,8 +12,6 @@ using System.Management.Automation.Language;
 using System.Management.Automation.Runspaces;
 using System.Security;
 
-using Dbg = System.Diagnostics.Debug;
-
 namespace Microsoft.PowerShell.SecretManagement
 {
     #region Utils

@@ -1044,15 +1044,22 @@ namespace Microsoft.PowerShell.SecretManagement
     /// Replaces any secret metadata information associated with an existing secret
     /// with the provided new metadata information.
     /// </summary>
-    [Cmdlet(VerbsCommon.Set, "SecretInfo", SupportsShouldProcess = true)]
+    [Cmdlet(VerbsCommon.Set, "SecretInfo", SupportsShouldProcess = true, DefaultParameterSetName = NameParameterSet)]
     public sealed class SetSecretInfoCommand : SecretCmdlet
     {
+        #region Members
+
+        private const string NameParameterSet = "NameParameterSet";
+        private const string InfoParameterSet = "InfoParameterSet";
+
+        #endregion
+
         #region Parameters
 
         /// <summary>
         /// Gets or sets a name of the secret to which metadata is applied.
         /// </summary>
-        [Parameter(Position=0, Mandatory=true)]
+        [Parameter(Position=0, Mandatory=true, ParameterSetName=NameParameterSet)]
         [ArgumentCompleter(typeof(SecretNameCompleter))]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
@@ -1061,15 +1068,19 @@ namespace Microsoft.PowerShell.SecretManagement
         /// Gets or sets the metadata Hashtable to be applied to the secret name.
         /// If value is an empty Hashtable, then any previous secret metadata is removed.
         /// </summary>
-        [Parameter(Position=1, Mandatory=true, ValueFromPipeline=true)]
+        [Parameter(Position=1, Mandatory=true, ValueFromPipeline=true, ParameterSetName=NameParameterSet)]
+        [Parameter(Position=0, Mandatory=true, ParameterSetName=InfoParameterSet)]
         public Hashtable Metadata { get; set; }
 
         /// <summary>
         /// Gets or sets an optional extension vault name.
         /// </summary>
-        [Parameter(Position=2)]
+        [Parameter(Position=2, ParameterSetName=NameParameterSet)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         public string Vault { get; set; }
+
+        [Parameter(Mandatory=true, ValueFromPipeline=true, ParameterSetName=InfoParameterSet)]
+        public SecretInformation InputObject { get; set; }
 
         #endregion
 
@@ -1086,6 +1097,12 @@ namespace Microsoft.PowerShell.SecretManagement
             if (!ShouldProcess(Vault, "Write secret metadata to vault and override any existing metadata associated with the secret"))
             {
                 return;
+            }
+
+            if (ParameterSetName == InfoParameterSet)
+            {
+                Name = InputObject.Name;
+                Vault = InputObject.VaultName;
             }
 
             // Add to specified vault.
