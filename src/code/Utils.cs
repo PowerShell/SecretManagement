@@ -316,6 +316,7 @@ namespace Microsoft.PowerShell.SecretManagement
         //          ImplementingModule.psm1
         private const string RunCommandScript = @"
             param (
+                [string] $ModuleName,
                 [string] $ModulePath,
                 [string] $ImplementingModuleName,
                 [string] $Command,
@@ -323,7 +324,7 @@ namespace Microsoft.PowerShell.SecretManagement
             )
 
             $verboseEnabled = $Params.AdditionalParameters.ContainsKey('Verbose') -and ($Params.AdditionalParameters['Verbose'] -eq $true)
-            $module = Get-Module -Name ([System.IO.Path]::GetFileNameWithoutExtension($ImplementingModuleName)) -ErrorAction Ignore
+            $module = Get-Module -Name $ModuleName -ErrorAction Ignore
             if ($null -eq $module) {
                 $module = Import-Module -Name $ModulePath -PassThru
             }
@@ -344,6 +345,7 @@ namespace Microsoft.PowerShell.SecretManagement
         //          ImplementingModule.psm1
         private const string RunIfCommandScript = @"
             param (
+                [string] $ModuleName,
                 [string] $ModulePath,
                 [string] $ImplementingModuleName,
                 [string] $Command,
@@ -351,7 +353,7 @@ namespace Microsoft.PowerShell.SecretManagement
             )
         
             $verboseEnabled = $Params.AdditionalParameters.ContainsKey('Verbose') -and ($Params.AdditionalParameters['Verbose'] -eq $true)
-            $module = Get-Module -Name ([System.IO.Path]::GetFileNameWithoutExtension($ImplementingModuleName)) -ErrorAction Ignore
+            $module = Get-Module -Name $ModuleName -ErrorAction Ignore
             if ($null -eq $module) {
                 $module = Import-Module -Name $ModulePath -PassThru
             }
@@ -373,6 +375,7 @@ namespace Microsoft.PowerShell.SecretManagement
         // 2 - Command not found
         private const string RunConditionalCommandScript = @"
             param (
+                [string] $ModuleName,
                 [string] $ModulePath,
                 [string] $ImplementingModuleName,
                 [string] $Command,
@@ -380,7 +383,7 @@ namespace Microsoft.PowerShell.SecretManagement
             )
         
             $verboseEnabled = $Params.AdditionalParameters.ContainsKey('Verbose') -and ($Params.AdditionalParameters['Verbose'] -eq $true)
-            $module = Get-Module -Name ([System.IO.Path]::GetFileNameWithoutExtension($ImplementingModuleName)) -ErrorAction Ignore
+            $module = Get-Module -Name $ModuleName -ErrorAction Ignore
             if ($null -eq $module) {
                 $module = Import-Module -Name $ModulePath -PassThru
             }
@@ -551,7 +554,7 @@ namespace Microsoft.PowerShell.SecretManagement
             InvokeOnCmdlet(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
-                args: new object[] { ModulePath, ModuleExtensionName, SetSecretCmd, parameters },
+                args: new object[] { ModuleName, ModulePath, ModuleExtensionName, SetSecretCmd, parameters },
                 out Exception terminatingError);
             
             if (terminatingError != null)
@@ -622,7 +625,7 @@ namespace Microsoft.PowerShell.SecretManagement
             var results = InvokeOnCmdlet<int>(
                 cmdlet: cmdlet,
                 script: RunConditionalCommandScript,
-                args: new object[] { ModulePath, ModuleExtensionName, SetSecretInfoCmd, parameters },
+                args: new object[] { ModuleName, ModulePath, ModuleExtensionName, SetSecretInfoCmd, parameters },
                 out Exception terminatingError);
             
             if (terminatingError != null)
@@ -672,7 +675,7 @@ namespace Microsoft.PowerShell.SecretManagement
             var results = InvokeOnCmdlet<object>(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
-                args: new object[] { ModulePath, ModuleExtensionName, GetSecretCmd, parameters },
+                args: new object[] { ModuleName, ModulePath, ModuleExtensionName, GetSecretCmd, parameters },
                 out Exception terminatingError);
             
             if (terminatingError != null)
@@ -731,7 +734,7 @@ namespace Microsoft.PowerShell.SecretManagement
             InvokeOnCmdlet(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
-                args: new object[] { ModulePath, ModuleExtensionName, RemoveSecretCmd, parameters },
+                args: new object[] { ModuleName, ModulePath, ModuleExtensionName, RemoveSecretCmd, parameters },
                 out Exception terminatingError);
 
             if (terminatingError != null)
@@ -772,7 +775,7 @@ namespace Microsoft.PowerShell.SecretManagement
             var results = InvokeOnCmdlet<SecretInformation>(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
-                args: new object[] { ModulePath, ModuleExtensionName, GetSecretInfoCmd, parameters },
+                args: new object[] { ModuleName, ModulePath, ModuleExtensionName, GetSecretInfoCmd, parameters },
                 out Exception terminatingError);
             
             if (terminatingError != null)
@@ -812,7 +815,7 @@ namespace Microsoft.PowerShell.SecretManagement
             var results = InvokeOnCmdlet<bool>(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
-                args: new object[] { ModulePath, ModuleExtensionName, TestVaultCmd, parameters },
+                args: new object[] { ModuleName, ModulePath, ModuleExtensionName, TestVaultCmd, parameters },
                 out Exception terminatingError);
 
             if (terminatingError != null)
@@ -847,7 +850,7 @@ namespace Microsoft.PowerShell.SecretManagement
             InvokeOnCmdlet(
                 cmdlet: cmdlet,
                 script: RunIfCommandScript,
-                args: new object[] { ModulePath, ModuleExtensionName, UnregisterSecretVaultCommand, parameters },
+                args: new object[] { ModuleName, ModulePath, ModuleExtensionName, UnregisterSecretVaultCommand, parameters },
                 out Exception terminatingError);
             
             if (terminatingError != null)
