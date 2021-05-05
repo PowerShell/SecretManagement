@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 1.1.0 - 2021-5-10
+
+### Fixes
+
+- Provide better error message when extension vault does not provide required functions (Issue #137)
+
+- Provide better error message when running under Windows built-in accounts (Issue #143)
+
+- SecretManagement emits error when running under ConstrainedLanguage mode (Issue #144)
+
+### Changes
+
+### New Features
+
+- Set-SecretInfo should take pipeline input (Issue #129).
+
 ## 1.0.0 - 2021-4-5
 
 ### Fixes
