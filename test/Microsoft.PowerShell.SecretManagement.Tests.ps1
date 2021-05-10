@@ -12,10 +12,6 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
         Get-SecretVault | Unregister-SecretVault
 
-        $global:store = [System.Collections.Generic.Dictionary[[string],[object]]]::new()
-        $global:storeMeta = [System.Collections.Generic.Dictionary[[string],[hashtable]]]::new()
-        $global:UnRegisterSecretVaultCalled = $false
-
         # Script extension module
         $scriptModuleName = "TVaultScript"
         $implementingModuleName = "TVaultScript.Extension"
@@ -28,27 +24,124 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
             FunctionsToExport = @() 
         }}" -f $implementingModuleName | Out-File -FilePath $script:scriptModuleFilePath
 
-        $scriptImplementation = @'
+        # Store Paths
+        if ($isWindows)
+        {
+            $bPath = $env:TEMP
+        }
+        else 
+        {
+            $bPath = [System.Environment]::GetEnvironmentVariable("HOME")    
+        }
+        if ($bPath -eq $null -or !(Test-Path -Path $bPath))
+        {
+            $bPath = $PSScriptRoot
+        }
+        $basePath = Join-Path $bPath "SecretManagementStorePath"
+        if (! (Test-Path -Path $basePath))
+        {
+            [System.IO.Directory]::CreateDirectory($basePath)
+        }
+        $storePath = Join-Path $basePath "StorePath.xml"
+        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
+
+        $metaStorePath = Join-Path $basePath "MetaStorePath.xml"
+        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
+
+        $scriptImplementationTemplate = @'
+            $storePath = "{0}"
+            function SetStore
+            {{
+                param (
+                    [string] $name,
+                    [object] $value
+                )
+
+                $store = Import-CliXml -Path $script:storePath
+                if ($store.ContainsKey($name))
+                {{
+                    $null = $store.Remove($name)
+                }}
+                $null = $store.Add($name, $value)
+                $store | Export-Clixml -Path $script:storePath
+            }}
+            function GetStore
+            {{
+                param (
+                    [string] $name
+                )
+
+                $store = Import-CliXml -Path $script:storePath
+                return $store[$name]
+            }}
+            function RemoveStore
+            {{
+                param (
+                    [string] $Name
+                )
+
+                $store = Import-CliXml -Path $script:storePath
+                $null = $store.Remove($Name)
+                $store | Export-CliXml -Path $script:StorePath
+            }}
+
+            $metaStorePath = "{1}"
+            function SetMetaStore
+            {{
+                param (
+                    [string] $name,
+                    [object] $value
+                )
+
+                $store = Import-CliXml -Path $script:metaStorePath
+                if ($store.ContainsKey($name))
+                {{
+                    $null = $store.Remove($name)
+                }}
+                $null = $store.Add($name, $value)
+                $store | Export-Clixml -Path $script:metaStorePath
+            }}
+            function GetMetaStore
+            {{
+                param (
+                    [string] $name
+                )
+
+                $store = Import-CliXml -Path $script:metaStorePath
+                return $store[$name]
+            }}
+            function RemoveMetaStore
+            {{
+                param (
+                    [string] $Name
+                )
+
+                $store = Import-CliXml -Path $script:metaStorePath
+                $null = $store.Remove($Name)
+                $store | Export-CliXml -Path $script:metaStorePath
+            }}
+
             function Get-Secret
-            {
+            {{
                 param (
                     [string] $Name,
                     [string] $VaultName,
                     [hashtable] $AdditionalParameters
                 )
 
-                $secret = $global:store[$Name]
+                $secret = GetStore $Name
 
                 if ($secret -is [byte[]])
-                {
+                {{
                     return @(,$secret)
-                }
+                }}
 
                 return $secret
-            }
+            }}
 
+            # NOTE: Metadata is supported only through Set-SecretInfo (not Set-Secret)
             function Set-Secret
-            {
+            {{
                 param (
                     [string] $Name,
                     [object] $Secret,
@@ -56,17 +149,17 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
                     [hashtable] $AdditionalParameters
                 )
 
-                try {
-                    $global:store.Add($Name, $Secret)
+                try {{
+                    SetStore $Name $Secret
                     return $true
-                }
-                catch { }
+                }}
+                catch {{ }}
 
                 return $false
-            }
+            }}
 
             function Set-SecretInfo
-            {
+            {{
                 param (
                     [string] $Name,
                     [hashtable] $Metadata,
@@ -74,29 +167,28 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
                     [hashtable] $AdditionalParameters
                 )
 
-                if ($Metadata["Fail"] -eq $true) {
+                if ($Metadata["Fail"] -eq $true) {{
                     throw [System.Management.Automation.CommandNotFoundException]
-                }
+                }}
 
-                if ($global:storeMeta.ContainsKey($Name)) {
-                    $null = $global:storeMeta.Remove($Name)
-                }
-                $null = $global:storeMeta.Add($Name, $Metadata)
-            }
+                SetMetaStore $Name $Metadata
+            }}
 
             function Remove-Secret
-            {
+            {{
                 param (
                     [string] $Name,
                     [string] $VaultName,
                     [hashtable] $AdditionalParameters
                 )
 
-                return $global:store.Remove($Name)
-            }
+                
+                RemoveStore $Name
+                RemoveMetaStore $Name
+            }}
 
             function Get-SecretInfo
-            {
+            {{
                 param (
                     [string] $Filter,
                     [string] $VaultName,
@@ -104,37 +196,42 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
                 )
 
                 if ([string]::IsNullOrEmpty($Filter))
-                {
+                {{
                     $Filter = '*'
-                }
+                }}
+                $store = Import-CliXml -Path $script:storePath
+                $metaStore = Import-CliXml -Path $script:metaStorePath
                 $pattern = [WildcardPattern]::new($Filter)
-                foreach ($key in $global:store.Keys)
-                {
+                foreach ($key in $store.Keys)
+                {{
                     if ($pattern.IsMatch($key))
-                    {
-                        $secret = $global:store[$key]
-                        $type = if ($secret -is [byte[]]) { [Microsoft.PowerShell.SecretManagement.SecretType]::ByteArray }
-                        elseif ($secret -is [string]) { [Microsoft.PowerShell.SecretManagement.SecretType]::String }
-                        elseif ($secret -is [securestring]) { [Microsoft.PowerShell.SecretManagement.SecretType]::SecureString }
-                        elseif ($secret -is [PSCredential]) { [Microsoft.PowerShell.SecretManagement.SecretType]::PSCredential }
-                        elseif ($secret -is [hashtable]) { [Microsoft.PowerShell.SecretManagement.SecretType]::Hashtable }
-                        else { [Microsoft.PowerShell.SecretManagement.SecretType]::Unknown }
+                    {{
+                        $secret = $store[$key]
+                        $type = if ($secret -is [byte[]]) {{ [Microsoft.PowerShell.SecretManagement.SecretType]::ByteArray }}
+                        elseif ($secret -is [string]) {{ [Microsoft.PowerShell.SecretManagement.SecretType]::String }}
+                        elseif ($secret -is [securestring]) {{ [Microsoft.PowerShell.SecretManagement.SecretType]::SecureString }}
+                        elseif ($secret -is [PSCredential]) {{ [Microsoft.PowerShell.SecretManagement.SecretType]::PSCredential }}
+                        elseif ($secret -is [hashtable]) {{ [Microsoft.PowerShell.SecretManagement.SecretType]::Hashtable }}
+                        else {{ [Microsoft.PowerShell.SecretManagement.SecretType]::Unknown }}
 
                         $metadataDict = [System.Collections.Generic.Dictionary[[string],[object]]]::new()
-                        $metadataHashtable = if ($global:storeMeta.ContainsKey($key)) { $global:storeMeta[$key] } else { $null }
-                        if ($metadataHashtable -ne $null) {
-                            foreach ($key in $metadataHashtable.Keys) {
-                                $metadataDict.Add($key, $metadataHashtable[$key])
-                            }
-                        }
+                        $metadataHashtable = if ($metaStore.ContainsKey($key)) {{ $metaStore[$key] }} else {{ $null }}
+                        if ($metadataHashtable -ne $null) {{
+                            foreach ($key in $metadataHashtable.Keys) {{
+                                if (! $metadataDict.ContainsKey($key))
+                                {{
+                                    $metadataDict.Add($key, $metadataHashtable[$key])
+                                }}
+                            }}
+                        }}
 
                         Write-Output ([Microsoft.PowerShell.SecretManagement.SecretInformation]::new($key, $type, $VaultName, $metadataDict))
-                    }
-                }
-            }
+                    }}
+                }}
+            }}
 
             function Test-SecretVault
-            {
+            {{
                 param (
                     [string] $VaultName,
                     [hashtable] $AdditionalParameters
@@ -142,29 +239,30 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
                 $valid = $true
                 if (! $AdditionalParameters.ContainsKey('AccessId'))
-                {
+                {{
                     $valid = $false
                     Write-Error 'Missing AccessId parameter'
-                }
+                }}
                 if (! $AdditionalParameters.ContainsKey('SubscriptionId'))
-                {
+                {{
                     $valid = $false
                     Write-Error 'Missing SubscriptionId parameter'
-                }
+                }}
 
                 return $valid
-            }
+            }}
 
             function Unregister-SecretVault
-            {
+            {{
                 param (
                     [string] $VaultName,
                     [hashtable] $AdditionalParameters
                 )
 
-                $global:UnRegisterSecretVaultCalled = $true
-            }
+                SetStore "UnRegisterSecretVaultCalled" $true
+            }}
 '@
+        $scriptImplementation = $scriptImplementationTemplate -f $storePath,$metaStorePath
 
         $implementingModulePath = Join-Path $scriptModulePath $implementingModuleName
         New-Item -ItemType Directory $implementingModulePath -Force
@@ -185,6 +283,10 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
         Unregister-SecretVault -Name ScriptTestVault -ErrorAction Ignore
         Remove-Module -Name TVaultScript -Force -ErrorAction Ignore
+        if ($basePath -ne $null -and (Test-Path -Path $basePath))
+        {
+            Remove-Item -Path $basePath -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
 
     function VerifyByteArrayType
@@ -521,35 +623,40 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
     Context "Script extension vault byte[] type tests" {
 
-        $global:store.Clear()
+        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
+        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
 
         VerifyByteArrayType -Title "script" -VaultName "ScriptTestVault"
     }
 
     Context "Script extension vault String type tests" {
 
-        $global:store.Clear()
+        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
+        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
 
         VerifyStringType -Title "script" -VaultName "ScriptTestVault"
     }
 
     Context "Script extension vault SecureString type tests" {
 
-        $global:store.Clear()
+        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
+        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
 
         VerifySecureStringType -Title "script" -VaultName "ScriptTestVault"
     }
 
     Context "Script extension vault PSCredential type tests" {
 
-        $global:store.Clear()
+        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
+        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
 
         VerifyPSCredentialType -Title "script" -VaultName "ScriptTestVault"
     }
 
     Context "Script extension vault Hashtable type tests" {
 
-        $global:store.Clear()
+        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
+        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
 
         VerifyHashType -Title "script" -VaultName "ScriptTestVault"
     }
@@ -557,10 +664,14 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
     Context "Unregister-SecretVault cmdlet tests" {
 
         It "Verifies unregister operation calls the extension 'Unregister-SecretVault' function before unregistering" {
-            $global:UnRegisterSecretVaultCalled = $false
+            [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
+            [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
+
             { Unregister-SecretVault -Name ScriptTestVault -ErrorVariable err } | Should -Not -Throw
             $err.Count | Should -Be 0
-            $global:UnRegisterSecretVaultCalled | Should -BeTrue
+
+            $store = Import-Clixml -Path $storePath
+            $store['UnRegisterSecretVaultCalled'] | Should -BeTrue
 
             <#
             # Restore the extension module registration.

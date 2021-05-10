@@ -551,7 +551,7 @@ namespace Microsoft.PowerShell.SecretManagement
                     value: metadata ?? new Hashtable());
             }
 
-            InvokeOnCmdlet(
+            PowerShellInvoker.InvokeScriptWithHost(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
                 args: new object[] { ModuleName, ModulePath, ModuleExtensionName, SetSecretCmd, parameters },
@@ -564,7 +564,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 cmdlet.WriteError(
                     new ErrorRecord(
                         new PSInvalidOperationException(
-                            message: string.Format("Unable to add secret {0} to vault {1}", name, VaultName),
+                            message: string.Format(CultureInfo.InvariantCulture, "Unable to add secret {0} to vault {1}", name, VaultName),
                             innerException: terminatingError),
                         "SetSecretInvalidOperation",
                         ErrorCategory.InvalidOperation,
@@ -587,7 +587,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 cmdlet.WriteError(
                     new ErrorRecord(
                         new PSNotSupportedException(
-                            message: string.Format("Cannot store secret {0}. Vault {1} does not support secret metadata.", name, VaultName)),
+                            message: string.Format(CultureInfo.InvariantCulture, "Cannot store secret {0}. Vault {1} does not support secret metadata.", name, VaultName)),
                         "InvokeSetSecretMetadataNotSupported",
                         ErrorCategory.NotImplemented,
                         cmdlet));
@@ -601,7 +601,7 @@ namespace Microsoft.PowerShell.SecretManagement
             }
             
             cmdlet.WriteVerbose(
-                string.Format("Secret {0} was successfully added to vault {1}.", name, VaultName));
+                string.Format(CultureInfo.InvariantCulture, "Secret {0} was successfully added to vault {1}.", name, VaultName));
         }
 
         public bool InvokeSetSecretMetadata(
@@ -622,7 +622,7 @@ namespace Microsoft.PowerShell.SecretManagement
             // 0 - Command ran (command will emit any error message)
             // 1 - Module not found
             // 2 - Command not found
-            var results = InvokeOnCmdlet<int>(
+            var results = PowerShellInvoker.InvokeScriptWithHost<int>(
                 cmdlet: cmdlet,
                 script: RunConditionalCommandScript,
                 args: new object[] { ModuleName, ModulePath, ModuleExtensionName, SetSecretInfoCmd, parameters },
@@ -635,7 +635,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 cmdlet.WriteError(
                     new ErrorRecord(
                         new PSInvalidOperationException(
-                            message: string.Format("Unable to add secret metadata {0} to vault {1}", name, VaultName),
+                            message: string.Format(CultureInfo.InvariantCulture, "Unable to add secret metadata {0} to vault {1}", name, VaultName),
                             innerException: terminatingError),
                         "SetSecretMetadataInvalidOperation",
                         ErrorCategory.InvalidOperation,
@@ -650,7 +650,7 @@ namespace Microsoft.PowerShell.SecretManagement
             if (success)
             {
                 cmdlet.WriteVerbose(
-                    string.Format("Secret metadata {0} was successfully added to vault {1}.", name, VaultName));
+                    string.Format(CultureInfo.InvariantCulture, "Secret metadata {0} was successfully added to vault {1}.", name, VaultName));
             }
 
             return success;
@@ -672,7 +672,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 { "AdditionalParameters", additionalParameters }
             };
 
-            var results = InvokeOnCmdlet<object>(
+            var results = PowerShellInvoker.InvokeScriptWithHost<object>(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
                 args: new object[] { ModuleName, ModulePath, ModuleExtensionName, GetSecretCmd, parameters },
@@ -685,7 +685,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 cmdlet.WriteError(
                     new ErrorRecord(
                         new PSInvalidOperationException(
-                            message: string.Format("Unable to get secret {0} from vault {1}", name, VaultName),
+                            message: string.Format(CultureInfo.InvariantCulture, "Unable to get secret {0} from vault {1}", name, VaultName),
                             innerException: terminatingError),
                         "GetSecretInvalidOperation",
                         ErrorCategory.InvalidOperation,
@@ -694,26 +694,70 @@ namespace Microsoft.PowerShell.SecretManagement
             else
             {
                 cmdlet.WriteVerbose(
-                    string.Format("Secret {0} was successfully retrieved from vault {1}.", name, VaultName));
+                    string.Format(CultureInfo.InvariantCulture, "Secret {0} was successfully retrieved from vault {1}.", name, VaultName));
             }
 
-            if (results.Count > 0)
+            if (results.Count == 0)
             {
-                if (results[0] is byte)
-                {
-                    // Re-wrap collection of bytes into a byte array.
-                    byte[] byteArray = new byte[results.Count];
-                    for (int i=0; i<results.Count; i++)
-                    {
-                        byteArray[i] = (byte) results[i];
-                    }
-                    return byteArray;
-                }
-
-                return results[0];
+                return null;
             }
-            
-            return null;
+
+            object returnValue;
+            if (results[0] is byte)
+            {
+                // Re-wrap collection of bytes into a byte array.
+                byte[] byteArray = new byte[results.Count];
+                for (int i=0; i<results.Count; i++)
+                {
+                    byteArray[i] = (byte) results[i];
+                }
+                returnValue = byteArray;
+            }
+            else
+            {
+                returnValue = results[0];
+            }
+
+            // Special case for PowerShell wrapping weirdness.
+            if (returnValue is List<object> listWrap && listWrap.Count > 0)
+            {
+                returnValue = listWrap[0];
+            }
+
+            // Return only allowed types.
+            switch (returnValue)
+            {
+                case string strValue:
+                    return strValue;
+
+                case SecureString secureStrValue:
+                    return secureStrValue;
+
+                case byte[] byteArrayValue:
+                    return byteArrayValue;
+
+                case PSCredential psCredValue:
+                    return psCredValue;
+
+                case Hashtable hashTableValue:
+                    return hashTableValue;
+                
+                default:
+                    cmdlet.WriteError(
+                    new ErrorRecord(
+                        new PSInvalidOperationException(
+                            message: string.Format(
+                                CultureInfo.InvariantCulture,
+                                "Secret object returned for '{0}' from vault '{1}' is of invalid type '{2}'",
+                                name,
+                                VaultName,
+                                returnValue.GetType().ToString()),
+                            innerException: terminatingError),
+                        "GetSecretInvalidOperation",
+                        ErrorCategory.InvalidOperation,
+                        this));
+                    return null;
+            }
         }
 
         /// <summary>
@@ -731,7 +775,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 { "AdditionalParameters", additionalParameters }
             };
 
-            InvokeOnCmdlet(
+            PowerShellInvoker.InvokeScriptWithHost(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
                 args: new object[] { ModuleName, ModulePath, ModuleExtensionName, RemoveSecretCmd, parameters },
@@ -744,7 +788,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 cmdlet.WriteError(
                     new ErrorRecord(
                         new PSInvalidOperationException(
-                            message: string.Format("Unable to remove secret {0} from vault {1}", name, VaultName),
+                            message: string.Format(CultureInfo.InvariantCulture, "Unable to remove secret {0} from vault {1}", name, VaultName),
                             innerException: terminatingError),
                         "RemoveSecretInvalidOperation",
                         ErrorCategory.InvalidOperation,
@@ -753,7 +797,7 @@ namespace Microsoft.PowerShell.SecretManagement
             else
             {
                 cmdlet.WriteVerbose(
-                    string.Format("Secret {0} was successfully removed from vault {1}.", name, VaultName));
+                    string.Format(CultureInfo.InvariantCulture, "Secret {0} was successfully removed from vault {1}.", name, VaultName));
             }
         }
 
@@ -772,7 +816,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 { "AdditionalParameters", additionalParameters }
             };
 
-            var results = InvokeOnCmdlet<SecretInformation>(
+            var results = PowerShellInvoker.InvokeScriptWithHost<SecretInformation>(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
                 args: new object[] { ModuleName, ModulePath, ModuleExtensionName, GetSecretInfoCmd, parameters },
@@ -785,7 +829,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 cmdlet.WriteError(
                     new ErrorRecord(
                         new PSInvalidOperationException(
-                            message: string.Format("Unable to get secret information from vault {0}", VaultName),
+                            message: string.Format(CultureInfo.InvariantCulture, "Unable to get secret information from vault {0}", VaultName),
                             innerException: terminatingError),
                         "GetSecretInfoInvalidOperation",
                         ErrorCategory.InvalidOperation,
@@ -794,7 +838,7 @@ namespace Microsoft.PowerShell.SecretManagement
             else
             {
                 cmdlet.WriteVerbose(
-                    string.Format("Secret information was successfully retrieved from vault {0}.", VaultName));
+                    string.Format(CultureInfo.InvariantCulture, "Secret information was successfully retrieved from vault {0}.", VaultName));
             }
 
             var secretInfo = new SecretInformation[results.Count];
@@ -812,7 +856,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 { "AdditionalParameters", additionalParameters }
             };
 
-            var results = InvokeOnCmdlet<bool>(
+            var results = PowerShellInvoker.InvokeScriptWithHost<bool>(
                 cmdlet: cmdlet,
                 script: RunCommandScript,
                 args: new object[] { ModuleName, ModulePath, ModuleExtensionName, TestVaultCmd, parameters },
@@ -825,7 +869,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 cmdlet.WriteError(
                     new ErrorRecord(
                         new PSInvalidOperationException(
-                            message: string.Format("Unable to run Test-SecretVault on vault {0}", VaultName),
+                            message: string.Format(CultureInfo.InvariantCulture, "Unable to run Test-SecretVault on vault {0}", VaultName),
                             innerException: terminatingError),
                         "TestSecretVaultInvalidOperation",
                         ErrorCategory.InvalidOperation,
@@ -847,7 +891,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 { "AdditionalParameters", additionalParameters }
             };
 
-            InvokeOnCmdlet(
+            PowerShellInvoker.InvokeScriptWithHost(
                 cmdlet: cmdlet,
                 script: RunIfCommandScript,
                 args: new object[] { ModuleName, ModulePath, ModuleExtensionName, UnregisterSecretVaultCommand, parameters },
@@ -860,7 +904,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 cmdlet.WriteError(
                     new ErrorRecord(
                         new PSInvalidOperationException(
-                            message: string.Format("An error occurred while running Unregister-SecretVault on vault {0}, Error: {1}", 
+                            message: string.Format(CultureInfo.InvariantCulture, "An error occurred while running Unregister-SecretVault on vault {0}, Error: {1}", 
                                 VaultName, terminatingError.Message),
                             innerException: terminatingError),
                         "UnregisterSecretVaultInvalidOperation",
@@ -909,58 +953,6 @@ namespace Microsoft.PowerShell.SecretManagement
             additionalParams.Add("Verbose", verboseEnabled);
 
             return additionalParams;
-        }
-
-        private static Collection<PSObject> InvokeOnCmdlet(
-            PSCmdlet cmdlet,
-            string script,
-            object[] args,
-            out Exception terminatingError)
-        {
-            try
-            {
-                terminatingError = null;
-                return cmdlet.InvokeCommand.InvokeScript(
-                    script: script,
-                    useNewScope: true,
-                    writeToPipeline: PipelineResultTypes.Error,
-                    input: null,
-                    args: args);
-            }
-            catch (Exception ex)
-            {
-                terminatingError = ex;
-                return new Collection<PSObject>();
-            }
-        }
-
-        private static Collection<T> InvokeOnCmdlet<T>(
-            PSCmdlet cmdlet,
-            string script,
-            object[] args,
-            out Exception terminatingError)
-        {
-            var results = InvokeOnCmdlet(
-                cmdlet: cmdlet,
-                script: script,
-                args: args,
-                out terminatingError);
-
-            var returnCollection = new Collection<T>();
-            if (terminatingError != null || results.Count == 0)
-            {
-                return returnCollection;
-            }
-
-            foreach (var psItem in results)
-            {
-                if (psItem != null && psItem.BaseObject is T result)
-                {
-                    returnCollection.Add(result);
-                }
-            }
-
-            return returnCollection;
         }
 
         #endregion
@@ -1385,9 +1377,121 @@ namespace Microsoft.PowerShell.SecretManagement
         private static System.Management.Automation.PowerShell _powershell = 
             System.Management.Automation.PowerShell.Create(RunspaceMode.NewRunspace);
 
+        private static Runspace _runspace;
+
         #endregion
 
         #region Methods
+
+        public static Collection<PSObject> InvokeScriptWithHost(
+            PSCmdlet cmdlet,
+            string script,
+            object[] args,
+            out Exception terminatingError)
+        {
+            return InvokeScriptWithHost<PSObject>(
+                cmdlet,
+                script,
+                args,
+                out terminatingError);
+        }
+
+        public static Collection<T> InvokeScriptWithHost<T>(
+            PSCmdlet cmdlet,
+            string script,
+            object[] args,
+            out Exception terminatingError)
+        {
+            Collection<T> returnCollection = new Collection<T>();
+            terminatingError = null;
+
+            if (_runspace == null || _runspace.RunspaceStateInfo.State != RunspaceState.Opened)
+            {
+                if (_runspace != null)
+                {
+                    _runspace.Dispose();
+                }
+
+                var iss = InitialSessionState.CreateDefault2();
+                // We are running trusted script.
+                iss.LanguageMode = PSLanguageMode.FullLanguage;
+                // Import the current Microsoft.PowerShell.SecretManagement module.
+                var modPathObjects = cmdlet.InvokeCommand.InvokeScript(
+                    script: "(Get-Module -Name Microsoft.PowerShell.SecretManagement).Path");
+                string modPath = (modPathObjects.Count > 0 &&
+                                  modPathObjects[0].BaseObject is string modPathStr)
+                                  ? modPathStr : string.Empty;
+                if (!string.IsNullOrEmpty(modPath))
+                {
+                    iss.ImportPSModule(new string[] { modPath });
+                }
+
+                try
+                {
+                    _runspace = RunspaceFactory.CreateRunspace(cmdlet.Host, iss);
+                    _runspace.Open();
+                }
+                catch (Exception ex)
+                {
+                    terminatingError = ex;
+                    return returnCollection;
+                }
+            }
+
+            using (var ps = System.Management.Automation.PowerShell.Create())
+            {
+                ps.Runspace = _runspace;
+
+                var cmd = new Command(
+                    command: script, 
+                    isScript: true, 
+                    useLocalScope: true);
+                cmd.MergeMyResults(
+                    myResult: PipelineResultTypes.Error,
+                    toResult: PipelineResultTypes.Output);
+                ps.Commands.AddCommand(cmd);
+                foreach (var arg in args)
+                {
+                    ps.Commands.AddArgument(arg);
+                }
+                
+                try
+                {
+                    // Invoke the script.
+                    var results = ps.Invoke();
+
+                    // Extract expected output types from results pipeline.
+                    foreach (var psItem in results)
+                    {
+                        if (psItem == null || psItem.BaseObject == null) { continue; }
+
+                        switch (psItem.BaseObject)
+                        {
+                            case T result:
+                                returnCollection.Add(result);
+                                break;
+
+                            case T[] resultArray:
+                                foreach (var item in resultArray)
+                                {
+                                    returnCollection.Add(item);
+                                }
+                                break;
+
+                            case ErrorRecord error:
+                                cmdlet.WriteError(error);
+                                break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    terminatingError = ex;
+                }
+            }
+
+            return returnCollection;
+        }
 
         public static Collection<T> InvokeScript<T>(
             string script,
