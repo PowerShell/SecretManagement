@@ -36,6 +36,8 @@ https://github.com/powershell/SecretManagement
 
 # Minimum version of the PowerShell engine required by this module
 PowerShellVersion = '5.1'
+DotNetFrameworkVersion = '4.6.1'
+CLRVersion = '4.0.0'
 
 # Format files (.ps1xml) to be loaded when importing this module
 FormatsToProcess = @('Microsoft.PowerShell.SecretManagement.format.ps1xml')
