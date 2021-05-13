@@ -41,7 +41,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 )
 
                 $output = @{}
-                $object | Get-Member -MemberType NoteProperty | ForEach-Object {
+                $object | Microsoft.PowerShell.Utility\Get-Member -MemberType NoteProperty | ForEach-Object {
                     $name = $_.Name
                     $value = $object.($name)
 
@@ -66,7 +66,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 $output
             }
 
-            $customObject = ConvertFrom-Json -InputObject $json
+            $customObject = Microsoft.PowerShell.Utility\ConvertFrom-Json -InputObject $json
             return ConvertToHash $customObject
         ";
 
@@ -105,7 +105,7 @@ namespace Microsoft.PowerShell.SecretManagement
         public static string ConvertHashtableToJson(Hashtable hashtable)
         {
             var results = PowerShellInvoker.InvokeScript<string>(
-                script: @"param ([hashtable] $hashtable) ConvertTo-Json -InputObject $hashtable -Depth 10",
+                script: @"param ([hashtable] $hashtable) Microsoft.PowerShell.Utility\ConvertTo-Json -InputObject $hashtable -Depth 10",
                 args: new object[] { hashtable },
                 error: out ErrorRecord _);
 
@@ -115,7 +115,7 @@ namespace Microsoft.PowerShell.SecretManagement
         public static SecureString ConvertToSecureString(string secret)
         {
             var results = PowerShellInvoker.InvokeScript<SecureString>(
-                script: @"param([string] $value) ConvertTo-SecureString -String $value -AsPlainText -Force",
+                script: @"param([string] $value) Microsoft.PowerShell.Security\ConvertTo-SecureString -String $value -AsPlainText -Force",
                 args: new object[] { secret },
                 error: out ErrorRecord _);
             
@@ -324,9 +324,9 @@ namespace Microsoft.PowerShell.SecretManagement
             )
 
             $verboseEnabled = $Params.AdditionalParameters.ContainsKey('Verbose') -and ($Params.AdditionalParameters['Verbose'] -eq $true)
-            $module = Get-Module -Name $ModuleName -ErrorAction Ignore
+            $module = Microsoft.PowerShell.Core\Get-Module -Name $ModuleName -ErrorAction Ignore
             if ($null -eq $module) {
-                $module = Import-Module -Name $ModulePath -PassThru
+                $module = Microsoft.PowerShell.Core\Import-Module -Name $ModulePath -PassThru
             }
             if ($null -eq $module) {
                 return
@@ -353,9 +353,9 @@ namespace Microsoft.PowerShell.SecretManagement
             )
         
             $verboseEnabled = $Params.AdditionalParameters.ContainsKey('Verbose') -and ($Params.AdditionalParameters['Verbose'] -eq $true)
-            $module = Get-Module -Name $ModuleName -ErrorAction Ignore
+            $module = Microsoft.PowerShell.Core\Get-Module -Name $ModuleName -ErrorAction Ignore
             if ($null -eq $module) {
-                $module = Import-Module -Name $ModulePath -PassThru
+                $module = Microsoft.PowerShell.Core\Import-Module -Name $ModulePath -PassThru
             }
             if ($null -eq $module) {
                 return
@@ -383,9 +383,9 @@ namespace Microsoft.PowerShell.SecretManagement
             )
         
             $verboseEnabled = $Params.AdditionalParameters.ContainsKey('Verbose') -and ($Params.AdditionalParameters['Verbose'] -eq $true)
-            $module = Get-Module -Name $ModuleName -ErrorAction Ignore
+            $module = Microsoft.PowerShell.Core\Get-Module -Name $ModuleName -ErrorAction Ignore
             if ($null -eq $module) {
-                $module = Import-Module -Name $ModulePath -PassThru
+                $module = Microsoft.PowerShell.Core\Import-Module -Name $ModulePath -PassThru
             }
             if ($null -eq $module) {
                 return 1

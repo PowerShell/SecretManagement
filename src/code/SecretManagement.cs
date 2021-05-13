@@ -528,9 +528,9 @@ namespace Microsoft.PowerShell.SecretManagement
 
                     # ModulePath module may have a dependency on SecretManagement module,
                     # so make sure it is loaded.
-                    $null = Import-Module -Name $SecretMgtModulePath -ErrorAction Ignore
+                    $null = Microsoft.PowerShell.Core\Import-Module -Name $SecretMgtModulePath -ErrorAction Ignore
 
-                    Import-Module -Name $ModulePath -Force -PassThru
+                    Microsoft.PowerShell.Core\Import-Module -Name $ModulePath -Force -PassThru
                 ",
                 args: new object[] { modulePath, secretMgtModulePath },
                 out error);
@@ -810,7 +810,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 using (var ps = System.Management.Automation.PowerShell.Create(RunspaceMode.NewRunspace))
                 {
                     var results = PowerShellInvoker.InvokeScriptOnPowerShell<SecretInformation>(
-                        script: "Get-SecretInfo",
+                        script: @"Microsoft.PowerShell.SecretManagement\Get-SecretInfo",
                         args: new object[] {},
                         psToUse: ps,
                         out ErrorRecord error);
