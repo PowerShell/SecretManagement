@@ -407,6 +407,7 @@ namespace Microsoft.PowerShell.SecretManagement
         internal const string SetSecretCmd = "Set-Secret";
         internal const string SetSecretInfoCmd = "Set-SecretInfo";
         internal const string RemoveSecretCmd = "Remove-Secret";
+        internal const string UnlockVaultCmd = "Unlock-SecretVault";
         internal const string TestVaultCmd = "Test-SecretVault";
         internal const string UnregisterSecretVaultCommand = "Unregister-SecretVault";
         internal const string ModuleNameStr = "ModuleName";
@@ -584,14 +585,6 @@ namespace Microsoft.PowerShell.SecretManagement
             {
                 // Unable to write metadata, probably because metadata is not supported by the extension vault.
                 // Remove the secret from the vault, since it did not fully write.
-                cmdlet.WriteError(
-                    new ErrorRecord(
-                        new PSNotSupportedException(
-                            message: string.Format(CultureInfo.InvariantCulture, "Cannot store secret {0}. Vault {1} does not support secret metadata.", name, VaultName)),
-                        "InvokeSetSecretMetadataNotSupported",
-                        ErrorCategory.NotImplemented,
-                        cmdlet));
-
                 InvokeRemoveSecret(
                     name: name,
                     vaultName: vaultName,
@@ -602,6 +595,80 @@ namespace Microsoft.PowerShell.SecretManagement
             
             cmdlet.WriteVerbose(
                 string.Format(CultureInfo.InvariantCulture, "Secret {0} was successfully added to vault {1}.", name, VaultName));
+        }
+
+        public bool InvokeUnlockSecretVault(
+            SecureString password,
+            Hashtable credInfo,
+            string vaultName,
+            PSCmdlet cmdlet)
+        {
+            var additionalParameters = GetAdditionalParams(cmdlet);
+            var parameters = new Hashtable() {
+                { "Password", password },
+                { "CredentialInfo", credInfo },
+                { "VaultName", vaultName },
+                { "AdditionalParameters", additionalParameters }
+            };
+
+            // Result values:
+            // 0 - Command ran (command will emit any error message)
+            // 1 - Module not found
+            // 2 - Command not found
+            var results = PowerShellInvoker.InvokeScriptWithHost<int>(
+                cmdlet: cmdlet,
+                script: RunConditionalCommandScript,
+                args: new object[] { ModuleName, ModulePath, ModuleExtensionName, UnlockVaultCmd, parameters },
+                out Exception terminatingError);
+            
+            if (terminatingError != null)
+            {
+                ThrowPasswordRequiredException(terminatingError);
+
+                cmdlet.WriteError(
+                    new ErrorRecord(
+                        new PSInvalidOperationException(
+                            message: string.Format(CultureInfo.InvariantCulture, "Unlocking vault '{0}' failed with error: {1}", vaultName, terminatingError.Message),
+                            innerException: terminatingError),
+                        "UnlockSecretVaultInvalidOperation",
+                        ErrorCategory.InvalidOperation,
+                        this));
+
+                return false;
+            }
+
+            int result = (results.Count > 0) ? results[0] : 0;
+            switch (result)
+            {
+                case 0:
+                    cmdlet.WriteVerbose(
+                        string.Format(CultureInfo.InvariantCulture, "Secret vault '{0}' was successfully unlocked.", vaultName));
+                    break;
+
+                case 1:
+                    cmdlet.WriteError(
+                        new ErrorRecord(
+                            new PSInvalidOperationException(
+                                message: string.Format(CultureInfo.InvariantCulture, "Cannot unlock extension vault '{0}': Extension module could not load.", 
+                                    vaultName)),
+                            "UnlockSecretVaultCommandModuleLoadFail",
+                            ErrorCategory.InvalidOperation,
+                            this));
+                    break;
+
+                case 2:
+                    cmdlet.WriteError(
+                        new ErrorRecord(
+                            new PSNotSupportedException(
+                                message: string.Format(CultureInfo.InvariantCulture, "Cannot unlock extension vault '{0}': The vault does not support the Unlock-SecretVault function.", 
+                                    vaultName)),
+                            "UnlockSecretVaultCommandNotSupported",
+                            ErrorCategory.NotImplemented,
+                            this));
+                    break;
+            }
+
+            return result == 0;
         }
 
         public bool InvokeSetSecretMetadata(
@@ -635,7 +702,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 cmdlet.WriteError(
                     new ErrorRecord(
                         new PSInvalidOperationException(
-                            message: string.Format(CultureInfo.InvariantCulture, "Unable to add secret metadata {0} to vault {1}", name, VaultName),
+                            message: string.Format(CultureInfo.InvariantCulture, "Cannot add secret metadata '{0}' to vault '{1}'", name, VaultName),
                             innerException: terminatingError),
                         "SetSecretMetadataInvalidOperation",
                         ErrorCategory.InvalidOperation,
@@ -645,15 +712,37 @@ namespace Microsoft.PowerShell.SecretManagement
             }
 
             int result = (results.Count > 0) ? results[0] : 0;
-            var success = result == 0;
-
-            if (success)
+            switch (result)
             {
-                cmdlet.WriteVerbose(
-                    string.Format(CultureInfo.InvariantCulture, "Secret metadata {0} was successfully added to vault {1}.", name, VaultName));
+                case 0:
+                    cmdlet.WriteVerbose(
+                        string.Format(CultureInfo.InvariantCulture, "Secret metadata '{0}' was successfully added to vault '{1}'.", name, VaultName));
+                    break;
+
+                case 1:
+                    cmdlet.WriteError(
+                        new ErrorRecord(
+                            new PSInvalidOperationException(
+                                message: string.Format(CultureInfo.InvariantCulture, "Cannot add secret metadata '{0}' to vault '{1}': Extension module could not load.", 
+                                    name, VaultName)),
+                            "SetSecretMetaDataCommandModuleLoadFail",
+                            ErrorCategory.InvalidOperation,
+                            this));
+                    break;
+
+                case 2:
+                    cmdlet.WriteError(
+                        new ErrorRecord(
+                            new PSNotSupportedException(
+                                message: string.Format(CultureInfo.InvariantCulture, "Cannot add secret metadata '{0}' to vault '{1}: The vault does not support the Set-SecretInfo function.", 
+                                    name, VaultName)),
+                            "SetSecretMetadataCommandNotSupported",
+                            ErrorCategory.NotImplemented,
+                            this));
+                    break;
             }
 
-            return success;
+            return result == 0;
         }
 
         /// <summary>

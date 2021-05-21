@@ -916,6 +916,55 @@ namespace Microsoft.PowerShell.SecretManagement
 
     #endregion
 
+    #region Unlock-SecretVault
+
+    /// <summary>
+    /// Unlocks an extension vault by name, if the vault supports the unlock operation.
+    /// </summary>
+    [Cmdlet(VerbsCommon.Unlock, "SecretVault")]
+    public sealed class UnlockSecretVaultCommand : SecretCmdlet
+    {
+        #region Parameters
+
+        /// <summary>
+        /// Gets or sets the name of the secret vault to unlock.
+        /// <summary>
+        [Parameter (Position=0, Mandatory=true)]
+        [ArgumentCompleter(typeof(VaultNameCompleter))]
+        [ValidateNotNullOrEmpty]
+        public string Name { get; set; }
+
+        /// <summary>
+        /// Gets or sets a password for unlocking a vault.
+        /// </summary>
+        [Parameter (Position=1, Mandatory=true)]
+        public SecureString Password { get; set; }
+
+        /// <summary>
+        /// Gets or sets additional credential information needed to unlock vault.
+        /// </summary>
+        [Parameter (Position=2)]
+        public Hashtable CredentialInfo { get; set; }
+
+        #endregion
+
+        #region Overrides
+
+        protected override void EndProcessing()
+        {
+            var extensionModule = GetExtensionVault(Name);
+            extensionModule.InvokeUnlockSecretVault(
+                password: Password,
+                credInfo: CredentialInfo,
+                vaultName: extensionModule.VaultName,
+                cmdlet: this);
+        }
+
+        #endregion
+    }
+
+    #endregion
+
     #region Get-SecretInfo
 
     /// <summary>
@@ -1135,21 +1184,11 @@ namespace Microsoft.PowerShell.SecretManagement
 
         private void WriteSecretMetadata(ExtensionVaultModule extensionModule)
         {
-            if (!extensionModule.InvokeSetSecretMetadata(
+            extensionModule.InvokeSetSecretMetadata(
                 name: Name,
                 metadata: Metadata,
                 vaultName: extensionModule.VaultName,
-                cmdlet: this))
-            {
-                WriteError(
-                    new ErrorRecord(
-                        new PSNotSupportedException(
-                            message: string.Format("Cannot set secret metadata {0}. Vault {1} does not support secret metadata.", 
-                                Name, extensionModule.VaultName)),
-                        "SetSecretMetadataCommandNotSupported",
-                        ErrorCategory.NotImplemented,
-                        this));
-            }
+                cmdlet: this);
         }
 
         #endregion
