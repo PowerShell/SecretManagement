@@ -261,6 +261,24 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
                 SetStore "UnRegisterSecretVaultCalled" $true
             }}
+
+            function Unlock-SecretVault
+            {{
+                param (
+                    [string] $Name,
+                    [SecureString] $Password,
+                    [string] $VaultName,
+                    [hashtable] $AdditionalParameters
+                )
+
+                try {{
+                    SetStore 'UnlockState' '0x11580'
+                }}
+                catch
+                {{
+                    Write-Verbose -Verbose 'Unlock-SecretVault: SetStore failed.'
+                }}
+            }}
 '@
         $scriptImplementation = $scriptImplementationTemplate -f $storePath,$metaStorePath
 
@@ -271,7 +289,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         @{{
             ModuleVersion = '1.0'
             RootModule = '{0}'
-            FunctionsToExport = @('Set-Secret','Set-SecretInfo','Get-Secret','Remove-Secret','Get-SecretInfo','Test-SecretVault','Unregister-SecretVault')
+            FunctionsToExport = @('Set-Secret','Set-SecretInfo','Get-Secret','Remove-Secret','Get-SecretInfo','Test-SecretVault','Unregister-SecretVault','Unlock-SecretVault')
         }}
         " -f $implementingModuleName
         $manifestInfo | Out-File -FilePath $implementingManifestFilePath
@@ -588,10 +606,21 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
             $info.Metadata["Data"] | Should -BeExactly "MyData"
         }
 
-        It "Verifies Set-SecretInfo fails with expected unsupported error" {
+        It "Verifies unsupported Set-SecretInfo fails with error" {
             Set-SecretInfo -Name TestDefaultMeta -Metadata @{ Fail = $true } -ErrorVariable err 2>$null
-            $err | Should -HaveCount 2
-            $err[1].FullyQualifiedErrorId | Should -BeExactly 'SetSecretMetadataCommandNotSupported,Microsoft.PowerShell.SecretManagement.SetSecretInfoCommand'
+            $err | Should -HaveCount 1
+            $err[0].FullyQualifiedErrorId | Should -BeExactly 'SetSecretMetadataInvalidOperation,Microsoft.PowerShell.SecretManagement.SetSecretInfoCommand'
+        }
+
+        It "Verifies Unlock-SecretVault command" {
+            [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
+            [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
+
+            Unlock-SecretVault -Name ScriptTestVault -Password (ConvertTo-SecureString -String $randomSecretD -AsPlainText -Force) -ErrorVariable err 2>$null
+
+            # Verify vault 'Unlock-SecretVault' function was called.
+            $dict = Import-Clixml -Path $storePath
+            $dict['UnlockState'] | Should -BeExactly '0x11580'
         }
     }
 

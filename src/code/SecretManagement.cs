@@ -940,12 +940,6 @@ namespace Microsoft.PowerShell.SecretManagement
         [Parameter (Position=1, Mandatory=true)]
         public SecureString Password { get; set; }
 
-        /// <summary>
-        /// Gets or sets additional credential information needed to unlock vault.
-        /// </summary>
-        [Parameter (Position=2)]
-        public Hashtable CredentialInfo { get; set; }
-
         #endregion
 
         #region Overrides
@@ -955,7 +949,6 @@ namespace Microsoft.PowerShell.SecretManagement
             var extensionModule = GetExtensionVault(Name);
             extensionModule.InvokeUnlockSecretVault(
                 password: Password,
-                credInfo: CredentialInfo,
                 vaultName: extensionModule.VaultName,
                 cmdlet: this);
         }

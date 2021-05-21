@@ -599,14 +599,12 @@ namespace Microsoft.PowerShell.SecretManagement
 
         public bool InvokeUnlockSecretVault(
             SecureString password,
-            Hashtable credInfo,
             string vaultName,
             PSCmdlet cmdlet)
         {
             var additionalParameters = GetAdditionalParams(cmdlet);
             var parameters = new Hashtable() {
                 { "Password", password },
-                { "CredentialInfo", credInfo },
                 { "VaultName", vaultName },
                 { "AdditionalParameters", additionalParameters }
             };
@@ -657,14 +655,10 @@ namespace Microsoft.PowerShell.SecretManagement
                     break;
 
                 case 2:
-                    cmdlet.WriteError(
-                        new ErrorRecord(
-                            new PSNotSupportedException(
-                                message: string.Format(CultureInfo.InvariantCulture, "Cannot unlock extension vault '{0}': The vault does not support the Unlock-SecretVault function.", 
-                                    vaultName)),
-                            "UnlockSecretVaultCommandNotSupported",
-                            ErrorCategory.NotImplemented,
-                            this));
+                    cmdlet.WriteWarning(
+                        string.Format(CultureInfo.InvariantCulture, 
+                            "Cannot unlock extension vault '{0}': The vault does not support the Unlock-SecretVault function.",
+                            vaultName));
                     break;
             }
 

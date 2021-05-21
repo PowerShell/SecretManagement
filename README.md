@@ -72,6 +72,10 @@ Sets one registered extension vault as the default vault
 
 Runs the Test-SecretVault function provided by the extension vault
 
+### Unlock-SecretVault
+
+Unlocks the extension vault through a passed in SecureString password
+
 ## Accessing secrets cmdlets
 
 ### Set-Secret
@@ -253,11 +257,25 @@ function Unregister-SecretVault
 
     [TestStore]::RunUnregisterCleanup()
 }
+
+# Optional function
+function Unlock-SecretVault
+{
+    [CmdletBinding()]
+    param (
+        [SecureString] $Password,
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    [TestStore]::UnlockVault($Password)
+}
 ```
 
-This module script implements the five functions, as cmdlets, required by SecretManagement, plus one optional function.
+This module script implements the five functions, as cmdlets, required by SecretManagement, plus some optional functions.
 It also implements an optional `Unregister-SecretVault` function that is called during vault extension un-registration.
-It also implements an optional function `Set-SecretInfo` function that sets secret metadata to a specific secret in the vault.  
+It also implements an optional `Set-SecretInfo` function that sets secret metadata to a specific secret in the vault.
+It also implements an optional `Unlock-SecretVault` function that unlocks the vault for the current session based on a provided password.  
 
 The `Set-Secret`, `Set-SecretInfo`, `Remove-Secret`, `Unregister-SecretVault` functions do not write any data to the pipeline, i.e., they do not return any data.  
 
@@ -271,6 +289,9 @@ But only a single true/false boolean should be written the the output pipeline i
 
 The `Unregister-SecretVault` cmdlet is optional and will be called on the extension vault if available.
 It is called before the extension vault is unregistered to allow it to perform any needed clean up work.  
+
+The `Unlock-SecretVault` cmdlet is optional and will be called on the extension vault if available.
+It's purpose is to unlock an extension vault for use without having to prompt the user, and is useful for unattended scripts where user interaction is not possible.  
 
 In general, these cmdlets should write to the error stream only for abnormal conditions that prevent successful completion.
 And write to the output stream only the data as indicated above, and expected by SecretManagement.  
