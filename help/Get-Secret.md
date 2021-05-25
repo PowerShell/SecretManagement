@@ -50,7 +50,7 @@ The second time uses the '-AsPlainText' and so the secret string is returned as 
 PS C:\> Get-SecretInfo -Name Secret2 -Vault SecretStore | Get-Secret -AsPlainText
 ```
 
-This example retrieves secret information for the secret named 'Secret2' and then pipe the result to \`Get-Secret\`.
+This example retrieves secret information for the secret named 'Secret2' and then pipe the result to 'Get-Secret'.
 The secret is then looked up in the SecretStore vault and returned as plain text.
 
 ## PARAMETERS

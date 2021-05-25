@@ -66,6 +66,22 @@ Extension vaults should at minimum support the following value types:
 The secret metadata is included in the `SecretInformation` type object returned by `Get-SecretInfo`, in a `Metadata` property.  
 The `Metadata` property is a `ReadonlyDictionary<string, object>` type.  
 
+## Vault extension hosting
+
+Extension vault modules are hosted in a separate PowerShell runspace session that is separate from the current user PowerShell session.
+This provides a layer of isolation between the user and extension vault operations.
+But it also means that extension vaults cannot depend on any shared state with the user session, such as variables or loaded modules.
+An extension vault must ensure all module dependencies are listed in its manifest, and any required information is passed in explicitly to the module.  
+
+There is one shared component between the extension vault session and the current user session, and that is the PowerShell host (PSHost).
+The PSHost is the object used by PowerShell to communicate with a user in an interactive session.
+When the extension vault runspace session is created, the current user session PSHost object is transferred to the vault session.
+This provides extension vaults with the ability to write error, warning, verbose, etc. information to the host for the user, including directly prompting the user interactively (for example prompting the user for a password).  
+
+Vault extension modules were originally hosted in the same session as the user session.
+However, this prevented SecretManagement from running in a constrained language mode session.
+Consequently, starting with v1.1, the extension vaults are hosted in a separate runspace process.  
+
 ## Vault extension registration
 
 Extension vaults are registered to the current user context.
@@ -129,6 +145,10 @@ Tests that extension vault functions and returns True or diagnostic errors
 #### Unregister-SecretVault
 
 This function is called if provided by the extension vault, to allow the extension vault to perform an clean up tasks before the vault extension is unregistered
+
+### Unlock-SecretVault
+
+Unlocks the extension vault through a passed in SecureString password
 
 #### Verbose and AdditionalParameters
 
@@ -303,11 +323,25 @@ function Unregister-SecretVault
     # Perform optional work to extension vault before it is unregistered
     [TestStore]::RunUnregisterCleanup()
 }
+
+# Optional function
+function Unlock-SecretVault
+{
+    [CmdletBinding()]
+    param (
+        [SecureString] $Password,
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    [TestStore]::UnlockVault($Password)
+}
 ```
 
 This module script implements the five required functions, as cmdlets.
 It also implements an optional `Unregister-SecretVault` function that is called during vault extension un-registration.
-It also implements an optional function `Set-SecretInfo` function that sets secret metadata to a specific secret in the vault.  
+It also implements an optional function `Set-SecretInfo` function that sets secret metadata to a specific secret in the vault.
+It also implements an optional `Unlock-SecretVault` function that unlocks the vault for the current session based on a provided password.  
 
 The `Set-Secret`, `Set-SecretInfo`, `Remove-Secret`, `Unregister-SecretVault` functions do not write any data to the pipeline, i.e., they do not return any data.  
 
@@ -318,6 +352,9 @@ The `Get-SecretInfo` cmdlet writes an array of [Microsoft.PowerShell.SecretManag
 
 The `Test-SecretVault` cmdlet should write all errors that occur during the test.
 But only a single true/false boolean should be written the the output pipeline indicating success.  
+
+The `Unlock-SecretVault` cmdlet is optional and will be called on the extension vault if available.
+It's purpose is to unlock an extension vault for use without having to prompt the user, and is useful for unattended scripts where user interaction is not possible.  
 
 In general, these cmdlets should write to the error stream only for abnormal conditions that prevent successful completion.
 And write to the output stream only the data as indicated above, and expected by SecretManagement.  
@@ -356,11 +393,15 @@ Un-registers an extension vault.
 
 ### Set-SecretVaultDefault
 
-Sets one registered extension vault as the default vault.
+Sets one registered extension vault as the default vault.  
 
 ### Test-SecretVault
 
 Runs an extension vault 'Test-SecretVault' function and returns the test result.  
+
+### Unlock-SecretVault
+
+Unlocks the extension vault through a passed in SecureString password.  
 
 ## Secrets cmdlets
 
@@ -398,8 +439,9 @@ Returns True or False to indicate success.
 
 All extension vault module implementations are responsible for working securely.  
 In addition each extension vault module is responsible for authentication within the current user context, and to provide appropriate informational and error messages to the user, including instructions for authenticating.
-Extension vaults are also responsible for prompting the user for a passphrase, if needed, in interactive sessions.  
-If an extension vault supports optional secret metadata, the metadata is not sensitive information and does not need to be stored securely.  
+Extension vaults are also responsible for prompting the user for a passphrase, if needed, in interactive sessions.
+If an extension vault supports optional secret metadata, the metadata is not sensitive information and does not need to be stored securely.
+If an extension vault requires a password before use, it can support the optional `Unlock-SecretVault` function to allow the vault to be unlocked from unattended script, without any user interaction.  
 
 ### Intermediate secret objects
 
@@ -423,15 +465,16 @@ So on non-Windows platforms `SecureString` still provides some security through 
 
 ### Extension vault module cross talk
 
-SecretManagement extension vault modules all run in the same user context and within the same PowerShell session.
-Since authentication is usually based on current user context, this means a malicious vault extension could harvest secrets from other registered vaults.  
+SecretManagement extension vault modules all run in a single PowerShell runspace session that is separate from the current user PowerShell session, although both sessions run within the same process.
+This means there is a layer of isolation between extension vault modules and the user session, but no significant isolation between each loaded extension vault.
+Since authentication is usually based on current session or user context, this means a malicious vault extension could harvest secrets from other registered vaults.  
 
-This can easily be done by directly calling each registered vault secret management cmdlets.
+This can easily be done by directly calling each registered vault secret management cmdlets.  
 
 One possible mitigation is for an extension vault to require a passphrase.
 But usually the passphrase remains valid for a period of time (e.g., sudo), and the malicious extension vault can obtain secrets during that time.  
 
-The best defense is to use known secure extension vaults from reputable sources, that are also signed certified.
+The best defense is to use known secure extension vaults from reputable sources, that are signed certified.  
 
 ## Extension vault registry file location
 

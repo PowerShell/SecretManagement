@@ -26,7 +26,7 @@ Extension vaults are registered to the current user and do not affect other user
 ## EXAMPLES
 
 ### Example 1
-```
+```powershell
 PS C:\> Register-SecretVault -Name LocalStore -ModuleName Microsoft.PowerShell.SecretStore  -DefaultVault
 PS C:\> Get-SecretVault
 
