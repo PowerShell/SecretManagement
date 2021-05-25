@@ -25,7 +25,7 @@ For more information during the test run use the -Verbose command switch.
 ## EXAMPLES
 
 ### Example 1
-```
+```powershell
 PS C:\> Test-SecretVault -Name CredMan -Verbose
 VERBOSE: Invoking command Test-SecretVault on module Microsoft.PowerShell.CredManStore.Extension
 VERBOSE: Vault CredMan succeeded validation test

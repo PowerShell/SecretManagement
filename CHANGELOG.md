@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## 1.1.0-preview - 2021-5-24
+
+### Fixes
+
+- Provide better error message when extension vault does not provide required functions (Issue #137)
+
+- Provide better error message when running under Windows built-in accounts (Issue #143)
+
+- SecretManagement now runs in ConstrainedLanguage mode (Issue #144)
+
+### Changes
+
+- Set-SecretInfo now takes pipeline input (Issue #129).
+
+- Extension vaults are now loaded and run in a separate PowerShell runspace session (Issue #144)
+
+- Extension vaults can now optionally support a `Unlock-SecretVault` function (Issue #147)
+
+### New Features
+
+- `Unlock-SecretVault` command added to SecretManagement (Issue #147)
+
 ## 1.0.0 - 2021-4-5
 
 ### Fixes

@@ -285,15 +285,17 @@ namespace Microsoft.PowerShell.SecretManagement
                 setSecretSupportsMetadata: out bool supportsMetadata,
                 error: out Exception error))
             {
-                var invalidException = new PSInvalidOperationException(
-                    message: "Could not find a SecretManagement extension implementing script module.",
-                    innerException: error);
+                var msg = string.Format(CultureInfo.InvariantCulture,
+                    "Module {0} is not a valid extension vault: {1}",
+                    moduleInfo.Name, error?.Message ?? string.Empty);
 
                 ThrowTerminatingError(
                     new ErrorRecord(
-                        invalidException,
-                        "RegisterSecretVaultCantFindImplementingScriptModule",
-                        ErrorCategory.ObjectNotFound,
+                        new PSInvalidOperationException(
+                            message: msg,
+                            innerException: error),
+                        "RegisterSecretVaultInvalidExtensionVault",
+                        ErrorCategory.InvalidOperation,
                         this));
             }
 
@@ -526,9 +528,9 @@ namespace Microsoft.PowerShell.SecretManagement
 
                     # ModulePath module may have a dependency on SecretManagement module,
                     # so make sure it is loaded.
-                    $null = Import-Module -Name $SecretMgtModulePath -ErrorAction Ignore
+                    $null = Microsoft.PowerShell.Core\Import-Module -Name $SecretMgtModulePath -ErrorAction Ignore
 
-                    Import-Module -Name $ModulePath -Force -PassThru
+                    Microsoft.PowerShell.Core\Import-Module -Name $ModulePath -Force -PassThru
                 ",
                 args: new object[] { modulePath, secretMgtModulePath },
                 out error);
@@ -808,7 +810,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 using (var ps = System.Management.Automation.PowerShell.Create(RunspaceMode.NewRunspace))
                 {
                     var results = PowerShellInvoker.InvokeScriptOnPowerShell<SecretInformation>(
-                        script: "Get-SecretInfo",
+                        script: @"Microsoft.PowerShell.SecretManagement\Get-SecretInfo",
                         args: new object[] {},
                         psToUse: ps,
                         out ErrorRecord error);
@@ -907,6 +909,48 @@ namespace Microsoft.PowerShell.SecretManagement
                             this));
                 }
             }
+        }
+
+        #endregion
+    }
+
+    #endregion
+
+    #region Unlock-SecretVault
+
+    /// <summary>
+    /// Unlocks an extension vault by name, if the vault supports the unlock operation.
+    /// </summary>
+    [Cmdlet(VerbsCommon.Unlock, "SecretVault")]
+    public sealed class UnlockSecretVaultCommand : SecretCmdlet
+    {
+        #region Parameters
+
+        /// <summary>
+        /// Gets or sets the name of the secret vault to unlock.
+        /// <summary>
+        [Parameter (Position=0, Mandatory=true)]
+        [ArgumentCompleter(typeof(VaultNameCompleter))]
+        [ValidateNotNullOrEmpty]
+        public string Name { get; set; }
+
+        /// <summary>
+        /// Gets or sets a password for unlocking a vault.
+        /// </summary>
+        [Parameter (Position=1, Mandatory=true)]
+        public SecureString Password { get; set; }
+
+        #endregion
+
+        #region Overrides
+
+        protected override void EndProcessing()
+        {
+            var extensionModule = GetExtensionVault(Name);
+            extensionModule.InvokeUnlockSecretVault(
+                password: Password,
+                vaultName: extensionModule.VaultName,
+                cmdlet: this);
         }
 
         #endregion
@@ -1042,15 +1086,22 @@ namespace Microsoft.PowerShell.SecretManagement
     /// Replaces any secret metadata information associated with an existing secret
     /// with the provided new metadata information.
     /// </summary>
-    [Cmdlet(VerbsCommon.Set, "SecretInfo", SupportsShouldProcess = true)]
+    [Cmdlet(VerbsCommon.Set, "SecretInfo", SupportsShouldProcess = true, DefaultParameterSetName = NameParameterSet)]
     public sealed class SetSecretInfoCommand : SecretCmdlet
     {
+        #region Members
+
+        private const string NameParameterSet = "NameParameterSet";
+        private const string InfoParameterSet = "InfoParameterSet";
+
+        #endregion
+
         #region Parameters
 
         /// <summary>
         /// Gets or sets a name of the secret to which metadata is applied.
         /// </summary>
-        [Parameter(Position=0, Mandatory=true)]
+        [Parameter(Position=0, Mandatory=true, ParameterSetName=NameParameterSet)]
         [ArgumentCompleter(typeof(SecretNameCompleter))]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
@@ -1059,15 +1110,19 @@ namespace Microsoft.PowerShell.SecretManagement
         /// Gets or sets the metadata Hashtable to be applied to the secret name.
         /// If value is an empty Hashtable, then any previous secret metadata is removed.
         /// </summary>
-        [Parameter(Position=1, Mandatory=true, ValueFromPipeline=true)]
+        [Parameter(Position=1, Mandatory=true, ValueFromPipeline=true, ParameterSetName=NameParameterSet)]
+        [Parameter(Position=0, Mandatory=true, ParameterSetName=InfoParameterSet)]
         public Hashtable Metadata { get; set; }
 
         /// <summary>
         /// Gets or sets an optional extension vault name.
         /// </summary>
-        [Parameter(Position=2)]
+        [Parameter(Position=2, ParameterSetName=NameParameterSet)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         public string Vault { get; set; }
+
+        [Parameter(Mandatory=true, ValueFromPipeline=true, ParameterSetName=InfoParameterSet)]
+        public SecretInformation InputObject { get; set; }
 
         #endregion
 
@@ -1084,6 +1139,12 @@ namespace Microsoft.PowerShell.SecretManagement
             if (!ShouldProcess(Vault, "Write secret metadata to vault and override any existing metadata associated with the secret"))
             {
                 return;
+            }
+
+            if (ParameterSetName == InfoParameterSet)
+            {
+                Name = InputObject.Name;
+                Vault = InputObject.VaultName;
             }
 
             // Add to specified vault.
@@ -1116,21 +1177,11 @@ namespace Microsoft.PowerShell.SecretManagement
 
         private void WriteSecretMetadata(ExtensionVaultModule extensionModule)
         {
-            if (!extensionModule.InvokeSetSecretMetadata(
+            extensionModule.InvokeSetSecretMetadata(
                 name: Name,
                 metadata: Metadata,
                 vaultName: extensionModule.VaultName,
-                cmdlet: this))
-            {
-                WriteError(
-                    new ErrorRecord(
-                        new PSNotSupportedException(
-                            message: string.Format("Cannot set secret metadata {0}. Vault {1} does not support secret metadata.", 
-                                Name, extensionModule.VaultName)),
-                        "SetSecretMetadataCommandNotSupported",
-                        ErrorCategory.NotImplemented,
-                        this));
-            }
+                cmdlet: this);
         }
 
         #endregion

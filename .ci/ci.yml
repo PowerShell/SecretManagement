@@ -112,12 +112,12 @@ stages:
         Get-ChildItem $srcModulePath
         $artifactName = "$($config.ModuleName)"
         Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$srcModulePath"
-        #
-        $refAssemblyNuGetPath = Resolve-Path -Path "$($config.BuildOutputPath)/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
-        Get-ChildItem $refAssemblyNuGetPath
-        $artifactName = "RefAssemblyNuGet"
-        Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$refAssemblyNuGetPath"
-      displayName: Create ref assembly NuGet package artifact
+    #    #
+    #    $refAssemblyNuGetPath = Resolve-Path -Path "$($config.BuildOutputPath)/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
+    #    Get-ChildItem $refAssemblyNuGetPath
+    #    $artifactName = "RefAssemblyNuGet"
+    #    Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$refAssemblyNuGetPath"
+      displayName: Upload module artifact for compliance, ref assembly build currently disabled
 
 - stage: Compliance
   displayName: Compliance

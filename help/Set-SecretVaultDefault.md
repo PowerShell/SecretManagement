@@ -35,7 +35,7 @@ If this cmdlet is run without specifying the 'Name' parameter, then no registere
 ## EXAMPLES
 
 ### Example 1
-```
+```powershell
 PS C:\> Get-SecretVault
 
 VaultName  ModuleName                        IsDefaultVault
@@ -123,7 +123,7 @@ Aliases: cf
 
 Required: False
 Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -139,7 +139,7 @@ Aliases: wi
 
 Required: False
 Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```

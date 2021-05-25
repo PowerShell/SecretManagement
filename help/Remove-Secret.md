@@ -29,7 +29,7 @@ Both the secret name and extension vault name must be provided.
 ## EXAMPLES
 
 ### Example 1
-```
+```powershell
 PS C:\> Remove-Secret -Name secretTest -Vault CredMan
 PS C:\> Get-Secret -Name secretTest -Vault CredMan
 Get-Secret: The secret secretTest was not found.
@@ -105,7 +105,7 @@ Aliases: cf
 
 Required: False
 Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -121,7 +121,7 @@ Aliases: wi
 
 Required: False
 Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
