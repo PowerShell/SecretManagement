@@ -100,24 +100,24 @@ stages:
         $(Build.SourcesDirectory)/build.ps1 -Publish
       displayName: Create module artifact
 
-    - pwsh: |
-        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
-        $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
-        $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
-        Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
-        Import-Module -Name $modPath -Force
-        $config = Get-PSPackageProjectConfiguration
-        #
-        $srcModulePath = Resolve-Path -Path "$($config.BuildOutputPath)/$($config.ModuleName)"
-        Get-ChildItem $srcModulePath
-        $artifactName = "$($config.ModuleName)"
-        Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$srcModulePath"
-        #
-        $refAssemblyNuGetPath = Resolve-Path -Path "$($config.BuildOutputPath)/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
-        Get-ChildItem $refAssemblyNuGetPath
-        $artifactName = "RefAssemblyNuGet"
-        Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$refAssemblyNuGetPath"
-      displayName: Create ref assembly NuGet package artifact
+    #- pwsh: |
+    #    $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+    #    $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
+    #    $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
+    #    Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
+    #    Import-Module -Name $modPath -Force
+    #    $config = Get-PSPackageProjectConfiguration
+    #    #
+    #    $srcModulePath = Resolve-Path -Path "$($config.BuildOutputPath)/$($config.ModuleName)"
+    #    Get-ChildItem $srcModulePath
+    #    $artifactName = "$($config.ModuleName)"
+    #    Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$srcModulePath"
+    #    #
+    #    $refAssemblyNuGetPath = Resolve-Path -Path "$($config.BuildOutputPath)/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
+    #    Get-ChildItem $refAssemblyNuGetPath
+    #    $artifactName = "RefAssemblyNuGet"
+    #    Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$refAssemblyNuGetPath"
+    #  displayName: Create ref assembly NuGet package artifact
 
 - stage: Compliance
   displayName: Compliance
