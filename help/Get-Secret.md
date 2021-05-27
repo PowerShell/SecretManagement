@@ -12,8 +12,14 @@ Finds and returns a secret by name from registered vaults.
 
 ## SYNTAX
 
+### NameParameterSet (Default)
 ```
 Get-Secret [-Name] <String> [[-Vault] <String>] [-AsPlainText] [<CommonParameters>]
+```
+
+### InfoParameterSet
+```
+Get-Secret [-InputObject] <SecretInformation> [-AsPlainText] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -27,7 +33,7 @@ Unless the '-AsPlainText' parameter switch is used, in which case the secret is 
 ## EXAMPLES
 
 ### Example 1
-```powershell
+```
 PS C:\> Get-Secret -Name Secret1 -Vault CredMan
 System.Security.SecureString
 
@@ -38,6 +44,14 @@ PlainTextSecretString
 This example searches for a secret with the name 'Secret1', which is a String type secret.
 The first time returns the secret as a SecureString object.
 The second time uses the '-AsPlainText' and so the secret string is returned as a string object, and is displayed in plain text.
+
+### Example 2
+```
+PS C:\> Get-SecretInfo -Name Secret2 -Vault SecretStore | Get-Secret -AsPlainText
+```
+
+This example retrieves secret information for the secret named 'Secret2' and then pipe the result to 'Get-Secret'.
+The secret is then looked up in the SecretStore vault and returned as plain text.
 
 ## PARAMETERS
 
@@ -52,8 +66,23 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -InputObject
+SecretInformation object that describes a vault secret.
+
+```yaml
+Type: SecretInformation
+Parameter Sets: InfoParameterSet
+Aliases:
+
+Required: True
+Position: 0
+Default value: None
+Accept pipeline input: True (ByValue)
 Accept wildcard characters: False
 ```
 
@@ -63,13 +92,13 @@ Wild card characters are not allowed.
 
 ```yaml
 Type: String
-Parameter Sets: (All)
+Parameter Sets: NameParameterSet
 Aliases:
 
 Required: True
 Position: 0
 Default value: None
-Accept pipeline input: True (ByPropertyName, ByValue)
+Accept pipeline input: True (ByValue)
 Accept wildcard characters: False
 ```
 
@@ -79,7 +108,7 @@ If no vault name is specified, then all registered vaults are searched.
 
 ```yaml
 Type: String
-Parameter Sets: (All)
+Parameter Sets: NameParameterSet
 Aliases:
 
 Required: False
@@ -95,11 +124,10 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## INPUTS
 
 ### System.String
-
+### Microsoft.PowerShell.SecretManagement.SecretInformation
 ## OUTPUTS
 
 ### System.Object
-
 ## NOTES
 
 ## RELATED LINKS

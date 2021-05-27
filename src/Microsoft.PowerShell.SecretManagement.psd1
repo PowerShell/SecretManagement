@@ -7,7 +7,7 @@
 RootModule = '.\Microsoft.PowerShell.SecretManagement.dll'
 
 # Version number of this module.
-ModuleVersion = '0.9.0'
+ModuleVersion = '1.1.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -36,6 +36,8 @@ https://github.com/powershell/SecretManagement
 
 # Minimum version of the PowerShell engine required by this module
 PowerShellVersion = '5.1'
+DotNetFrameworkVersion = '4.6.1'
+CLRVersion = '4.0.0'
 
 # Format files (.ps1xml) to be loaded when importing this module
 FormatsToProcess = @('Microsoft.PowerShell.SecretManagement.format.ps1xml')
@@ -46,7 +48,7 @@ FunctionsToExport = @()
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = @(
     'Register-SecretVault','Unregister-SecretVault','Get-SecretVault','Set-SecretVaultDefault','Test-SecretVault',
-    'Set-Secret','Get-Secret','Get-SecretInfo','Remove-Secret')
+    'Set-Secret','Set-SecretInfo','Get-Secret','Get-SecretInfo','Remove-Secret','Unlock-SecretVault')
 
 # Variables to export from this module
 VariablesToExport = '*'
@@ -63,7 +65,7 @@ PrivateData = @{
         # Tags = @()
 
         # A URL to the license for this module.
-        LicenseUri = 'https://github.com/PowerShell/Modules/License.txt'
+        LicenseUri = 'https://github.com/PowerShell/SecretManagement/blob/master/LICENSE'
 
         # A URL to the main website for this project.
         ProjectUri = 'https://github.com/powershell/secretmanagement'
@@ -73,6 +75,9 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         # ReleaseNotes = ''
+
+        # Prerelease string of this module
+        Prerelease = 'preview'
 
         # Flag to indicate whether the module requires explicit user acceptance for install/update/save
         # RequireLicenseAcceptance = $false
@@ -84,6 +89,6 @@ PrivateData = @{
 } # End of PrivateData hashtable
 
 # HelpInfo URI of this module
-# HelpInfoURI = ''
+HelpInfoURI = 'https://aka.ms/ps-modules-help'
 
 }

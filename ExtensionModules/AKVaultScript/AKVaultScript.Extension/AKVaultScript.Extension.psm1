@@ -42,6 +42,7 @@ function Set-Secret
         [string] $Name,
         [object] $Secret,
         [string] $VaultName,
+        [hashtable] $Metadata,
         [hashtable] $AdditionalParameters
     )
 
@@ -49,7 +50,7 @@ function Set-Secret
 
     Import-Module -Name Az.KeyVault
 
-    $null = Az.KeyVault\Set-AzKeyVaultSecret -Name $Name -SecretValue $Secret -VaultName $AdditionalParameters.AZKVaultName
+    $null = Az.KeyVault\Set-AzKeyVaultSecret -Name $Name -SecretValue $Secret -VaultName $AdditionalParameters.AZKVaultName -Tag $Metadata
     return $?
 }
 
@@ -96,7 +97,8 @@ function Get-SecretInfo
                 [Microsoft.PowerShell.SecretManagement.SecretInformation]::new(
                     $vaultSecretInfo.Name,
                     [Microsoft.PowerShell.SecretManagement.SecretType]::SecureString,
-                    $VaultName)
+                    $VaultName,
+                    $vaultSecretInfo.Tags)
             )
         }
     }

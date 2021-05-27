@@ -32,6 +32,24 @@ You can install the `Microsoft.PowerShell.SecretManagement` module from the [Pow
 Install-Module -Name Microsoft.PowerShell.SecretManagement -Repository PSGallery
 ```
 
+## Secret metadata
+
+Extension vaults can optionally support storing and retrieving additional secret metadata, that is data associated with the secret.  
+Secret metadata is not security sensitive and does not need to be stored securely in the extension vault.  
+
+Secret metadata can be included by using the `-Metadata` parameter: `Set-Secret -Metadata @{ Name=Value }`.
+The `-Metadata` parameter takes a `Hashtable` type argument consisting of name/value pairs.  
+Extension vaults should at minimum support the following value types:  
+
+- string
+
+- int
+
+- DateTime
+
+The secret metadata is included in the `SecretInformation` type object returned by `Get-SecretInfo`, in a `Metadata` property.  
+The `Metadata` property is a `ReadonlyDictionary<string, object>` type.  
+
 ## Vault extension registration cmdlets
 
 ### Register-SecretVault
@@ -54,11 +72,20 @@ Sets one registered extension vault as the default vault
 
 Runs the Test-SecretVault function provided by the extension vault
 
+### Unlock-SecretVault
+
+Unlocks the extension vault through a passed in SecureString password
+
 ## Accessing secrets cmdlets
 
 ### Set-Secret
 
 Adds a secret to a specific extension vault, or to the default vault if no vault is specified
+
+### Set-SecretInfo
+
+Adds or replaces additional secret metadata to an existing secret in the vault.
+Metadata is not stored securely.
 
 ### Get-Secret
 
@@ -150,8 +177,7 @@ function Get-Secret
         [hashtable] $AdditionalParameters
     )
 
-    # return [TestStore]::GetItem($Name, $AdditionalParameters)
-    return $null
+    return [TestStore]::GetItem($Name, $AdditionalParameters)
 }
 
 function Get-SecretInfo
@@ -163,11 +189,11 @@ function Get-SecretInfo
         [hashtable] $AdditionalParameters
     )
 
-    # return [TestStore]::GetItemInfo($Filter, $AdditionalParameters)
     return @(,[Microsoft.PowerShell.SecretManagement.SecretInformation]::new(
         "Name",        # Name of secret
         "String",      # Secret data type [Microsoft.PowerShell.SecretManagement.SecretType]
-        $VaultName))   # Name of vault
+        $VaultName,    # Name of vault
+        $Metadata))    # Optional Metadata parameter
 }
 
 function Set-Secret
@@ -180,8 +206,21 @@ function Set-Secret
         [hashtable] $AdditionalParameters
     )
 
-    # return [TestStore]::SetItem($Name, $Secret)
-    return $false
+    [TestStore]::SetItem($Name, $Secret)
+}
+
+# Optional function
+function Set-SecretInfo
+{
+    [CmdletBinding()]
+    param (
+        [string] $Name,
+        [hashtable] $Metadata,
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    [TestStore]::SetItemMetadata($Name, $Metadata)
 }
 
 function Remove-Secret
@@ -193,8 +232,7 @@ function Remove-Secret
         [hashtable] $AdditionalParameters
     )
 
-    # return [TestStore]::RemoveItem($Name)
-    return $false
+    [TestStore]::RemoveItem($Name)
 }
 
 function Test-SecretVault
@@ -205,10 +243,10 @@ function Test-SecretVault
         [hashtable] $AdditionalParameters
     )
 
-    # return [TestStore]::TestVault()
-    return $true
+    return [TestStore]::TestVault()
 }
 
+# Optional function
 function Unregister-SecretVault
 {
     [CmdletBinding()]
@@ -217,13 +255,29 @@ function Unregister-SecretVault
         [hashtable] $AdditionalParameters
     )
 
-    # Perform optional work to extension vault before it is unregistered
+    [TestStore]::RunUnregisterCleanup()
+}
+
+# Optional function
+function Unlock-SecretVault
+{
+    [CmdletBinding()]
+    param (
+        [SecureString] $Password,
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    [TestStore]::UnlockVault($Password)
 }
 ```
 
-This module script implements the five functions, as cmdlets, required by SecretManagement, plus one optional function.  
+This module script implements the five functions, as cmdlets, required by SecretManagement, plus some optional functions.
+It also implements an optional `Unregister-SecretVault` function that is called during vault extension un-registration.
+It also implements an optional `Set-SecretInfo` function that sets secret metadata to a specific secret in the vault.
+It also implements an optional `Unlock-SecretVault` function that unlocks the vault for the current session based on a provided password.  
 
-The `Set-Secret`, `Remove-Secret`, `Test-SecretVault` cmdlets write a boolean to the pipeline on return, indicating success.  
+The `Set-Secret`, `Set-SecretInfo`, `Remove-Secret`, `Unregister-SecretVault` functions do not write any data to the pipeline, i.e., they do not return any data.  
 
 The `Get-Secret` cmdlet writes the retrieved secret value to the output pipeline on return, or null if no secret was found.
 It should write an error only if an abnormal condition occurs.  
@@ -235,6 +289,9 @@ But only a single true/false boolean should be written the the output pipeline i
 
 The `Unregister-SecretVault` cmdlet is optional and will be called on the extension vault if available.
 It is called before the extension vault is unregistered to allow it to perform any needed clean up work.  
+
+The `Unlock-SecretVault` cmdlet is optional and will be called on the extension vault if available.
+It's purpose is to unlock an extension vault for use without having to prompt the user, and is useful for unattended scripts where user interaction is not possible.  
 
 In general, these cmdlets should write to the error stream only for abnormal conditions that prevent successful completion.
 And write to the output stream only the data as indicated above, and expected by SecretManagement.  
@@ -263,3 +320,22 @@ VaultName  ModuleName  IsDefaultVault
 LocalStore TestVault   True
 
 ```
+
+## Extension vault registry file location
+
+SecretManagement is designed to be installed and run within a user account on both Windows and non-Windows platforms.
+The extension vault registry file is located in a user account protected directory.  
+
+For Windows platforms the location is:  
+%LOCALAPPDATA%\Microsoft\PowerShell\secretmanagement  
+
+For non-Windows platforms the location:  
+$HOME/.secretmanagement
+
+## Windows Managed Accounts
+
+SecretManagement does not currently work for Windows managed accounts.  
+
+SecretManagement depends on both %LOCALAPPDATA% folders to store registry information, and Data Protection APIs for safely handling secrets with the .Net `SecureString` type.  
+However, Windows managed accounts do not have profiles or %LOCALAPPDATA% folders, and Windows Data Protection APIs do not work for managed accounts.  
+Consequently, SecretManagement will not run under managed accounts.
