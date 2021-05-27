@@ -249,6 +249,10 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
                     Write-Error 'Missing SubscriptionId parameter'
                 }}
 
+                # Used for data stream redirection test.
+                Write-Warning 'Test-SecretVault: Bogus Warning'
+                Write-Information 'Test-SecretVault: Bogus Information'
+
                 return $valid
             }}
 
@@ -588,6 +592,13 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
         It "Verifies Test-SecretVault succeeds" {
             Test-SecretVault -Name ScriptTestVault | Should -BeTrue
+        }
+
+        It "Verifes Test-SecretVault extension vault data streams can be redirected" {
+            $results = Test-SecretVault -Name ScriptTestVault 3>&1 6>&1
+            $results[0] | Should -BeExactly 'Test-SecretVault: Bogus Warning'
+            $results[1] | Should -BeExactly 'Test-SecretVault: Bogus Information'
+            $results[2] | Should -BeTrue
         }
 
         It "Verifies Set-Secret with metadata succeeds" {
