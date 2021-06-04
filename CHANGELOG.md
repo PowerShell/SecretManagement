@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 1.1.0-preview2 - 2021-6-1
+
+### Fixes
+
+- Extension vault data streams (Warning, Verbose, etc.) now honor cmdlet stream direction commands (Issue #151)
+
+### Changes
+
+### New Features
+
 ## 1.1.0-preview - 2021-5-24
 
 ### Fixes
