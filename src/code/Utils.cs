@@ -1530,7 +1530,7 @@ namespace Microsoft.PowerShell.SecretManagement
                     isScript: true, 
                     useLocalScope: true);
                 cmd.MergeMyResults(
-                    myResult: PipelineResultTypes.Error,
+                    myResult: PipelineResultTypes.Error | PipelineResultTypes.Warning | PipelineResultTypes.Verbose | PipelineResultTypes.Debug | PipelineResultTypes.Information,
                     toResult: PipelineResultTypes.Output);
                 ps.Commands.AddCommand(cmd);
                 foreach (var arg in args)
@@ -1550,6 +1550,26 @@ namespace Microsoft.PowerShell.SecretManagement
 
                         switch (psItem.BaseObject)
                         {
+                            case ErrorRecord error:
+                                cmdlet.WriteError(error);
+                                break;
+
+                            case WarningRecord warning:
+                                cmdlet.WriteWarning(warning.Message);
+                                break;
+
+                            case VerboseRecord verbose:
+                                cmdlet.WriteVerbose(verbose.Message);
+                                break;
+
+                            case DebugRecord debug:
+                                cmdlet.WriteDebug(debug.Message);
+                                break;
+
+                            case InformationRecord info:
+                                cmdlet.WriteInformation(info);
+                                break;
+                                
                             case T result:
                                 returnCollection.Add(result);
                                 break;
@@ -1559,10 +1579,6 @@ namespace Microsoft.PowerShell.SecretManagement
                                 {
                                     returnCollection.Add(item);
                                 }
-                                break;
-
-                            case ErrorRecord error:
-                                cmdlet.WriteError(error);
                                 break;
                         }
                     }
