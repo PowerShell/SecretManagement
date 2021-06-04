@@ -12,8 +12,14 @@ Removes a secret from a specified registered extension vault.
 
 ## SYNTAX
 
+### NameParameterSet
 ```
-Remove-Secret [-Name] <String> [-Vault] <String> [<CommonParameters>]
+Remove-Secret [-Name] <String> [-Vault] <String> [-WhatIf] [-Confirm] [<CommonParameters>]
+```
+
+### InfoParameterSet
+```
+Remove-Secret [-InputObject] <SecretInformation> [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -32,20 +38,45 @@ Get-Secret: The secret secretTest was not found.
 This example runs the command to remove the secret 'secretTest' from the CredMan vault.
 The 'Get-Secret' command is next run to verify the secret no longer exists in the vault.
 
+### Example 2
+```
+PS C:\> Get-SecretInfo -Name Secret2 -Vault CredMan | Remove-Secret
+PS C:\> Get-Secret -Name Secret2 -Vault CredMan
+Get-Secret: The secret Secret2 was not found.
+```
+
+This example first obtains secret information for the 'Secret2' secret and pipes the results to this command.
+Remove-Secret then removes the secret from the vault using the piped in secret information.
+
 ## PARAMETERS
+
+### -InputObject
+SecretInformation object that describes a vault secret.
+
+```yaml
+Type: SecretInformation
+Parameter Sets: InfoParameterSet
+Aliases:
+
+Required: True
+Position: 0
+Default value: None
+Accept pipeline input: True (ByValue)
+Accept wildcard characters: False
+```
 
 ### -Name
 Name of the secret to remove.
 
 ```yaml
 Type: String
-Parameter Sets: (All)
+Parameter Sets: NameParameterSet
 Aliases:
 
 Required: True
 Position: 0
 Default value: None
-Accept pipeline input: True (ByPropertyName, ByValue)
+Accept pipeline input: True (ByValue)
 Accept wildcard characters: False
 ```
 
@@ -54,12 +85,43 @@ Name of the vault from which the secret is to be removed.
 
 ```yaml
 Type: String
-Parameter Sets: (All)
+Parameter Sets: NameParameterSet
 Aliases:
 
 Required: True
 Position: 1
 Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Confirm
+Prompts you for confirmation before running the cmdlet.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: cf
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -WhatIf
+Shows what would happen if the cmdlet runs.
+The cmdlet is not run.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: wi
+
+Required: False
+Position: Named
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -70,7 +132,7 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## INPUTS
 
 ### System.String
-
+### Microsoft.PowerShell.SecretManagement.SecretInformation
 ## OUTPUTS
 
 ## NOTES

@@ -1,5 +1,73 @@
 # CHANGELOG
 
+## 1.1.0-preview2 - 2021-6-1
+
+### Fixes
+
+- Extension vault data streams (Warning, Verbose, etc.) now honor cmdlet stream direction commands (Issue #151)
+
+### Changes
+
+### New Features
+
+## 1.1.0-preview - 2021-5-24
+
+### Fixes
+
+- Provide better error message when extension vault does not provide required functions (Issue #137)
+
+- Provide better error message when running under Windows built-in accounts (Issue #143)
+
+- SecretManagement now runs in ConstrainedLanguage mode (Issue #144)
+
+### Changes
+
+- Set-SecretInfo now takes pipeline input (Issue #129).
+
+- Extension vaults are now loaded and run in a separate PowerShell runspace session (Issue #144)
+
+- Extension vaults can now optionally support a `Unlock-SecretVault` function (Issue #147)
+
+### New Features
+
+- `Unlock-SecretVault` command added to SecretManagement (Issue #147)
+
+## 1.0.0 - 2021-4-5
+
+### Fixes
+
+- Fix manifest license link (Issue #112)
+
+- Fix help document md to xml file compilation (Issue #90, #106)
+
+- Remove unnecessary assert in registry write code (Issue #119)
+
+### Changes
+
+- Add constructor for `SecretInformation` class that accepts metadata as a hash table (Issue #108)
+
+### New Features
+
+## 0.9.1 - 2021-3-1
+
+### Fixes
+
+- `Get-Secret` and `Remove-Secret` cmdlets now honor the `VaultName` parameter from a piped in `SecretInformation` object (Issue #97)
+
+- Secret name and vault name autocompletion now correctly handles names with spaces (Issue #91)
+
+### Changes
+
+- A warning is now displayed when secret cmdlets are used and no vaults are currently registered
+
+### New Features
+
+- `SecretInformation` class now has a new `Metadata` property to support the new secret metadata support (Issue #46)
+
+- `Set-Secret` cmdlet now has a new optional `-Metadata` property to include additional non-sensitive data associated with a secret (Issue #46)
+
+- New `Set-SecretInfo` cmdlet that takes a `-Metadata` property which sets additional non-sensitive data to a secret (Issue #46)
+
 ## 0.9.0 - 2021-1-15
 
 ### Fixes

@@ -13,7 +13,7 @@ Finds and returns registered vault information.
 ## SYNTAX
 
 ```
-Get-SecretVault [[-Name] <string[]>] [<CommonParameters>]
+Get-SecretVault [[-Name] <String[]>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -25,7 +25,7 @@ The registered vault information includes the vault name, vault implementing mod
 ## EXAMPLES
 
 ### Example 1
-```powershell
+```
 PS C:\> Get-SecretVault
 
 VaultName  ModuleName                        IsDefaultVault
@@ -44,7 +44,7 @@ This parameter takes a String argument, including wildcard characters.
 It is used to filter the search results on vault names that match the provided name pattern.
 
 ```yaml
-Type: string[]
+Type: String[]
 Parameter Sets: (All)
 Aliases:
 
@@ -61,11 +61,9 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## INPUTS
 
 ### None
-
 ## OUTPUTS
 
 ### Microsoft.PowerShell.SecretManagement.SecretVaultInfo
-
 ## NOTES
 
 ## RELATED LINKS

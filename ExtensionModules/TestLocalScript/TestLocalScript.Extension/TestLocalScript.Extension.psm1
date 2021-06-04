@@ -121,7 +121,8 @@ function Get-SecretInfo
     }
 
     $verboseEnabled = $AdditionalParameters.ContainsKey('Verbose') -and ($AdditionalParameters['Verbose'] -eq $true)
-    Write-Verbose "[TestLocalScript.Extension]:Get-SecretVault successfully called for vault: $VaultName" -Verbose:$verboseEnabled
+    Write-Verbose "[TestLocalScript.Extension]:Get-SecretInfo successfully called for vault: $VaultName" -Verbose:$verboseEnabled
+    Write-Warning "[TestLocalScript.Extension]::Get-SecretInfo bogus warning for vault: $VaultName"
 }
 
 function Test-SecretVault

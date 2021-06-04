@@ -14,19 +14,19 @@ Adds a secret to a SecretManagement registered vault.
 
 ### SecureStringParameterSet (Default)
 ```
-Set-Secret [-Name] <String> [-SecureStringSecret] <SecureString> [[-Vault] <String>] [-NoClobber]
- [-WhatIf] [-Confirm] [<CommonParameters>]
+Set-Secret [-Name] <String> -SecureStringSecret <SecureString> [[-Vault] <String>] [[-Metadata] <Hashtable>]
+ [-NoClobber] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### ObjectParameterSet
 ```
-Set-Secret [-Name] <String> [-Secret] <Object> [[-Vault] <String>] [-NoClobber] [-WhatIf]
- [-Confirm] [<CommonParameters>]
+Set-Secret [-Name] <String> -Secret <Object> [[-Vault] <String>] [[-Metadata] <Hashtable>] [-NoClobber]
+ [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### SecretInfoParameterSet
 ```
-Set-Secret [-SecretInfo] <SecretInformation> -Vault <string> [-NoClobber] [-WhatIf] [-Confirm]
+Set-Secret -SecretInfo <SecretInformation> [-Vault] <String> [-NoClobber] [-WhatIf] [-Confirm]
  [<CommonParameters>]
 ```
 
@@ -34,6 +34,9 @@ Set-Secret [-SecretInfo] <SecretInformation> -Vault <string> [-NoClobber] [-What
 This cmdlet adds a secret value by name to SecretManagement.
 If no vault name is specified, then the secret will be added to the default vault.
 If an existing secret by the same name exists, it will be overwritten with the new value unless the 'NoClobber' parameter switch is used.
+Additional data can be included with the secret through the '-Metadata' parameter, if supported by the extension vault.
+If the extension vault does not support metadata then an error will be generated and the operation will fail.
+Metadata is not required to be stored securely, and should not contain sensitive information.
 The secret value must be one of five supported types:
 
 - byte[]
@@ -75,14 +78,56 @@ Since no secret value was provided, the user is prompted for a SecureString valu
 The console hides the string value as it is typed.
 Next, the 'Get-Secret' command is run to verify the secret was added.
 
+### Example 3
+```powershell
+PS C:\> Set-Secret -Name TargetSecret -Secret $targetToken -Vault LocalStore -Metadata @{ Expiration = ([datetime]::new(2022, 5, 1)) }
+PS C:\> Get-SecretInfo -Name TargetSecret | Select-Object Name,Metadata
+
+Name         Metadata
+----         --------
+TargetSecret {[Expiration, 5/1/2022 12:00:00 AM]}
+```
+
+This example adds a secret named 'TargetSecret' to the LocalStore vault, along with extra metadata indicating the secret expiration date.
+The metadata is retrieved using the 'Get-SecretInfo' cmdlet.
+
+### Example 4
+```powershell
+PS C:\> Set-Secret -Name PublishSecret -Secret $targetToken -Vault LocalStore2 -Metadata @{ Expiration = ([datetime]::new(2022, 5, 1)) }
+Set-Secret: Cannot store secret PublishSecret. Vault LocalStore2 does not support secret metadata.
+```
+
+This example adds a secret named 'PublishSecret' to the LocalStore2 vault, along with extra metadata.
+However, vault LocalStore2 does not support secret metadata and the operation fails with error.
+
 ## PARAMETERS
 
+### -Metadata
+Hashtable containing Name/Value pair that are stored in the vault.
+The specified extension vault may not support secret metadata, in which case the operation will fail.
+The metadata Name/Value value type must be one of the following:
+- string
+- int
+- DateTime
+
+```yaml
+Type: Hashtable
+Parameter Sets: SecureStringParameterSet, ObjectParameterSet
+Aliases:
+
+Required: False
+Position: 1
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -Name
-Name of secret to add.
+Name of secret for which the metadata is added
 
 ```yaml
 Type: String
-Parameter Sets: (All)
+Parameter Sets: SecureStringParameterSet, ObjectParameterSet
 Aliases:
 
 Required: True
@@ -93,7 +138,7 @@ Accept wildcard characters: False
 ```
 
 ### -NoClobber
-When used this parameter will cause an error if the secret name already exists.
+When true, this command will not overwrite an existing secret and emit an error instead.
 
 ```yaml
 Type: SwitchParameter
@@ -102,7 +147,7 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -117,14 +162,14 @@ Parameter Sets: ObjectParameterSet
 Aliases:
 
 Required: True
-Position: 1
+Position: Named
 Default value: None
 Accept pipeline input: True (ByValue)
 Accept wildcard characters: False
 ```
 
 ### -SecretInfo
-A SecretInformation object describing a stored secret returned by `Get-SecretInfo`.
+A SecretInformation object describing a stored secret returned by 'Get-SecretInfo'.
 This allows moving secrets from one extension vault to another.
 
 ```yaml
@@ -133,7 +178,7 @@ Parameter Sets: SecretInfoParameterSet
 Aliases:
 
 Required: True
-Position: 1
+Position: Named
 Default value: None
 Accept pipeline input: True (ByValue)
 Accept wildcard characters: False
@@ -148,7 +193,7 @@ Parameter Sets: SecureStringParameterSet
 Aliases:
 
 Required: True
-Position: 1
+Position: Named
 Default value: None
 Accept pipeline input: True (ByValue)
 Accept wildcard characters: False
@@ -160,7 +205,7 @@ If omitted, the secret will be added to the default vault.
 
 ```yaml
 Type: String
-Parameter Sets: (All)
+Parameter Sets: SecureStringParameterSet, ObjectParameterSet
 Aliases:
 
 Required: False
@@ -170,15 +215,55 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+```yaml
+Type: String
+Parameter Sets: SecretInfoParameterSet
+Aliases:
+
+Required: True
+Position: 2
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Confirm
+Prompts you for confirmation before running the cmdlet.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: cf
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -WhatIf
+Shows what would happen if the cmdlet runs.
+The cmdlet is not run.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: wi
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### CommonParameters
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
 
-### System.Object
-
-### System.Security.SecureString
-
+### System.Collections.Hashtable
 ## OUTPUTS
 
 ## NOTES
