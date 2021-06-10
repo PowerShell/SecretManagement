@@ -601,6 +601,8 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
             $results[2] | Should -BeTrue
         }
 
+        # Metadata is set through extension vault 'Set-SecretInfo' command, and not via a Metadata
+        # parameter on 'Set-Secret' command.
         It "Verifies Set-Secret with metadata succeeds" {
             { Set-Secret -Name TestDefaultMeta -Secret $randomSecretD -Metadata @{ Fail = $false } -ErrorVariable err } | Should -Not -Throw
             $err.Count | Should -Be 0
