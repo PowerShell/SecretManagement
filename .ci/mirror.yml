@@ -1,0 +1,31 @@
+# Mirror github SecretManagement repo to this release pipeline repo at the provided schedule
+#
+
+trigger: none
+pr: none
+
+schedules:
+# You can use https://crontab.guru/#0_8_*_*_* to figure out your crontab expression
+# Mirror repo every day at 8 am
+- cron: 0 8 * * *
+  branches:
+    include:
+    - refs/heads/master
+  always: true
+
+resources:
+  repositories:
+    - repository: SecretManagement
+      type: git
+      name: SecretManagement
+      ref: master
+    - repository: SecretManagement-gh
+      ref: master
+      type: github
+      endpoint: ComplianceGHRepo
+      name: PowerShell/SecretManagement
+
+stages:
+  - template: ./mirrorTemplates/githubMirror.yml
+    parameters:
+      repoName: SecretManagement
