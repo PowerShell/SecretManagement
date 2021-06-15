@@ -3,6 +3,7 @@ parameters:
   imageName: windows-latest
   displayName: PowerShell Core on Windows
   powershellExecutable: pwsh
+  buildDirectory: '.'
 
 jobs:
 - job: ${{ parameters.jobName }}
@@ -66,6 +67,7 @@ jobs:
       Write-Verbose -Verbose "Saving package $sourceName to $($config.BuildOutputPath)"
       Save-Package -Name $moduleName -Source $sourceName -ProviderName PowerShellGet -Path $config.BuildOutputPath -AllowPrereleaseVersions -Force
     displayName: Extract product artifact
+    workingDirectory: ${{ parameters.buildDirectory }}
 
   - ${{ parameters.powershellExecutable }}: |
       $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
@@ -77,6 +79,7 @@ jobs:
       #
       Invoke-PSPackageProjectTest -Type Functional
     displayName: Execute functional tests
+    workingDirectory: ${{ parameters.buildDirectory }}
     errorActionPreference: continue
 
   - ${{ parameters.powershellExecutable }}: |
@@ -89,6 +92,7 @@ jobs:
       #
       Invoke-PSPackageProjectTest -Type StaticAnalysis
     displayName: Execute static analysis tests
+    workingDirectory: ${{ parameters.buildDirectory }}
     errorActionPreference: continue
     condition: succeededOrFailed()
 
