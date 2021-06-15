@@ -1,0 +1,220 @@
+name: $(BuildDefinitionName)-$(date:yyMM).$(date:dd)$(rev:rrr)
+trigger: none
+pr: none
+
+schedules:
+# Use https://crontab.guru/#0_8_*_*_* to compute crontab expression
+# Run signed build, with limited signing cert, every day at 9 am
+- cron: 0 9 * * *
+  branches:
+    include:
+    - refs/heads/master
+  always: true
+
+variables:
+  - group: ESRP
+
+resources:
+  repositories:
+  - repository: ComplianceRepo
+    type: github
+    endpoint: ComplianceGHRepo
+    name: PowerShell/compliance
+
+stages:
+- stage: Build
+  displayName: Build SecretManagement Module Package
+  jobs:
+  - job: BuildPkg
+    displayName: Build Package
+    pool:
+      name: 1ES
+      demands:
+      - ImageOverride -equals MMS2019
+
+    variables:
+      - name: repoFolder
+        value: SecretManagement
+      - name: repoPath
+        value: $(Agent.BuildDirectory)/$(repoFolder)
+
+    steps:
+    - checkout: SecretManagement
+      clean: true
+      path: $(repoFolder)
+
+    - pwsh: |
+        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+        if (Test-Path -Path $modulePath) {
+          Write-Verbose -Verbose "Deleting existing temp module path: $modulePath"
+          Remove-Item -Path $modulePath -Recurse -Force -ErrorAction Ignore
+        }
+        if (! (Test-Path -Path $modulePath)) {
+          Write-Verbose -Verbose "Creating new temp module path: $modulePath"
+          $null = New-Item -Path $modulePath -ItemType Directory
+        }
+      displayName: Create temporary module path
+
+    - pwsh: |
+        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+        Write-Verbose -Verbose "Install PowerShellGet V3 to temp module path"
+        Save-Module -Name PowerShellGet -Path $modulePath -MinimumVersion 3.0.0-beta10 -AllowPrerelease -Force
+        Write-Verbose -Verbose "Install PlatyPS to temp module path"
+        Save-Module -Name "platyPS" -Path $modulePath -Force
+        Write-Verbose -Verbose "Install PSScriptAnalyzer to temp module path"
+        Save-Module -Name "PSScriptAnalyzer" -Path $modulePath -RequiredVersion 1.18.0 -Force
+        Write-Verbose -Verbose "Install Pester 4.X to temp module path"
+        Save-Module -Name "Pester" -MaximumVersion 4.99 -Path $modulePath -Force
+        Write-Verbose -Verbose "Install PSPackageProject to temp module path"
+        Save-Module -Name PSPackageProject -Path $modulePath -Force
+      displayName: Install PSPackageProject and dependencies
+
+    - pwsh: |
+        Get-ChildItem -Path env:
+        Get-ChildItem -Path . -Recurse -Directory
+      displayName: Capture environment for build
+      condition: succeededOrFailed()
+
+    - pwsh: |
+        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+        $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
+        $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
+        Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
+        Import-Module -Name $modPath -Force
+        #
+        ./build.ps1 -Build -Clean -BuildConfiguration Release
+      displayName: Build and publish artifact
+      workingDirectory: '$(repoPath)'
+
+    - pwsh: |
+        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+        $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
+        $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
+        Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
+        Import-Module -Name $modPath -Force
+        #
+        $config = Get-PSPackageProjectConfiguration
+        $signSrcPath = "$($config.BuildOutputPath)\$($config.ModuleName)"
+        $signOutPath = "$($config.SignedOutputPath)\$($config.ModuleName)"
+        if (! (Test-Path -Path $signOutPath)) {
+          $null = New-Item -Path $signOutPath -ItemType Directory
+        }
+        
+        # Set signing src path variable
+        $vstsCommandString = "vso[task.setvariable variable=signSrcPath]${signSrcPath}"
+        Write-Host "sending " + $vstsCommandString
+        Write-Host "##$vstsCommandString"
+
+        # Set signing out path variable
+        $vstsCommandString = "vso[task.setvariable variable=signOutPath]${signOutPath}"
+        Write-Host "sending " + $vstsCommandString
+        Write-Host "##$vstsCommandString"
+      displayName: Set signing path variables for possible module code signing
+      workingDirectory: '$(repoPath)'
+
+    - pwsh: |
+        Get-ChildItem -Path env:
+        Get-ChildItem -Path . -Recurse -Directory
+      displayName: Capture environment for build
+      condition: succeededOrFailed()
+
+    - template: EsrpSign.yml@ComplianceRepo
+      parameters:
+        buildOutputPath: $(signSrcPath)
+        signOutputPath: $(signOutPath)
+        certificateId: "CP-460906"
+        pattern: |
+          *.dll
+          *.psd1
+          *.ps1xml
+        useMinimatch: true
+
+    - pwsh: |
+        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+        $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
+        $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
+        Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
+        Import-Module -Name $modPath -Force
+        #
+        ./build.ps1 -Publish -Signed
+      displayName: Create module artifact
+      workingDirectory: '$(repoPath)'
+      condition: succeeded()
+
+    - pwsh: |
+        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+        $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
+        $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
+        Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
+        Import-Module -Name $modPath -Force
+        #
+        $config = Get-PSPackageProjectConfiguration
+        $srcModulePath = Resolve-Path -Path "$($config.SignedOutputPath)/$($config.ModuleName)"
+        Get-ChildItem $srcModulePath
+        $artifactName = "$($config.ModuleName)"
+        Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$srcModulePath"
+      displayName: Create and upload the module artifacts
+      workingDirectory: '$(repoPath)'
+      condition: succeeded()
+
+- stage: Compliance
+  displayName: Compliance
+  dependsOn: Build
+  jobs:
+  - job: ComplianceJob
+    pool:
+      name: 1ES
+      demands:
+      - ImageOverride -equals MMS2019
+    steps:
+    - checkout: self
+      clean: true
+    - checkout: ComplianceRepo
+      clean: true
+    - download: current
+      artifact: 'Microsoft.PowerShell.SecretManagement'
+    - template: assembly-module-compliance.yml@ComplianceRepo
+      parameters:
+        # binskim
+        AnalyzeTarget: '$(Pipeline.Workspace)/Microsoft.PowerShell.SecretManagement/*.dll'
+        AnalyzeSymPath: 'SRV*'
+        # component-governance
+        sourceScanPath: '$(Build.SourcesDirectory)'
+        # credscan
+        suppressionsFile: ''
+        # TermCheck
+        optionsRulesDBPath: ''
+        optionsFTPath: ''
+        # tsa-upload
+        codeBaseName: 'PSSecretsManagement_202001'
+        # selections
+        APIScan: false # set to false when not using Windows APIs
+
+- stage: Test
+  displayName: Test Package
+  dependsOn: Build
+  jobs:
+  - template: test.yml
+    parameters:
+      jobName: TestPkgWin
+      displayName: PowerShell Core on Windows
+      imageName: windows-latest
+
+  - template: test.yml
+    parameters:
+      jobName: TestPkgWinPS
+      displayName: Windows PowerShell on Windows
+      imageName: windows-latest
+      powershellExecutable: powershell
+
+  - template: test.yml
+    parameters:
+      jobName: TestPkgUbuntu16
+      displayName: PowerShell Core on Ubuntu
+      imageName: ubuntu-latest
+
+  - template: test.yml
+    parameters:
+      jobName: TestPkgWinMacOS
+      displayName: PowerShell Core on macOS
+      imageName: macOS-latest
