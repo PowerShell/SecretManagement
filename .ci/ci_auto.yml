@@ -32,16 +32,7 @@ stages:
       demands:
       - ImageOverride -equals MMS2019
 
-    variables:
-      - name: repoFolder
-        value: SecretManagement
-      - name: repoPath
-        value: $(Agent.BuildDirectory)/$(repoFolder)
-
     steps:
-    - checkout: SecretManagement
-      clean: true
-      path: $(repoFolder)
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
@@ -84,7 +75,6 @@ stages:
         #
         ./build.ps1 -Build -Clean -BuildConfiguration Release
       displayName: Build and publish artifact
-      workingDirectory: '$(repoPath)'
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
@@ -110,7 +100,6 @@ stages:
         Write-Host "sending " + $vstsCommandString
         Write-Host "##$vstsCommandString"
       displayName: Set signing path variables for possible module code signing
-      workingDirectory: '$(repoPath)'
 
     - pwsh: |
         Get-ChildItem -Path env:
@@ -138,7 +127,6 @@ stages:
         #
         ./build.ps1 -Publish -Signed
       displayName: Create module artifact
-      workingDirectory: '$(repoPath)'
       condition: succeeded()
 
     - pwsh: |
@@ -154,7 +142,6 @@ stages:
         $artifactName = "$($config.ModuleName)"
         Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$srcModulePath"
       displayName: Create and upload the module artifacts
-      workingDirectory: '$(repoPath)'
       condition: succeeded()
 
 - stage: Compliance
