@@ -112,6 +112,7 @@ stages:
         buildOutputPath: $(signSrcPath)
         signOutputPath: $(signOutPath)
         certificateId: "CP-460906"
+        shouldSign: $SHOULDSIGN
         pattern: |
           *.dll
           *.psd1
