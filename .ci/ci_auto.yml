@@ -73,7 +73,7 @@ stages:
         Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
         Import-Module -Name $modPath -Force
         #
-        ./build.ps1 -Build -Clean -BuildConfiguration Release
+        $(Build.SourcesDirectory)/build.ps1 -Build -Clean -BuildConfiguration Release
       displayName: Build and publish artifact
 
     - pwsh: |
@@ -112,7 +112,7 @@ stages:
         buildOutputPath: $(signSrcPath)
         signOutputPath: $(signOutPath)
         certificateId: "CP-460906"
-        shouldSign: $SHOULDSIGN
+        shouldSign: $(ShouldSign)
         pattern: |
           *.dll
           *.psd1
@@ -126,7 +126,7 @@ stages:
         Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
         Import-Module -Name $modPath -Force
         #
-        ./build.ps1 -Publish -Signed
+        $(Build.SourcesDirectory)/build.ps1 -Publish -Signed
       displayName: Create module artifact
       condition: succeeded()
 
