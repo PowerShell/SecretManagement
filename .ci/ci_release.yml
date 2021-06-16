@@ -34,6 +34,7 @@ stages:
     steps:
     - pwsh: |
         Get-ChildItem -Path env:
+        Get-ChildItem -Path . -Recurse -Directory
       displayName: Capture environment for build
       condition: succeededOrFailed()
 
@@ -100,6 +101,7 @@ stages:
 
     - pwsh: |
         Get-ChildItem -Path env:
+        Get-ChildItem -Path . -Recurse -Directory
       displayName: Capture environment for module code signing
       condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
 
