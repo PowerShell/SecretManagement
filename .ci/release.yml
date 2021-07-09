@@ -1,34 +1,39 @@
 parameters:
   jobName: release
-  imageName: windows-latest
-  displayName: 'Release Microsoft.PowerShell.SecretManagement to NuGet'
+  displayName: 'Release Microsoft.PowerShell.SecretManagement to PSGallery'
 
 jobs:
 - job: ${{ parameters.jobName }}
   pool:
-    vmImage: ${{ parameters.imageName }}
+    name: 1ES
+    demands:
+    - ImageOverride -equals MMS2019
   displayName: ${{ parameters.displayName }}
 
   steps:
-  - task: NuGetToolInstaller@1
-    displayName: 'Install NuGet 5.6.0'
-    inputs:
-      checkLatest: false
-      version: 5.6.0
 
-  - task: DownloadBuildArtifacts@0
+  - task: DownloadPipelineArtifact@2
     displayName: 'Download SecretManagement module artifacts'
     inputs:
-      buildType: current
-      downloadType: specific
-      artifactName: '**/*.nupkg'
-      downloadPath: '$(System.ArtifactsDirectory)'
+      artifact: nugetpkg
+      patterns: '**/*.nupkg'
+      downloadPath: '$(Pipeline.Workspace)/nuget'
 
   - powershell: |
-      Get-ChildItem '$(System.ArtifactsDirectory)/nupkg/Microsoft.PowerShell.SecretManagement.*.nupkg' -ErrorAction SilentlyContinue
-      Get-ChildItem '$(System.ArtifactsDirectory)/RefAssemblyNuGet/Microsoft.PowerShell.SecretManagement.Library*.nupkg' -ErrorAction SilentlyContinue
-      # Get-ChildItem '$(System.ArtifactsDirectory)' -Recurse
-    displayName: 'Capture SecretManagement NuGet packages'
+      $package = (Get-ChildItem '$(Pipeline.Workspace)/nuget/Microsoft.PowerShell.SecretManagement.*.nupkg').FullName
+      $package
+      $vstsCommandString = "vso[task.setvariable variable=NugetPkgPath]${package}"
+      Write-Host "sending " + $vstsCommandString
+      Write-Host "##$vstsCommandString"
+    displayName: 'Capture SecretManagement NuGet package path and set environment variable'
+
+  - task: NuGetCommand@2
+    displayName: 'Push Microsoft.PowerShell.SecretManagement module artifacts to PSGallery feed'
+    inputs:
+      command: push
+      packagesToPush: '$(NugetPkgPath)'
+      nuGetFeedType: external
+      publishFeedCredentials: PSGalleryPush
 
   #- task: NuGetCommand@2
   #  displayName: 'Push Microsoft.PowerShell.SecretManagement.Library reference assembly nuget package to NuGet'
@@ -37,11 +42,3 @@ jobs:
   #    packagesToPush: '$(System.ArtifactsDirectory)/RefAssemblyNuGet/Microsoft.PowerShell.SecretManagement.Library*.nupkg'
   #    nuGetFeedType: external
   #    publishFeedCredentials: PowerShellNuGetOrgPush
-
-  #- task: NuGetCommand@2
-  #  displayName: 'Push Microsoft.PowerShell.SecretManagement module artifacts to PSGallery feed'
-  #  inputs:
-  #    command: push
-  #    packagesToPush: '$(System.ArtifactsDirectory)/nupkg/Microsoft.PowerShell.SecretManagement.*.nupkg'
-  #    nuGetFeedType: external
-  #    publishFeedCredentials: PHPowerShellGalleryFeed
