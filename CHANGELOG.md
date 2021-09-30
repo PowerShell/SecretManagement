@@ -1,6 +1,16 @@
 # CHANGELOG
 
-## 1.1.0-preview2 - 2021-6-1
+## 1.1.1 - 2021-10-8
+
+### Fixes
+
+- Fix for disabled user interaction after tab completion (Issue #174)
+
+### Changes
+
+### New Features
+
+## 1.1.0 - 2021-6-1
 
 ### Fixes
 
