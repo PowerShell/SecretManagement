@@ -190,7 +190,7 @@ stages:
 
     - template: Sbom.yml@ComplianceRepo
       parameters:
-        BuildDropPath: '$(System.ArtifactsDirectory)\Microsoft.PowerShell.SecretManagement'
+        BuildDropPath: $(signOutPath)
         Build_Repository_Uri: 'https://github.com/powershell/secretmanagement'
 
 - stage: Compliance
