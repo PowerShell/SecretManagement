@@ -188,6 +188,11 @@ stages:
         # Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$refAssemblyNuGetPath"
       displayName: Create and upload the module and ref assembly NuGet package artifacts
 
+    - template: Sbom.yml@ComplianceRepo
+      parameters:
+        BuildDropPath: '$(System.ArtifactsDirectory)\Microsoft.PowerShell.SecretManagement'
+        Build_Repository_Uri: 'https://github.com/powershell/secretmanagement'
+
 - stage: Compliance
   displayName: Compliance
   dependsOn: Build
