@@ -162,6 +162,12 @@ stages:
 #          *.nupkg
 #        useMinimatch: true
 
+    - template: Sbom.yml@ComplianceRepo
+      parameters:
+        BuildDropPath: $(signOutPath)
+        Build_Repository_Uri: 'https://github.com/powershell/secretmanagement'
+      condition: (variables['SkipSigning'], 'False')
+
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
         $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
@@ -187,11 +193,6 @@ stages:
         # $artifactName = "RefAssemblyNuGet"
         # Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$refAssemblyNuGetPath"
       displayName: Create and upload the module and ref assembly NuGet package artifacts
-
-    - template: Sbom.yml@ComplianceRepo
-      parameters:
-        BuildDropPath: $(signOutPath)
-        Build_Repository_Uri: 'https://github.com/powershell/secretmanagement'
 
 - stage: Compliance
   displayName: Compliance
