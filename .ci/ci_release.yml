@@ -108,6 +108,12 @@ stages:
           *.ps1xml
         useMinimatch: true
 
+    - ${{ if ne(variables.SkipSigning, 'True') }}:
+      - template: Sbom.yml@ComplianceRepo
+        parameters:
+          BuildDropPath: $(signOutPath)
+          Build_Repository_Uri: 'https://github.com/powershell/secretmanagement'
+
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
         $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
@@ -161,12 +167,6 @@ stages:
 #        pattern: | 
 #          *.nupkg
 #        useMinimatch: true
-
-    - ${{ if ne(variables.SkipSigning, 'True') }}:
-      - template: Sbom.yml@ComplianceRepo
-        parameters:
-          BuildDropPath: $(signOutPath)
-          Build_Repository_Uri: 'https://github.com/powershell/secretmanagement'
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
