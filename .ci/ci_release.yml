@@ -162,7 +162,7 @@ stages:
 #          *.nupkg
 #        useMinimatch: true
 
-    - $${{ if ne(variables.SkipSigning, 'True') }}:
+    - ${{ if ne(variables.SkipSigning, 'True') }}:
       - template: Sbom.yml@ComplianceRepo
         parameters:
           BuildDropPath: $(signOutPath)
