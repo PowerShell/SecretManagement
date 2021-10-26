@@ -1459,6 +1459,8 @@ namespace Microsoft.PowerShell.SecretManagement
 
         private static System.Management.Automation.PowerShell _powershell = 
             System.Management.Automation.PowerShell.Create(RunspaceMode.NewRunspace);
+        private static bool _isHostDefault = false;
+        private const string DefaultHost = "Default Host";
 
         private static Runspace _runspace;
 
@@ -1488,12 +1490,20 @@ namespace Microsoft.PowerShell.SecretManagement
             Collection<T> returnCollection = new Collection<T>();
             terminatingError = null;
 
-            if (_runspace == null || _runspace.RunspaceStateInfo.State != RunspaceState.Opened)
+            // Create the runspace if it
+            //   doesn't exist
+            //   is not in a workable state
+            //   has a default host (no UI) when a non-default host is available
+            if (_runspace == null ||
+                _runspace.RunspaceStateInfo.State != RunspaceState.Opened ||
+                _isHostDefault && !cmdlet.Host.Name.Equals(DefaultHost, StringComparison.InvariantCultureIgnoreCase))
             {
                 if (_runspace != null)
                 {
                     _runspace.Dispose();
                 }
+
+                _isHostDefault = cmdlet.Host.Name.Equals(DefaultHost, StringComparison.InvariantCultureIgnoreCase);
 
                 var iss = InitialSessionState.CreateDefault2();
                 // We are running trusted script.
