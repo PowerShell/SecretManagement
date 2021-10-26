@@ -26,11 +26,19 @@ function DoBuild
 
     # Copy format files here
     Write-Verbose -Verbose "Copy-Item ${SrcPath}/${ModuleName}.format.ps1xml to $BuildOutPath"
-    copy-item "${SrcPath}/${ModuleName}.format.ps1xml" "$BuildOutPath"
+    Copy-Item "${SrcPath}/${ModuleName}.format.ps1xml" "$BuildOutPath"
 
     # Copy help
     Write-Verbose -Verbose -Message "Copying help files to '$BuildOutPath'"
-    copy-item -Recurse "${HelpPath}/${Culture}" "$BuildOutPath"
+    Copy-Item -Recurse "${HelpPath}/${Culture}" "$BuildOutPath"
+
+    # Copy license
+    Write-Verbose -Verbose -Message "Copying LICENSE file to '$BuildOutPath'"
+    Copy-Item -Path "./LICENSE" -Dest "$BuildOutPath"
+
+    # Copy notice
+    Write-Verbose -Verbose -Message "Copying ThirdPartyNotices.txt to '$BuildOutPath'"
+    Copy-Item -Path "./ThirdPartyNotices.txt" -Dest "$BuildOutPath"
 
     if ( Test-Path "${SrcPath}/code" ) {
         Write-Verbose -Verbose -Message "Building assembly and copying to '$BuildOutPath'"
