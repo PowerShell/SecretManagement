@@ -113,6 +113,8 @@ stages:
         parameters:
           BuildDropPath: $(signOutPath)
           Build_Repository_Uri: 'https://github.com/powershell/secretmanagement'
+          PackageName: 'Microsoft.PowerShell.SecretManagement'
+          PackageVersion: '1.1.1'
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
