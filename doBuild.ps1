@@ -72,6 +72,9 @@ function DoBuild
                 Copy-Item -Path "$BuildSrcPath/${ModuleName}.pdb" -Dest "$BuildOutPath"
             }
 
+            Write-Verbose -Verbose "$BuildSrcPath/System.Runtime.InteropServices.RuntimeInformation.dll to $BuildOutPath"
+            Copy-Item -Path "$BuildSrcPath/System.Runtime.InteropServices.RuntimeInformation.dll" -Dest "$BuildOutPath"
+
             if (! (Test-Path -Path "$RefSrcPath/${ModuleName}.dll"))
             {
                 # throw "Expected ref binary was not created: $RefSrcPath/${ModuleName}.dll"
