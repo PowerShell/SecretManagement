@@ -4,7 +4,7 @@
 
 ### Fixes
 
-- Fix for type initialization error on WindowsPowerShell (Issue #)
+- Fix for type initialization error on WindowsPowerShell (Issue #89)
 
 ### Changes
 
