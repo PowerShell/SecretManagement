@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 1.1.2 - 2022-01-27
+
+### Fixes
+
+- Fix for type initialization error on WindowsPowerShell (Issue #89)
+
+### Changes
+
+### New Features
+
 ## 1.1.1 - 2021-10-8
 
 ### Fixes

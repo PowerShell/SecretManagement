@@ -21,7 +21,7 @@ stages:
     pool:
       name: 1ES
       demands:
-      - ImageOverride -equals MMS2019
+      - ImageOverride -equals PSMMS2019-Secure
 
     steps:
     - pwsh: |
@@ -114,7 +114,7 @@ stages:
           BuildDropPath: $(signOutPath)
           Build_Repository_Uri: 'https://github.com/powershell/secretmanagement'
           PackageName: 'Microsoft.PowerShell.SecretManagement'
-          PackageVersion: '1.1.1'
+          PackageVersion: '1.1.2'
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
@@ -204,7 +204,7 @@ stages:
     pool:
       name: 1ES
       demands:
-      - ImageOverride -equals MMS2019
+      - ImageOverride -equals PSMMS2019-Secure
     steps:
     - checkout: self
       clean: true
