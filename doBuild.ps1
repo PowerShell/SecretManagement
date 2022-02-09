@@ -104,7 +104,7 @@ function DoBuild
             }
 
             # Create nuget package for reference assembly based on Microsoft.PowerShell.SecretManagement.Library.nuspec file.
-            dotnet pack --no-build --configuration $BuildConfiguration --no-restore
+            & ($dotnetCommand) pack --no-build --configuration $BuildConfiguration --no-restore
 
             # Copy ref assembly nuget package to out.
             $NuGetSrcPath = "bin/${BuildConfiguration}/Microsoft.PowerShell.SecretManagement.Library*.nupkg"
