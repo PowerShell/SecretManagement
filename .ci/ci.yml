@@ -72,7 +72,7 @@ stages:
         Save-Module -Name PowerShellGet -Path $modulePath -MinimumVersion 3.0.18-beta18 -AllowPrerelease -Force
       displayName: Install PowerShellGetV3
 
-    -pwsh: |
+    - pwsh: |
         $sourcePath = "$(Build.SourcesDirectory)"
         Get-ChildItem -Path "$sourcePath/src/code" -Recurse
       displayName: Capture source code for build
