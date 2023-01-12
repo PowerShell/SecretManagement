@@ -73,9 +73,9 @@ stages:
       displayName: Install PowerShellGetV3
 
     - pwsh: |
-        $sourcePath = "$(Build.SourcesDirectory)"
-        Get-ChildItem -Path "$sourcePath/src/code" -Recurse
+        Get-ChildItem -Path $(Build.SourcesDirectory)/src/code -Recurse
       displayName: Capture source code for build
+      condition: succeededOrFailed()
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
