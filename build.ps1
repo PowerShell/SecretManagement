@@ -84,10 +84,10 @@ else
 if ($Build.IsPresent)
 {
     $sb = (Get-Item Function:DoBuild).ScriptBlock
-    Invoke-Build -BuildScript $sb
+    Invoke-ModuleBuild -BuildScript $sb
 }
 
 if ($Publish.IsPresent)
 {
-    Publish-AsNuGetPackage -Signed:$Signed.IsPresent
+    Publish-ModulePackage -Signed:$Signed.IsPresent
 }

@@ -41,7 +41,7 @@
     
     # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
     FunctionsToExport = @(
-        'Get-BuildConfiguration', 'Invoke-Build', 'Invoke-Tests', 'Publish-AsNuGetPackage')
+        'Get-BuildConfiguration', 'Invoke-ModuleBuild', 'Publish-ModulePackage', 'Install-ModulePackageForTest', 'Invoke-ModuleTests')
     
     # Variables to export from this module
     VariablesToExport = '*'
