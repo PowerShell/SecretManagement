@@ -16,3 +16,6 @@ Tools/NuGet/
 updatablehelp/
 xhtml/
 **/settings.json
+**/.vscode/**
+**/out/**
+**/bin/**
