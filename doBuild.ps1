@@ -68,7 +68,7 @@ function DoBuild
             Write-Verbose -Verbose -Message "Building location: PSScriptRoot: $PSScriptRoot, PWD: $pwd"
             & ($dotnetCommand) publish --configuration $BuildConfiguration --framework $BuildFramework --output $BuildSrcPath
 
-            Dump build source output directory
+            # Dump build source output directory
             $outResults = Get-ChildItem -Path "bin/${BuildConfiguration}/${BuildFramework}" -Recurse | Out-String
             Write-Verbose -Verbose -Message $outResults
 
