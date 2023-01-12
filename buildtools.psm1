@@ -170,11 +170,11 @@ function Invoke-ModuleTests {
     if ($env:TF_BUILD) {
         Write-Verbose -Verbose -Message "Uploading test results to AzDevOps"
         $powerShellName = if ($PSVersionTable.PSEdition -eq 'Core') { 'PowerShell Core' } else { 'Windows PowerShell' }
-        $Type = 'NUnit'
+        $TestType = 'NUnit'
         $Title = "Functional Tests -  $env:AGENT_OS - $powershellName Results"
         $ArtifactPath = (Resolve-Path -Path $testResultsFilePath).ProviderPath
         $FailTaskOnFailedTests = 'true'
-        $message = "vso[results.publish type=$Type;mergeResults=true;runTitle=$Title;publishRunAttachments=true;resultFiles=$ArtifactPath;failTaskOnFailedTests=$FailTaskOnFailedTests;]"
+        $message = "vso[results.publish type=$TestType;mergeResults=true;runTitle=$Title;publishRunAttachments=true;resultFiles=$ArtifactPath;failTaskOnFailedTests=$FailTaskOnFailedTests;]"
         Write-Host "##$message"
     }
 
