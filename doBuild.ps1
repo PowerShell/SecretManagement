@@ -66,10 +66,14 @@ function DoBuild
             # Build source
             Write-Verbose -Verbose -Message "Building with configuration: $BuildConfiguration, framework: $BuildFramework"
             Write-Verbose -Verbose -Message "Building location: PSScriptRoot: $PSScriptRoot, PWD: $pwd"
-            & ($dotnetCommand) publish --configuration $BuildConfiguration --framework $BuildFramework --output $BuildSrcPath
+            $buildCommand = "$($dotnetCommand.Name) publish --configuration $BuildConfiguration --framework $BuildFramework --output $BuildSrcPath"
+            Write-Verbose -Verbose -Message "Starting dotnet build command: $buildCommand"
+            Invoke-Expression -Command $buildCommand
 
             # Dump build source output directory
-            $outResults = Get-ChildItem -Path "bin/${BuildConfiguration}/${BuildFramework}" -Recurse | Out-String
+            $outResultsPath = (Resolve-Path -Path "bin/${BuildConfiguration}").ProviderPath
+            Write-Verbose -Verbose -Message "Dumping expected results output path: $outResultsPath"
+            $outResults = Get-ChildItem -Path $outResultsPath -Recurse | Out-String
             Write-Verbose -Verbose -Message $outResults
 
             # Place build results
