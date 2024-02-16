@@ -1056,22 +1056,30 @@ namespace Microsoft.PowerShell.SecretManagement
             }
         }
 
+        private class SecretInformationComparer :
+        IComparer<KeyValuePair<string, SecretInformation>>
+        {
+            public int Compare(KeyValuePair<string, SecretInformation> x, KeyValuePair<string, SecretInformation> y)
+            {
+                return string.Compare(x.Key, y.Key, StringComparison.Ordinal);
+            }
+        }
+
         private void WriteResults(SecretInformation[] results)
         {
             if (results == null) { return; }
 
             // Ensure each vaults results are sorted by secret name.
-            var sortedList = new SortedDictionary<string, SecretInformation>(StringComparer.OrdinalIgnoreCase);
+            var sortedSet = new SortedSet<KeyValuePair<string, SecretInformation>>(new SecretInformationComparer ());
+
             foreach (var item in results)
             {
-                sortedList.Add(
-                    key: item.Name,
-                    value: item);
+                sortedSet.Add(new KeyValuePair<string, SecretInformation>(item.Name, item));
             }
 
-            foreach (var item in sortedList.Values)
+            foreach (var pair in sortedSet)
             {
-                WriteObject(item);
+                WriteObject(pair.Value);
             }
         }
 
