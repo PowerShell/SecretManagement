@@ -53,7 +53,7 @@ if ($env:TF_BUILD) {
     Write-Host "##$vstsCommandString"
 }
 
-. $PSScriptRoot/dobuild.ps1
+. $PSScriptRoot/doBuild.ps1
 
 if ($Clean -and (Test-Path $OutDirectory))
 {

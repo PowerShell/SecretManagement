@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 $ConfigurationFileName = 'package.config.json'
+# TODO: Update to PSResourceGet.
 Import-Module -Name PowerShellGet -MinimumVersion 3.0.18
 
 function Get-BuildConfiguration {
