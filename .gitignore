@@ -12,7 +12,9 @@ maml/
 **/obj/**
 packages.config
 packages/
+SecretManagement.sln
 Tools/NuGet/
+test/result.pester.xml
 updatablehelp/
 xhtml/
 **/settings.json
