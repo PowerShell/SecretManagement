@@ -97,7 +97,7 @@ namespace Microsoft.PowerShell.SecretManagement
             var wordToCompletePattern = WildcardPattern.Get(
                 pattern: string.IsNullOrWhiteSpace(wordToComplete) ? "*" : wordToComplete + "*",
                 options: WildcardOptions.IgnoreCase);
-            
+
             foreach (var vaultName in _vaultExtensions.Keys)
             {
                 if (wordToCompletePattern.IsMatch(vaultName))
@@ -110,7 +110,7 @@ namespace Microsoft.PowerShell.SecretManagement
     }
 
     #endregion
-    
+
     #region Register-SecretVault
 
     /// <summary>
@@ -125,7 +125,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets the module name or file path of the vault extension module to register.
         /// </summary>
-        [Parameter(Position=0, Mandatory=true)]
+        [Parameter(Position = 0, Mandatory = true)]
         [ValidateNotNullOrEmpty]
         public string ModuleName { get; set; }
 
@@ -134,13 +134,13 @@ namespace Microsoft.PowerShell.SecretManagement
         /// The name must be unique.
         /// If no Name is provided then the ModuleName is used as the friendly name.
         /// </summary>
-        [Parameter(Position=1)]
+        [Parameter(Position = 1)]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
 
         /// <summary>
         /// Gets or sets an optional Hashtable of parameters by name/value pairs.
-        /// The hashtable is stored securely in the local store, and is made available to the 
+        /// The hashtable is stored securely in the local store, and is made available to the
         /// extension implementing module script functions.
         /// </summary>
         [Parameter]
@@ -266,7 +266,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 error: out ErrorRecord moduleLoadError);
             if (moduleInfo == null)
             {
-                var msg = string.Format(CultureInfo.InvariantCulture, 
+                var msg = string.Format(CultureInfo.InvariantCulture,
                     "Could not load and retrieve module information for module: {0} with error : {1}.",
                     ModuleName, moduleLoadError?.ToString() ?? string.Empty);
 
@@ -387,8 +387,8 @@ namespace Microsoft.PowerShell.SecretManagement
             if (moduleInfo == null)
             {
                 error = new ItemNotFoundException(
-                    string.Format(CultureInfo.InvariantCulture, 
-                    @"Implementing script module could not be found or loaded at : {0} with error : {1}.", 
+                    string.Format(CultureInfo.InvariantCulture,
+                    @"Implementing script module could not be found or loaded at : {0} with error : {1}.",
                     implementingModulePath, moduleLoadError?.ToString() ?? string.Empty));
                 return false;
             }
@@ -559,20 +559,22 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets a name of the secret vault to unregister.
         /// </summary>
-        [Parameter(ParameterSetName = NameParameterSet,
-                   Position = 0, 
-                   Mandatory = true,
-                   ValueFromPipeline = true)]
+        [Parameter(
+            ParameterSetName = NameParameterSet,
+            Position = 0,
+            Mandatory = true,
+            ValueFromPipeline = true)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         [SupportsWildcards]
         [ValidateNotNullOrEmpty]
         public string[] Name { get; set; }
 
-        [Parameter(ParameterSetName = SecretVaultParameterSet,
-                   Position = 0,
-                   Mandatory = true,
-                   ValueFromPipeline = true,
-                   ValueFromPipelineByPropertyName = true)]
+        [Parameter(
+            ParameterSetName = SecretVaultParameterSet,
+            Position = 0,
+            Mandatory = true,
+            ValueFromPipeline = true,
+            ValueFromPipelineByPropertyName = true)]
         [ValidateNotNull]
         public SecretVaultInfo SecretVault { get; set; }
 
@@ -591,7 +593,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 case NameParameterSet:
                     vaultNames = Name;
                     break;
-                
+
                 case SecretVaultParameterSet:
                     vaultNames = new string[] { SecretVault.Name };
                     break;
@@ -657,7 +659,7 @@ namespace Microsoft.PowerShell.SecretManagement
             RegisteredVaultCache.Remove(vaultName);
 
             WriteVerbose(
-                string.Format(CultureInfo.InvariantCulture, 
+                string.Format(CultureInfo.InvariantCulture,
                     "Removed vault {0} from registry.", extensionVault.VaultName)
             );
         }
@@ -684,10 +686,11 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets a name of the secret vault to unregister.
         /// </summary>
-        [Parameter(ParameterSetName = NameParameterSet,
-                   Position = 0, 
-                   Mandatory = true,
-                   ValueFromPipeline = true)]
+        [Parameter(
+            ParameterSetName = NameParameterSet,
+            Position = 0,
+            Mandatory = true,
+            ValueFromPipeline = true)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
@@ -695,11 +698,12 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets a SecretVaultInfo object that describes a vault that will be made the default vault
         /// </summary>
-        [Parameter(ParameterSetName = SecretVaultParameterSet,
-                   Position = 0,
-                   Mandatory = true,
-                   ValueFromPipeline = true,
-                   ValueFromPipelineByPropertyName = true)]
+        [Parameter(
+            ParameterSetName = SecretVaultParameterSet,
+            Position = 0,
+            Mandatory = true,
+            ValueFromPipeline = true,
+            ValueFromPipelineByPropertyName = true)]
         [ValidateNotNull]
         public SecretVaultInfo SecretVault { get; set; }
 
@@ -726,7 +730,7 @@ namespace Microsoft.PowerShell.SecretManagement
                 case NameParameterSet:
                     vaultName = Name;
                     break;
-                
+
                 case SecretVaultParameterSet:
                     vaultName = SecretVault.Name;
                     break;
@@ -814,7 +818,7 @@ namespace Microsoft.PowerShell.SecretManagement
                         args: new object[] {},
                         psToUse: ps,
                         out ErrorRecord error);
-                    
+
                     _secretNames = new List<string>();
                     foreach (var secretInfo in results)
                     {
@@ -828,7 +832,7 @@ namespace Microsoft.PowerShell.SecretManagement
             var wordToCompletePattern = WildcardPattern.Get(
                 pattern: string.IsNullOrWhiteSpace(wordToComplete) ? "*" : wordToComplete + "*",
                 options: WildcardOptions.IgnoreCase);
-            
+
             foreach (var secretName in _secretNames)
             {
                 if (wordToCompletePattern.IsMatch(secretName))
@@ -857,7 +861,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets an optional name of the secret vault to return.
         /// <summary>
-        [Parameter (Position=0)]
+        [Parameter(Position = 0)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         [SupportsWildcards]
         public string[] Name { get; set; }
@@ -929,7 +933,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets the name of the secret vault to unlock.
         /// <summary>
-        [Parameter (Position=0, Mandatory=true)]
+        [Parameter(Position = 0, Mandatory = true)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
@@ -937,7 +941,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets a password for unlocking a vault.
         /// </summary>
-        [Parameter (Position=1, Mandatory=true)]
+        [Parameter(Position = 1, Mandatory = true)]
         public SecureString Password { get; set; }
 
         #endregion
@@ -974,7 +978,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets a name used to match and return secret information.
         /// </summary>
-        [Parameter(Position=0)]
+        [Parameter(Position = 0)]
         [ArgumentCompleter(typeof(SecretNameCompleter))]
         [SupportsWildcards]
         public string Name { get; set; }
@@ -982,7 +986,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets an optional name of the vault to retrieve the secret from.
         /// </summary>
-        [Parameter(Position=1)]
+        [Parameter(Position = 1)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         public string Vault { get; set; }
 
@@ -1021,7 +1025,7 @@ namespace Microsoft.PowerShell.SecretManagement
             // Then search through all other extension vaults.
             foreach (var extensionModule in RegisteredVaultCache.VaultExtensions.Values)
             {
-                if (extensionModule.VaultName.Equals(RegisteredVaultCache.DefaultVaultName, 
+                if (extensionModule.VaultName.Equals(RegisteredVaultCache.DefaultVaultName,
                     StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
@@ -1101,7 +1105,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets a name of the secret to which metadata is applied.
         /// </summary>
-        [Parameter(Position=0, Mandatory=true, ParameterSetName=NameParameterSet)]
+        [Parameter(Position = 0, Mandatory = true, ParameterSetName = NameParameterSet)]
         [ArgumentCompleter(typeof(SecretNameCompleter))]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
@@ -1110,18 +1114,18 @@ namespace Microsoft.PowerShell.SecretManagement
         /// Gets or sets the metadata Hashtable to be applied to the secret name.
         /// If value is an empty Hashtable, then any previous secret metadata is removed.
         /// </summary>
-        [Parameter(Position=1, Mandatory=true, ValueFromPipeline=true, ParameterSetName=NameParameterSet)]
-        [Parameter(Position=0, Mandatory=true, ParameterSetName=InfoParameterSet)]
+        [Parameter(Position = 1, Mandatory = true, ValueFromPipeline = true, ParameterSetName = NameParameterSet)]
+        [Parameter(Position = 0, Mandatory = true, ParameterSetName = InfoParameterSet)]
         public Hashtable Metadata { get; set; }
 
         /// <summary>
         /// Gets or sets an optional extension vault name.
         /// </summary>
-        [Parameter(Position=2, ParameterSetName=NameParameterSet)]
+        [Parameter(Position = 2, ParameterSetName = NameParameterSet)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         public string Vault { get; set; }
 
-        [Parameter(Mandatory=true, ValueFromPipeline=true, ParameterSetName=InfoParameterSet)]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = InfoParameterSet)]
         public SecretInformation InputObject { get; set; }
 
         #endregion
@@ -1212,9 +1216,9 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets a name of secret to retrieve.
         /// <summary>
-        [Parameter(Position=0, 
-                   Mandatory=true,
-                   ValueFromPipeline=true,
+        [Parameter(Position = 0,
+                   Mandatory = true,
+                   ValueFromPipeline = true,
                    ParameterSetName = NameParameterSet)]
         [ArgumentCompleter(typeof(SecretNameCompleter))]
         public string Name { get; set; }
@@ -1222,15 +1226,15 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets an optional name of the vault to retrieve the secret from.
         /// </summary>
-        [Parameter(Position=1, ParameterSetName = NameParameterSet)]
+        [Parameter(Position = 1, ParameterSetName = NameParameterSet)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         public string Vault { get; set; }
 
         /// <summary>
         /// Gets or sets a SecretInformation object that describes the secret to be retrieved.
         /// </summary>
-        [Parameter(Mandatory=true,
-                   ValueFromPipeline=true,
+        [Parameter(Mandatory = true,
+                   ValueFromPipeline = true,
                    ParameterSetName = InfoParameterSet)]
         public SecretInformation InputObject { get; set; }
 
@@ -1300,7 +1304,7 @@ namespace Microsoft.PowerShell.SecretManagement
             // Then search through all other extension vaults.
             foreach (var extensionModule in RegisteredVaultCache.VaultExtensions.Values)
             {
-                if (extensionModule.VaultName.Equals(RegisteredVaultCache.DefaultVaultName, 
+                if (extensionModule.VaultName.Equals(RegisteredVaultCache.DefaultVaultName,
                     StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
@@ -1327,7 +1331,7 @@ namespace Microsoft.PowerShell.SecretManagement
                     name: Name,
                     vaultName: extensionModule.VaultName,
                     cmdlet: this);
-                    
+
                 if (result != null)
                 {
                     WriteSecret(result);
@@ -1413,11 +1417,14 @@ namespace Microsoft.PowerShell.SecretManagement
     #region Set-Secret
 
     /// <summary>
-    /// Adds a provided secret to the specified extension vault, 
+    /// Adds a provided secret to the specified extension vault,
     /// or the built-in default store if an extension vault is not specified.
     /// </summary>
-    [Cmdlet(VerbsCommon.Set, "Secret", SupportsShouldProcess = true,
-            DefaultParameterSetName = SecureStringParameterSet)]
+    [Cmdlet(
+        VerbsCommon.Set,
+        "Secret",
+        SupportsShouldProcess = true,
+        DefaultParameterSetName = SecureStringParameterSet)]
     public sealed class SetSecretCommand : SecretCmdlet
     {
         #region Members
@@ -1434,8 +1441,8 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets a name of the secret to be added.
         /// </summary>
-        [Parameter(ParameterSetName = ObjectParameterSet, Position=0, Mandatory=true)]
-        [Parameter(ParameterSetName = SecureStringParameterSet, Position=0, Mandatory=true)]
+        [Parameter(ParameterSetName = ObjectParameterSet, Position = 0, Mandatory = true)]
+        [Parameter(ParameterSetName = SecureStringParameterSet, Position = 0, Mandatory = true)]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
 
@@ -1448,35 +1455,44 @@ namespace Microsoft.PowerShell.SecretManagement
         ///     Hashtable
         ///     byte[]
         /// </summary>
-        [Parameter(Position=1, Mandatory=true, ValueFromPipeline=true,
-                   ParameterSetName = ObjectParameterSet)]
+        [Parameter(
+            Position = 1,
+            Mandatory = true,
+            ValueFromPipeline = true,
+            ParameterSetName = ObjectParameterSet)]
         public object Secret { get; set; }
 
         /// <summary>
         /// Gets or sets a SecureString value to be added to a vault.
         /// </summary>
-        [Parameter(Position=1, Mandatory=true, ValueFromPipeline=true,
-                   ParameterSetName = SecureStringParameterSet)]
+        [Parameter(
+            Position = 1,
+            Mandatory = true,
+            ValueFromPipeline = true,
+            ParameterSetName = SecureStringParameterSet)]
         public SecureString SecureStringSecret { get; set; }
 
-        [Parameter(Position=1, Mandatory=true, ValueFromPipeline=true,
-                   ParameterSetName = SecretInfoParameterSet)]
+        [Parameter(
+            Position = 1,
+            Mandatory = true,
+            ValueFromPipeline = true,
+            ParameterSetName = SecretInfoParameterSet)]
         public SecretInformation SecretInfo { get; set; }
 
         /// <summary>
         /// Gets or sets an optional extension vault name.
         /// </summary>
-        [Parameter(Position=2, ParameterSetName = ObjectParameterSet)]
-        [Parameter(Position=2, ParameterSetName = SecureStringParameterSet)]
-        [Parameter(ParameterSetName = SecretInfoParameterSet, Mandatory=true)]
+        [Parameter(Position = 2, ParameterSetName = ObjectParameterSet)]
+        [Parameter(Position = 2, ParameterSetName = SecureStringParameterSet)]
+        [Parameter(ParameterSetName = SecretInfoParameterSet, Mandatory = true)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         public string Vault { get; set; }
 
         /// <summary>
         /// Gets or sets optional secret metadata
         /// </summary>
-        [Parameter(Position=3, ParameterSetName = ObjectParameterSet)]
-        [Parameter(Position=3, ParameterSetName = SecureStringParameterSet)]
+        [Parameter(Position = 3, ParameterSetName = ObjectParameterSet)]
+        [Parameter(Position = 3, ParameterSetName = SecureStringParameterSet)]
         public Hashtable Metadata { get; set; }
 
         /// <summary>
@@ -1521,7 +1537,7 @@ namespace Microsoft.PowerShell.SecretManagement
                             extensionModule: destExtensionModule,
                             name: SecretInfo.Name))
                     {
-                        var msg = string.Format(CultureInfo.InvariantCulture, 
+                        var msg = string.Format(CultureInfo.InvariantCulture,
                             SecretExistsError, SecretInfo.Name, destExtensionModule.VaultName);
                         WriteError(
                             new ErrorRecord(
@@ -1531,7 +1547,7 @@ namespace Microsoft.PowerShell.SecretManagement
                                 this));
                         return;
                     }
-                    
+
                     // Set secret to specified vault name.
                     destExtensionModule.InvokeSetSecret(
                         name: SecretInfo.Name,
@@ -1592,7 +1608,7 @@ namespace Microsoft.PowerShell.SecretManagement
                     extensionModule: extensionModule,
                     name: Name))
             {
-                var msg = string.Format(CultureInfo.InvariantCulture, 
+                var msg = string.Format(CultureInfo.InvariantCulture,
                     SecretExistsError, Name, extensionModule.VaultName);
                 ThrowTerminatingError(
                     new ErrorRecord(
@@ -1648,10 +1664,11 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets a name of the secret to be removed.
         /// </summary>
-        [Parameter(Position=0, 
-                   Mandatory=true,
-                   ValueFromPipeline=true,
-                   ParameterSetName=NameParameterSet)]
+        [Parameter(
+            Position = 0,
+            Mandatory = true,
+            ValueFromPipeline = true,
+            ParameterSetName = NameParameterSet)]
         [ArgumentCompleter(typeof(SecretNameCompleter))]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
@@ -1659,17 +1676,19 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Gets or sets an optional extension vault name.
         /// </summary>
-        [Parameter(Position=1,
-                   Mandatory=true,
-                   ParameterSetName=NameParameterSet)]
+        [Parameter(
+            Position = 1,
+            Mandatory = true,
+            ParameterSetName = NameParameterSet)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         [ValidateNotNullOrEmpty]
         public string Vault { get; set; }
 
-        [Parameter(Position=0,
-                   Mandatory=true,
-                   ValueFromPipeline=true,
-                   ParameterSetName=InfoParameterSet)]
+        [Parameter(
+            Position = 0,
+            Mandatory = true,
+            ValueFromPipeline = true,
+            ParameterSetName = InfoParameterSet)]
         public SecretInformation InputObject { get; set; }
 
         #endregion
@@ -1713,9 +1732,10 @@ namespace Microsoft.PowerShell.SecretManagement
     {
         #region Parameters
 
-        [Parameter(Position=0,
-                   ValueFromPipeline=true,
-                   ValueFromPipelineByPropertyName=true)]
+        [Parameter(
+            Position = 0,
+            ValueFromPipeline = true,
+            ValueFromPipelineByPropertyName = true)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         [SupportsWildcards]
         public string[] Name { get; set; }
