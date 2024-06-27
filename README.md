@@ -326,16 +326,22 @@ LocalStore TestVault   True
 SecretManagement is designed to be installed and run within a user account on both Windows and non-Windows platforms.
 The extension vault registry file is located in a user account protected directory.  
 
-For Windows platforms the location is:  
-%LOCALAPPDATA%\Microsoft\PowerShell\secretmanagement  
+For Windows platforms the location is: `%LOCALAPPDATA%\Microsoft\PowerShell\secretmanagement`
 
-For non-Windows platforms the location:  
-$HOME/.secretmanagement
+For non-Windows platforms the location: `$HOME/.secretmanagement`
 
 ## Windows Managed Accounts
 
 SecretManagement does not currently work for Windows managed accounts.  
 
-SecretManagement depends on both %LOCALAPPDATA% folders to store registry information, and Data Protection APIs for safely handling secrets with the .Net `SecureString` type.  
-However, Windows managed accounts do not have profiles or %LOCALAPPDATA% folders, and Windows Data Protection APIs do not work for managed accounts.  
+SecretManagement depends on both `%LOCALAPPDATA%` folders to store registry information, and Data Protection APIs for safely handling secrets with the .Net `SecureString` type.  
+However, Windows managed accounts do not have profiles or `%LOCALAPPDATA%` folders, and Windows Data Protection APIs do not work for managed accounts.  
 Consequently, SecretManagement will not run under managed accounts.
+
+## Code of Conduct
+
+Please see our [Code of Conduct](.github/CODE_OF_CONDUCT.md) before participating in this project.
+
+## Security Policy
+
+For any security issues, please see our [Security Policy](.github/SECURITY.md).
