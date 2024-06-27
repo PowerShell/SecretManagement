@@ -1,3 +1,6 @@
+artifacts/
+module/
+
 _site/
 _themes/
 .DS_Store
@@ -12,7 +15,6 @@ maml/
 **/obj/**
 packages.config
 packages/
-SecretManagement.sln
 Tools/NuGet/
 test/result.pester.xml
 updatablehelp/
