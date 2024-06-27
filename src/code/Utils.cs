@@ -173,22 +173,52 @@ namespace Microsoft.PowerShell.SecretManagement
     /// </summary>
     public enum SecretType
     {
+        /// <summary>
+        /// Specifies the value is of an unknown type.
+        /// </summary>
         Unknown = 0,
+
+        /// <summary>
+        /// Specifes the value is a <see cref="T:byte[]"/>.
+        /// </summary>
         ByteArray,
+
+        /// <summary>
+        /// Specifes the value is a <see cref="T:string"/>.
+        /// </summary>
         String,
+
+        /// <summary>
+        /// Specifes the value is a <see cref="System.Security.SecureString"/>.
+        /// </summary>
         SecureString,
+
+        /// <summary>
+        /// Specifies the value is a <see cref="System.Management.Automation.PSCredential"/>.
+        /// </summary>
         PSCredential,
-        Hashtable
-    };
+
+        /// <summary>
+        /// Specifes the value is a <see cref="System.Collections.Hashtable"/> .
+        /// </summary>
+        Hashtable,
+    }
 
     #endregion
 
     #region Exceptions
 
+    /// <summary>
+    /// Represents errors that occur due to a password not being specified when required.
+    /// </summary>
     public sealed class PasswordRequiredException : InvalidOperationException
     {
         #region Constructor
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PasswordRequiredException" /> class.
+        /// </summary>
+        /// <param name="msg">The message that describes the error.</param>
         public PasswordRequiredException(string msg)
             : base(msg)
         {
@@ -201,6 +231,9 @@ namespace Microsoft.PowerShell.SecretManagement
 
     #region SecretInformation class
 
+    /// <summary>
+    /// Represents a secret from a secret vault.
+    /// </summary>
     public sealed class SecretInformation
     {
         #region Properties
@@ -442,7 +475,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
         /// <summary>
         /// Additional vault parameters.
-        /// <summary>
+        /// </summary>
         public IReadOnlyDictionary<string, object> VaultParameters { get; }
 
         /// <summary>
@@ -1197,6 +1230,7 @@ namespace Microsoft.PowerShell.SecretManagement
         /// <summary>
         /// Add item to cache.
         /// </summary>
+        /// <param name="keyName">The key of the vault to add.</param>
         /// <param name="vaultInfo">Hashtable of vault information.</param>
         /// <param name="defaultVault">When true, this vault is designated as the default vault.</param>
         /// <param name="overWriteExisting">When true, this will overwrite an existing vault with the same name.</param>
@@ -1423,7 +1457,6 @@ namespace Microsoft.PowerShell.SecretManagement
         /// </summary>
         /// <param name="vaultInfo">Hashtable containing registered vault information.</param>
         /// <param name="defaultVaultName">The default vault name.</param>
-        /// </summary>
         private static void WriteSecretVaultRegistry(
             Hashtable vaultInfo,
             string defaultVaultName)

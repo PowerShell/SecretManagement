@@ -16,6 +16,7 @@ $HelpOut = Join-Path $ModuleOut en-US
 $CSharpArtifacts = @(
     "$FullModuleName.dll",
     "$FullModuleName.pdb",
+    "$FullModuleName.xml",
     "System.Runtime.InteropServices.RuntimeInformation.dll")
 
 $BaseArtifacts = @(
@@ -77,8 +78,6 @@ task BuildModule {
     $manifestContent = Get-Content -LiteralPath $ManifestPath -Raw
     $newManifestContent = $manifestContent -replace '{{ModuleVersion}}', $moduleVersion
     Set-Content -LiteralPath "$ModuleOut/$FullModuleName.psd1" -Encoding utf8 -Value $newManifestContent
-
-    # New-ExternalHelp -Path docs/Microsoft.PowerShell.ConsoleGuiTools -OutputPath module/en-US -Force
 }
 
 task PackageModule {

@@ -174,6 +174,9 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Overrides
 
+        /// <summary>
+        /// Performs initialization of command execution.
+        /// </summary>
         protected override void BeginProcessing()
         {
             // Disallow 'Verbose' in VaultParameters because it is reserved.
@@ -224,6 +227,9 @@ namespace Microsoft.PowerShell.SecretManagement
             }
         }
 
+        /// <summary>
+        /// Performs clean-up after the command execution.
+        /// </summary>
         protected override void EndProcessing()
         {
             var vaultInfo = new Hashtable();
@@ -569,6 +575,9 @@ namespace Microsoft.PowerShell.SecretManagement
         [ValidateNotNullOrEmpty]
         public string[] Name { get; set; }
 
+        /// <summary>
+        /// Gets or sets the secret vault to unregister.
+        /// </summary>
         [Parameter(
             ParameterSetName = SecretVaultParameterSet,
             Position = 0,
@@ -717,6 +726,9 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Overrides
 
+        /// <summary>
+        /// Performs clean-up after the command execution.
+        /// </summary>
         protected override void EndProcessing()
         {
             if (!ShouldProcess(Name, "Set vault as default"))
@@ -767,6 +779,9 @@ namespace Microsoft.PowerShell.SecretManagement
 
     #region SecretCmdlet
 
+    /// <summary>
+    /// Base type for Secret cmdlets.
+    /// </summary>
     public abstract class SecretCmdlet : PSCmdlet
     {
         /// <summary>
@@ -860,7 +875,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
         /// <summary>
         /// Gets or sets an optional name of the secret vault to return.
-        /// <summary>
+        /// </summary>
         [Parameter(Position = 0)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         [SupportsWildcards]
@@ -870,6 +885,9 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Overrides
 
+        /// <summary>
+        /// Performs clean-up after the command execution.
+        /// </summary>
         protected override void EndProcessing()
         {
             Name = Name ?? new string[] { "*" };
@@ -932,7 +950,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
         /// <summary>
         /// Gets or sets the name of the secret vault to unlock.
-        /// <summary>
+        /// </summary>
         [Parameter(Position = 0, Mandatory = true)]
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         [ValidateNotNullOrEmpty]
@@ -948,6 +966,9 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Overrides
 
+        /// <summary>
+        /// Performs clean-up after the command execution.
+        /// </summary>
         protected override void EndProcessing()
         {
             var extensionModule = GetExtensionVault(Name);
@@ -994,12 +1015,18 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Overrides
 
+        /// <summary>
+        /// Performs initialization of command execution.
+        /// </summary>
         protected override void BeginProcessing()
         {
             base.BeginProcessing();
             Utils.CheckForRegisteredVaults(this);
         }
 
+        /// <summary>
+        /// Performs clean-up after the command execution.
+        /// </summary>
         protected override void EndProcessing()
         {
             if (string.IsNullOrEmpty(Name))
@@ -1125,6 +1152,9 @@ namespace Microsoft.PowerShell.SecretManagement
         [ArgumentCompleter(typeof(VaultNameCompleter))]
         public string Vault { get; set; }
 
+        /// <summary>
+        /// Gets or sets the secret to set.
+        /// </summary>
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = InfoParameterSet)]
         public SecretInformation InputObject { get; set; }
 
@@ -1132,12 +1162,18 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Overrides
 
+        /// <summary>
+        /// Performs initialization of command execution.
+        /// </summary>
         protected override void BeginProcessing()
         {
             base.BeginProcessing();
             Utils.CheckForRegisteredVaults(this);
         }
 
+        /// <summary>
+        /// Performs execution of the command.
+        /// </summary>
         protected override void ProcessRecord()
         {
             if (!ShouldProcess(Vault, "Write secret metadata to vault and override any existing metadata associated with the secret"))
@@ -1215,7 +1251,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
         /// <summary>
         /// Gets or sets a name of secret to retrieve.
-        /// <summary>
+        /// </summary>
         [Parameter(Position = 0,
                    Mandatory = true,
                    ValueFromPipeline = true,
@@ -1260,12 +1296,18 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Overrides
 
+        /// <summary>
+        /// Performs initialization of command execution.
+        /// </summary>
         protected override void BeginProcessing()
         {
             base.BeginProcessing();
             Utils.CheckForRegisteredVaults(this);
         }
 
+        /// <summary>
+        /// Performs execution of the command.
+        /// </summary>
         protected override void ProcessRecord()
         {
             if (ParameterSetName == InfoParameterSet)
@@ -1472,6 +1514,9 @@ namespace Microsoft.PowerShell.SecretManagement
             ParameterSetName = SecureStringParameterSet)]
         public SecureString SecureStringSecret { get; set; }
 
+        /// <summary>
+        /// Gets or sets the secret to set.
+        /// </summary>
         [Parameter(
             Position = 1,
             Mandatory = true,
@@ -1505,12 +1550,18 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Overrides
 
+        /// <summary>
+        /// Performs initialization of command execution.
+        /// </summary>
         protected override void BeginProcessing()
         {
             base.BeginProcessing();
             Utils.CheckForRegisteredVaults(this);
         }
 
+        /// <summary>
+        /// Performs execution of the command.
+        /// </summary>
         protected override void ProcessRecord()
         {
             if (!ShouldProcess(Vault, "Write secret to vault and override any existing secret of the same name"))
@@ -1648,7 +1699,7 @@ namespace Microsoft.PowerShell.SecretManagement
 
     /// <summary>
     /// Removes a secret by name from the local default vault.
-    /// <summary>
+    /// </summary>
     [Cmdlet(VerbsCommon.Remove, "Secret", SupportsShouldProcess = true)]
     public sealed class RemoveSecretCommand : SecretCmdlet
     {
@@ -1684,6 +1735,9 @@ namespace Microsoft.PowerShell.SecretManagement
         [ValidateNotNullOrEmpty]
         public string Vault { get; set; }
 
+        /// <summary>
+        /// Gets or sets the secret to be removed.
+        /// </summary>
         [Parameter(
             Position = 0,
             Mandatory = true,
@@ -1695,6 +1749,9 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Overrides
 
+        /// <summary>
+        /// Performs execution of the command.
+        /// </summary>
         protected override void ProcessRecord()
         {
             if (!ShouldProcess(Vault, "Remove secret by name from vault"))
@@ -1732,6 +1789,9 @@ namespace Microsoft.PowerShell.SecretManagement
     {
         #region Parameters
 
+        /// <summary>
+        /// Gets or sets the secret name.
+        /// </summary>
         [Parameter(
             Position = 0,
             ValueFromPipeline = true,
@@ -1744,6 +1804,9 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #region Overrides
 
+        /// <summary>
+        /// Performs execution of the command.
+        /// </summary>
         protected override void ProcessRecord()
         {
             Name = Name ?? new string[] { "*" };
