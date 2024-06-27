@@ -16,10 +16,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.PowerShell.SecretManagement.Library" Version="0.5.1-*" />
-    <PackageReference Include="PowerShellStandard.Library" Version="5.1.0-*" />
-    <PackageReference Include="Microsoft.CSharp" version="4.5.0-*" />
-    <PackageReference Include="System.IO.FileSystem.AccessControl" version="4.7.0" />
+    <PackageReference Include="Microsoft.PowerShell.SecretManagement.Library" Version="0.5.1-*" PrivateAssets="All" />
+    <PackageReference Include="PowerShellStandard.Library" Version="5.1.0-*" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="$(ArtifactsPath)/../src/Microsoft.PowerShell.CredManStore.psd1" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="$(ArtifactsPath)/../Microsoft.PowerShell.CredManStore.Extension/Microsoft.PowerShell.CredManStore.Extension.psd1" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

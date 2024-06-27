@@ -7,7 +7,7 @@
 RootModule = '.\Microsoft.PowerShell.SecretManagement.dll'
 
 # Version number of this module.
-ModuleVersion = '1.1.2'
+ModuleVersion = '{{ModuleVersion}}'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
