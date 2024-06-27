@@ -2,51 +2,38 @@
 # Licensed under the MIT License.
 
 Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
+    BeforeDiscovery {
+        $TestCases = 'ByteArray', 'String', 'SecureString', 'PSCredential', 'Hashtable'
+    }
 
     BeforeAll {
+        $ProjectRoot = Split-Path $PSScriptRoot
+        $ModulePath = Join-Path $ProjectRoot $ModulePath
+        $ManifestPath = Join-Path $ModulePath 'Microsoft.PowerShell.SecretManagement.psd1'
 
-        if ((Get-Module -Name Microsoft.PowerShell.SecretManagement -ErrorAction Ignore) -eq $null)
+        $BasePath = Join-Path ([IO.Path]::GetTempPath()) "SecretManagementStorePath"
+        if (-not (Test-Path -Path $BasePath))
         {
-            Import-Module -Name ..\..\Microsoft.PowerShell.SecretManagement
+            New-Item -ItemType Directory -Path $BasePath | Out-Null
         }
 
-        Get-SecretVault | Unregister-SecretVault
+        $StorePath = Join-Path $BasePath "StorePath.xml"
+        $MetaStorePath = Join-Path $BasePath "MetaStorePath.xml"
 
         # Script extension module
         $scriptModuleName = "TVaultScript"
         $implementingModuleName = "TVaultScript.Extension"
         $scriptModulePath = Join-Path $testdrive $scriptModuleName
-        New-Item -ItemType Directory $scriptModulePath -Force
-        $script:scriptModuleFilePath = Join-Path $scriptModulePath "${scriptModuleName}.psd1"
+        New-Item -ItemType Directory $scriptModulePath -Force | Out-Null
+        $scriptModuleFilePath = Join-Path $scriptModulePath "${scriptModuleName}.psd1"
         "@{{
             ModuleVersion = '1.0'
             NestedModules = @('.\{0}')
-            FunctionsToExport = @() 
-        }}" -f $implementingModuleName | Out-File -FilePath $script:scriptModuleFilePath
+            FunctionsToExport = @()
+        }}" -f $implementingModuleName | Out-File -FilePath $scriptModuleFilePath
 
-        # Store Paths
-        if ($isWindows)
-        {
-            $bPath = $env:TEMP
-        }
-        else 
-        {
-            $bPath = [System.Environment]::GetEnvironmentVariable("HOME")    
-        }
-        if ($bPath -eq $null -or !(Test-Path -Path $bPath))
-        {
-            $bPath = $PSScriptRoot
-        }
-        $basePath = Join-Path $bPath "SecretManagementStorePath"
-        if (! (Test-Path -Path $basePath))
-        {
-            [System.IO.Directory]::CreateDirectory($basePath)
-        }
-        $storePath = Join-Path $basePath "StorePath.xml"
-        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
-
-        $metaStorePath = Join-Path $basePath "MetaStorePath.xml"
-        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
+        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $StorePath
+        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $MetaStorePath
 
         $scriptImplementationTemplate = @'
             $storePath = "{0}"
@@ -182,7 +169,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
                     [hashtable] $AdditionalParameters
                 )
 
-                
+
                 RemoveStore $Name
                 RemoveMetaStore $Name
             }}
@@ -284,7 +271,8 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
                 }}
             }}
 '@
-        $scriptImplementation = $scriptImplementationTemplate -f $storePath,$metaStorePath
+
+        $scriptImplementation = $scriptImplementationTemplate -f $StorePath, $MetaStorePath
 
         $implementingModulePath = Join-Path $scriptModulePath $implementingModuleName
         New-Item -ItemType Directory $implementingModulePath -Force
@@ -299,11 +287,151 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         $manifestInfo | Out-File -FilePath $implementingManifestFilePath
         $implementingModuleFilePath = Join-Path $implementingModulePath "${implementingModuleName}.psm1"
         $scriptImplementation | Out-File -FilePath $implementingModuleFilePath
+
+        if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement -ErrorAction Ignore))
+        {
+            Import-Module -Name $ManifestPath
+        }
+
+        $PreviousSecretVaults = Get-SecretVault
+        $PreviousSecretVaults | Unregister-SecretVault
+
+        $StoreTypes = @{
+            ByteArray = @{
+                Kind = 'ByteArray'
+                Title = 'script'
+                Vault = 'ScriptTestVault'
+                Name = 'BinVaultBlob'
+                Value = [System.Text.Encoding]::UTF8.GetBytes('BinVaultHelloStr')
+                Stringifier = {
+                    param([byte[]] $Blob)
+
+                    $sb = [System.Text.StringBuilder]::new()
+                    $null = & {
+                        $sb = $sb
+                        foreach ($byte in $Blob) {
+                            $sb.AppendFormat('{0:X2}', $byte)
+                        }
+                    }
+
+                    return $sb.ToString()
+                }
+            }
+            String = @{
+                Kind = 'String'
+                Title = 'script'
+                Vault = 'ScriptTestVault'
+                Name = 'BinVaultStr'
+                Value = 'HelloBinVault'
+                Stringifier = {
+                    if ($args[0] -is [securestring]) {
+                        return & $StoreTypes['SecureString']['Stringifier'] $args[0]
+                    }
+
+                    return $args[0]
+                }
+            }
+            SecureString = @{
+                Kind = 'SecureString'
+                Title = 'script'
+                Vault = 'ScriptTestVault'
+                Name = 'BinVaultSecureStr'
+                Value = ConvertTo-SecureString ([System.IO.Path]::GetRandomFileName()) -AsPlainText -Force
+                Stringifier = {
+                    $ptr = [IntPtr]::Zero
+                    try {
+                        $ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($args[0])
+                        $value = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+                        return $value
+                    } finally {
+                        [System.Runtime.InteropServices.Marshal]::FreeHGlobal($ptr)
+                    }
+                }
+            }
+            PSCredential = @{
+                Kind = 'PSCredential'
+                Title = 'script'
+                Vault = 'ScriptTestVault'
+                Name = 'BinVaultCred'
+                Value = [pscredential]::new('UserName', (ConvertTo-SecureString ([System.IO.Path]::GetRandomFileName()) -AsPlainText -Force))
+                Stringifier = {
+                    $networkCred = ([pscredential]$args[0]).GetNetworkCredential()
+                    return "u:$($networkCred.UserName)p:$($networkCred.Password)"
+                }
+            }
+            Hashtable = @{
+                Kind = 'Hashtable'
+                Title = 'script'
+                Vault = 'ScriptTestVault'
+                Name = 'BinVaultStr'
+                Value = @{
+                    Blob = ([byte[]] @(1,2))
+                    Str = "Hello"
+                    SecureString = (ConvertTo-SecureString ([System.IO.Path]::GetRandomFileName()) -AsPlainText -Force)
+                    Cred = ([pscredential]::New("UserA", (ConvertTo-SecureString ([System.IO.Path]::GetRandomFileName()) -AsPlainText -Force)))
+                }
+                Stringifier = {
+                    param([hashtable] $ht)
+                    end {
+                        $sb = [System.Text.StringBuilder]::new('{')
+                        $null = & {
+                            $sb = $sb
+                            $first = $true
+                            foreach ($entry in $ht.GetEnumerator() | Sort-Object Key) {
+                                if ($first) {
+                                    $first = $false
+                                } else {
+                                    $sb.Append('|')
+                                }
+                                $sb.Append($entry.Key).Append(':')
+                                if ($entry.Value -is [hashtable]) {
+                                    $sb.Append((& $StoreTypes['Hashtable']['Stringifier'] $entry.Value))
+                                    continue
+                                }
+
+                                if ($entry.Value -is [securestring]) {
+                                    $sb.Append((& $StoreTypes['SecureString']['Stringifier'] $entry.Value))
+                                    continue
+                                }
+
+                                if ($entry.Value -is [byte[]] -or $entry.Value -is [object[]]) {
+                                    $sb.Append((& $StoreTypes['ByteArray']['Stringifier'] $entry.Value))
+                                    continue
+                                }
+
+                                if ($entry.Value -is [pscredential]) {
+                                    $sb.Append((& $StoreTypes['PSCredential']['Stringifier'] $entry.Value))
+                                    continue
+                                }
+
+                                $sb.Append([string]$entry.Value)
+                            }
+
+                            $sb.Append('}')
+                        }
+
+                        return $sb.ToString()
+                    }
+                }
+            }
+        }
     }
 
     AfterAll {
-
         Unregister-SecretVault -Name ScriptTestVault -ErrorAction Ignore
+        foreach ($vault in $PreviousSecretVaults) {
+            $params = @{
+                ModuleName = $vault.ModuleName
+                DefaultVault = $vault.IsDefault
+            }
+
+            if ($vault.VaultParameters -and $vault.VaultParameters.Count -gt 0) {
+                $params['VaultParameters'] = $vault.VaultParameters
+            }
+
+            Register-SecretVault @params
+        }
+
         Remove-Module -Name TVaultScript -Force -ErrorAction Ignore
         if ($basePath -ne $null -and (Test-Path -Path $basePath))
         {
@@ -311,221 +439,50 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         }
     }
 
-    function VerifyByteArrayType
-    {
-        param (
-            [string] $Title,
-            [string] $VaultName
-        )
+    Context "Script extension vault <_> type tests" -ForEach $TestCases {
+        BeforeAll {
+            $SecretTestInfo = $StoreTypes[$_]
 
-        It "Verifies writing byte[] type to $Title vault" {
-            $bytes = [System.Text.Encoding]::UTF8.GetBytes("BinVaultHelloStr")
-            Set-Secret -Name BinVaultBlob -Secret $bytes -Vault $VaultName -ErrorVariable err
+            Register-SecretVault -Name ScriptTestVault -ModuleName $scriptModuleFilePath
+            [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $StorePath
+            [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $MetaStorePath
+        }
+
+        AfterAll {
+            Get-SecretVault ScriptTestVault | Unregister-SecretVault
+        }
+
+        It "Verifies writing <_> type to script vault" {
+            Set-Secret -Name $SecretTestInfo['Name'] -Secret $SecretTestInfo['Value'] -Vault $SecretTestInfo['Vault'] -ErrorVariable err
             $err.Count | Should -Be 0
         }
 
-        It "Verifies reading byte[] type from $Title vault" {
-            $blob = Get-Secret -Name BinVaultBlob -Vault $VaultName -ErrorVariable err
+        It "Verifies reading <_> type from script vault" {
+            $result = Get-Secret -Name $SecretTestInfo['Name'] -Vault $SecretTestInfo['Vault'] -ErrorVariable err
             $err.Count | Should -Be 0
-            [System.Text.Encoding]::UTF8.GetString($blob) | Should -BeExactly "BinVaultHelloStr"
+
+            $secretString = & $SecretTestInfo['Stringifier'] $SecretTestInfo['Value']
+            $resultString = & $SecretTestInfo['Stringifier'] $result
+            $resultString | Should -BeExactly $secretString
         }
 
-        It "Verifies enumerating byte[] type from $Title vault" {
-            $blobInfo = Get-SecretInfo -Name BinVaultBlob -Vault $VaultName -ErrorVariable err
+        It "Verifies enumerating <_> type from script vault" {
+            $blobInfo = Get-SecretInfo -Name $SecretTestInfo['Name'] -Vault $SecretTestInfo['Vault'] -ErrorVariable err
             $err.Count | Should -Be 0
-            $blobInfo.Name | Should -BeExactly "BinVaultBlob"
-            $blobInfo.Type | Should -BeExactly "ByteArray"
-            $blobInfo.VaultName | Should -BeExactly $VaultName
+            $blobInfo.Name | Should -BeExactly $SecretTestInfo['Name']
+            $blobInfo.Type | Should -BeExactly $SecretTestInfo['Kind']
+            $blobInfo.VaultName | Should -BeExactly $SecretTestInfo['Vault']
         }
 
-        It "Verifies removing byte[] type from $Title vault" {
-            Remove-Secret -Name BinVaultBlob -Vault $VaultName -ErrorVariable err
+        It "Verifies removing <_> type from script vault" {
+            Remove-Secret -Name $SecretTestInfo['Name'] -Vault $SecretTestInfo['Vault'] -ErrorVariable err
             $err.Count | Should -Be 0
-            { Get-Secret -Name BinVaultBlob -Vault $VaultName -ErrorAction Stop } | Should -Throw `
-                -ErrorId 'GetSecretNotFound,Microsoft.PowerShell.SecretManagement.GetSecretCommand'
-        }
-    }
-
-    function VerifyStringType
-    {
-        param (
-            [string] $Title,
-            [string] $VaultName
-        )
-
-        It "Verifies writing string type to $Title vault" {
-            Set-Secret -Name BinVaultStr -Secret "HelloBinVault" -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-        }
-
-        It "Verifies reading string type from $Title vault" {
-            $str = Get-Secret -Name BinVaultStr -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-            ($str -is [SecureString]) | Should -BeTrue
-
-            $str = Get-Secret -Name BinVaultStr -Vault $VaultName -AsPlainText -ErrorVariable err
-            $err.Count | Should -Be 0
-            $str | Should -BeExactly "HelloBinVault"
-        }
-
-        It "Verifies enumerating string type from $Title vault" {
-            $strInfo = Get-SecretInfo -Name BinVaultStr -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-            $strInfo.Name | Should -BeExactly "BinVaultStr"
-            $strInfo.Type | Should -BeExactly "String"
-            $strInfo.VaultName | Should -BeExactly $VaultName
-        }
-
-        It "Verifies removing string type from $Title vault" {
-            Remove-Secret -Name BinVaultStr -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-            { Get-Secret -Name BinVaultStr -Vault $VaultName -ErrorAction Stop } | Should -Throw `
-                -ErrorId 'GetSecretNotFound,Microsoft.PowerShell.SecretManagement.GetSecretCommand'
-        }
-    }
-
-    function VerifySecureStringType
-    {
-        param (
-            [string] $Title,
-            [string] $VaultName
-        )
-
-        $randomSecret = [System.IO.Path]::GetRandomFileName()
-        $secureStringToWrite = ConvertTo-SecureString $randomSecret -AsPlainText -Force
-
-        It "Verifies writing SecureString type to $Title vault" {
-            Set-Secret -Name BinVaultSecureStr -Secret $secureStringToWrite `
-                -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-        }
-
-        It "Verifies reading SecureString type from $Title vault" {
-            $ss = Get-Secret -Name BinVaultSecureStr -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-            [System.Net.NetworkCredential]::new('',$ss).Password | Should -BeExactly $randomSecret
-        }
-
-        It "Verifies enumerating SecureString type from $Title vault" {
-            $ssInfo = Get-SecretInfo -Name BinVaultSecureStr -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-            $ssInfo.Name | Should -BeExactly "BinVaultSecureStr"
-            $ssInfo.Type | Should -BeExactly "SecureString"
-            $ssInfo.VaultName | Should -BeExactly $VaultName
-        }
-
-        It "Verifies removing SecureString type from $Title vault" {
-            Remove-Secret -Name BinVaultSecureStr -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-            { Get-Secret -Name BinVaultSecureStr -Vault $VaultName -ErrorAction Stop } | Should -Throw `
-                -ErrorId 'GetSecretNotFound,Microsoft.PowerShell.SecretManagement.GetSecretCommand'
-        }
-
-        It "Verifies SecureString write with alternate parameter set" {
-            Set-Secret -Name BinVaultSecureStrA -SecureStringSecret $secureStringToWrite `
-                -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-        }
-
-        It "Verifies SecureString read from alternate parameter set" {
-            $ssRead = Get-Secret -Name BinVaultSecureStrA -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-            [System.Net.NetworkCredential]::new('',$ssRead).Password | Should -BeExactly $randomSecret
-        }
-
-        It "Verifes SecureString remove from alternate parameter set" {
-            { Remove-Secret -Name BinVaultSecureStrA -Vault $VaultName -ErrorVariable err } | Should -Not -Throw
-            $err.Count | Should -Be 0
-        }
-    }
-
-    function VerifyPSCredentialType
-    {
-        param (
-            [string] $Title,
-            [string] $VaultName
-        )
-
-        $randomSecret = [System.IO.Path]::GetRandomFileName()
-
-        It "Verifies writing PSCredential to $Title vault" {
-            $cred = [pscredential]::new('UserName', (ConvertTo-SecureString $randomSecret -AsPlainText -Force))
-            Set-Secret -Name BinVaultCred -Secret $cred -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-        }
-
-        It "Verifies reading PSCredential type from $Title vault" {
-            $cred = Get-Secret -Name BinVaultCred -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-            $cred.UserName | Should -BeExactly "UserName"
-            [System.Net.NetworkCredential]::new('', ($cred.Password)).Password | Should -BeExactly $randomSecret
-        }
-
-        It "Verifies enumerating PSCredential type from $Title vault" {
-            $credInfo = Get-SecretInfo -Name BinVaultCred -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-            $credInfo.Name | Should -BeExactly "BinVaultCred"
-            $credInfo.Type | Should -BeExactly "PSCredential"
-            $credInfo.VaultName | Should -BeExactly $VaultName
-        }
-
-        It "Verifies removing PSCredential type from $Title vault" {
-            Remove-Secret -Name BinVaultCred -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-            { Get-Secret -Name BinVaultCred -Vault $VaultName -ErrorAction Stop } | Should -Throw `
-                -ErrorId 'GetSecretNotFound,Microsoft.PowerShell.SecretManagement.GetSecretCommand'
-        }
-    }
-
-    function VerifyHashType
-    {
-        param (
-            [string] $Title,
-            [string] $VaultName
-        )
-
-        $randomSecretA = [System.IO.Path]::GetRandomFileName()
-        $randomSecretB = [System.IO.Path]::GetRandomFileName()
-
-        It "Verifies writing Hashtable type to $Title vault" {
-            $ht = @{ 
-                Blob = ([byte[]] @(1,2))
-                Str = "Hello"
-                SecureString = (ConvertTo-SecureString $randomSecretA -AsPlainText -Force)
-                Cred = ([pscredential]::New("UserA", (ConvertTo-SecureString $randomSecretB -AsPlainText -Force)))
-            }
-            Set-Secret -Name BinVaultHT -Vault $VaultName -Secret $ht -ErrorVariable err
-            $err.Count | Should -Be 0
-        }
-
-        It "Verifies reading Hashtable type from $Title vault" {
-            $ht = Get-Secret -Name BinVaultHT -Vault $VaultName -AsPlainText -ErrorVariable err
-            $err.Count | Should -Be 0
-            $ht.Blob.Count | Should -Be 2
-            $ht.Str | Should -BeExactly "Hello"
-            [System.Net.NetworkCredential]::new('', $ht.SecureString).Password | Should -BeExactly $randomSecretA
-            $ht.Cred.UserName | Should -BeExactly "UserA"
-            [System.Net.NetworkCredential]::new('', $ht.Cred.Password).Password | Should -BeExactly $randomSecretB
-        }
-
-        It "Verifies enumerating Hashtable type from $Title vault" {
-            $htInfo = Get-SecretInfo -Name BinVaultHT -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-            $htInfo.Name | Should -BeExactly "BinVaultHT"
-            $htInfo.Type | Should -BeExactly "Hashtable"
-            $htInfo.VaultName | Should -BeExactly $VaultName
-        }
-
-        It "Verifies removing Hashtable type from $Title vault" {
-            Remove-Secret -Name BinVaultHT -Vault $VaultName -ErrorVariable err
-            $err.Count | Should -Be 0
-            { Get-Secret -Name BinVaultHT -Vault $VaultName -ErrorAction Stop } | Should -Throw `
-                -ErrorId 'GetSecretNotFound,Microsoft.PowerShell.SecretManagement.GetSecretCommand'
+            { Get-Secret -Name $SecretTestInfo['Name'] -Vault $SecretTestInfo['Vault'] -ErrorAction Stop } |
+                Should -Throw -ErrorId 'GetSecretNotFound,Microsoft.PowerShell.SecretManagement.GetSecretCommand'
         }
     }
 
     Context "API Tests" {
-
         It "Verifies the SecretInformation constructor" {
             $metadata = @{ Name='Name1'; Target='Target1' }
             $secretInfo = [Microsoft.PowerShell.SecretManagement.SecretInformation]::new(
@@ -544,15 +501,17 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
     Context "Script extension (non-default) vault tests" {
 
-        $randomSecretD = [System.IO.Path]::GetRandomFileName()
+        BeforeAll {
+            $randomSecretD = [System.IO.Path]::GetRandomFileName()
+        }
 
         It "Verifies reserved 'Verbose' keyword in VaultParameters throws expected error" {
-            { Register-SecretVault -Name ScriptTestVault -ModuleName $script:scriptModuleFilePath -VaultParameters @{ Verbose = $true } } | Should -Throw -ErrorId 'RegisterSecretVaultCommandCannotUseReservedName,Microsoft.PowerShell.SecretManagement.RegisterSecretVaultCommand'
+            { Register-SecretVault -Name ScriptTestVault -ModuleName $scriptModuleFilePath -VaultParameters @{ Verbose = $true } } | Should -Throw -ErrorId 'RegisterSecretVaultCommandCannotUseReservedName,Microsoft.PowerShell.SecretManagement.RegisterSecretVaultCommand'
         }
 
         It "Should register the script vault extension successfully but with invalid parameters" {
             $additionalParameters = @{ Hello = "There" }
-            { Register-SecretVault -Name ScriptTestVault -ModuleName $script:scriptModuleFilePath -VaultParameters $additionalParameters -ErrorVariable err } | Should -Not -Throw
+            { Register-SecretVault -Name ScriptTestVault -ModuleName $scriptModuleFilePath -VaultParameters $additionalParameters -ErrorVariable err } | Should -Not -Throw
             $err.Count | Should -Be 0
         }
 
@@ -576,7 +535,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
         It "Should register the script vault extension successfully" {
             $additionalParameters = @{ AccessId = "AccessAT"; SubscriptionId = "1234567890" }
-            { Register-SecretVault -Name ScriptTestVault -ModuleName $script:scriptModuleFilePath -VaultParameters $additionalParameters `
+            { Register-SecretVault -Name ScriptTestVault -ModuleName $scriptModuleFilePath -VaultParameters $additionalParameters `
                 -Description 'ScriptTestVaultDescription' -ErrorVariable err } | Should -Not -Throw
             $err.Count | Should -Be 0
         }
@@ -587,7 +546,8 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
 
         It "Should throw error when registering existing registered vault extension" {
             $additionalParameters = @{ AccessId = "AccessAT"; SubscriptionId = "1234567890" }
-            { Register-SecretVault -Name ScriptTestVault -ModuleName $script:scriptModuleFilePath -VaultParameters $additionalParameters } | Should -Throw -ErrorId 'RegisterSecretVaultInvalidVaultName'
+            { Register-SecretVault -Name ScriptTestVault -ModuleName $scriptModuleFilePath -VaultParameters $additionalParameters } |
+                Should -Throw -ErrorId 'RegisterSecretVaultInvalidVaultName,Microsoft.PowerShell.SecretManagement.RegisterSecretVaultCommand'
         }
 
         It "Verifies Test-SecretVault succeeds" {
@@ -626,23 +586,26 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         }
 
         It "Verifies Unlock-SecretVault command" {
-            [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
-            [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
+            [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $StorePath
+            [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $MetaStorePath
 
             Unlock-SecretVault -Name ScriptTestVault -Password (ConvertTo-SecureString -String $randomSecretD -AsPlainText -Force) -ErrorVariable err 2>$null
 
             # Verify vault 'Unlock-SecretVault' function was called.
-            $dict = Import-Clixml -Path $storePath
+            $dict = Import-Clixml -Path $StorePath
             $dict['UnlockState'] | Should -BeExactly '0x11580'
         }
     }
 
     Context "Set-SecretVaultDefault cmdlet tests" {
 
-        $randomSecretE = [System.IO.Path]::GetRandomFileName()
+        BeforeAll {
+            $randomSecretE = [System.IO.Path]::GetRandomFileName()
+        }
 
         It "Should throw error when setting non existent vault as default" {
-            { Set-SecretVaultDefault -Name NoSuchVault } | Should -Throw -ErrorId 'VaultNotFound,Microsoft.PowerShell.SecretManagement.SetSecretVaultDefaultCommand'
+            { Set-SecretVaultDefault -Name NoSuchVault } |
+                Should -Throw -ErrorId 'VaultNotFound,Microsoft.PowerShell.SecretManagement.SetSecretVaultDefaultCommand'
         }
 
         It "Verifies cmdlet successfully sets default vault" {
@@ -663,56 +626,16 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         }
     }
 
-    Context "Script extension vault byte[] type tests" {
-
-        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
-        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
-
-        VerifyByteArrayType -Title "script" -VaultName "ScriptTestVault"
-    }
-
-    Context "Script extension vault String type tests" {
-
-        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
-        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
-
-        VerifyStringType -Title "script" -VaultName "ScriptTestVault"
-    }
-
-    Context "Script extension vault SecureString type tests" {
-
-        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
-        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
-
-        VerifySecureStringType -Title "script" -VaultName "ScriptTestVault"
-    }
-
-    Context "Script extension vault PSCredential type tests" {
-
-        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
-        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
-
-        VerifyPSCredentialType -Title "script" -VaultName "ScriptTestVault"
-    }
-
-    Context "Script extension vault Hashtable type tests" {
-
-        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
-        [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
-
-        VerifyHashType -Title "script" -VaultName "ScriptTestVault"
-    }
-
     Context "Unregister-SecretVault cmdlet tests" {
 
         It "Verifies unregister operation calls the extension 'Unregister-SecretVault' function before unregistering" {
-            [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $storePath
-            [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $metaStorePath
+            [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $StorePath
+            [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $MetaStorePath
 
             { Unregister-SecretVault -Name ScriptTestVault -ErrorVariable err } | Should -Not -Throw
             $err.Count | Should -Be 0
 
-            $store = Import-Clixml -Path $storePath
+            $store = Import-Clixml -Path $StorePath
             $store['UnRegisterSecretVaultCalled'] | Should -BeTrue
 
             <#
