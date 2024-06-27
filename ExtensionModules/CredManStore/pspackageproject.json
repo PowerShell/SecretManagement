@@ -1,9 +1,0 @@
-{
-  "ModuleName": "Microsoft.PowerShell.CredManStore",
-  "Culture": "en-US",
-  "BuildOutputPath": "out",
-  "SignedOutputPath": "signed",
-  "HelpPath": "help",
-  "TestPath": "test",
-  "SourcePath": "src"
-}
