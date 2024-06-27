@@ -7,7 +7,7 @@ param(
 $ProjectName = "SecretManagement"
 $FullModuleName = 'Microsoft.PowerShell.SecretManagement'
 $CSharpSource = Join-Path $PSScriptRoot src/code
-$CSharpPublish = Join-Path $PSScriptRoot artifacts/publish
+$CSharpPublish = Join-Path $PSScriptRoot artifacts/publish/$FullModuleName/$Configuration
 $ModuleOut = Join-Path $PSScriptRoot module
 $PackageOut = Join-Path $PSScriptRoot out
 $HelpSource = Join-Path $PSScriptRoot help
@@ -60,7 +60,8 @@ task BuildDocs {
 task BuildModule {
     New-Item -ItemType Directory -Force $ModuleOut | Out-Null
 
-    Invoke-BuildExec { dotnet publish $CSharpSource --configuration $Configuration --output $CSharpPublish }
+    Invoke-BuildExec { dotnet publish $CSharpSource --configuration $Configuration }
+    Invoke-BuildExec { dotnet publish $PSScriptRoot/ExtensionModules/CredManStore/src/code --configuration $Configuration }
 
     $CSharpArtifacts | ForEach-Object {
         $item = Join-Path $CSharpPublish $_
