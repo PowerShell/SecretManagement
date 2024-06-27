@@ -2,25 +2,24 @@
 # Licensed under the MIT License.
 
 Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
-
     BeforeAll {
-
-        if (! $IsWindows)
+        $ModuleRoot = Split-Path $PSScriptRoot | Join-Path -ChildPath 'artifacts/publish/Microsoft.PowerShell.CredManStore/Release'
+        $ProjectRoot = Split-Path $PSScriptRoot | Split-Path | Split-Path
+        if (-not $IsWindows)
         {
             $defaultParameterValues = $PSDefaultParameterValues.Clone()
-            $PSDefaultParameterValues["it:Skip"] = $true
+            $PSDefaultParameterValues["It:Skip"] = $true
+            return
         }
-        else
-        {
-            if ((Get-Module -Name Microsoft.PowerShell.SecretManagement -ErrorAction Ignore) -eq $null)
-            {
-                Import-Module -Name Microsoft.PowerShell.SecretManagement
-            }
 
-            if ((Get-Module -Name Microsoft.PowerShell.CredManStore -ErrorAction Ignore) -eq $null)
-            {
-                Import-Module -Name ..\Microsoft.PowerShell.CredManStore.psd1
-            }
+        if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement -ErrorAction Ignore))
+        {
+            Import-Module -Name Microsoft.PowerShell.SecretManagement
+        }
+
+        if (-not (Get-Module -Name Microsoft.PowerShell.CredManStore -ErrorAction Ignore))
+        {
+            Import-Module -Name $ModuleRoot\Microsoft.PowerShell.CredManStore.psd1
         }
     }
 
@@ -34,9 +33,11 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
 
     Context "CredMan Store Vault Byte[] type" {
 
-        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
-        $bytesToWrite = [System.Text.Encoding]::UTF8.GetBytes('TestStringForBytes')
-        $errorCode = 0
+        BeforeAll {
+            $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+            $bytesToWrite = [System.Text.Encoding]::UTF8.GetBytes('TestStringForBytes')
+            $errorCode = 0
+        }
 
         It "Verifies byte[] write to store" {
             $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::WriteObject(
@@ -54,7 +55,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
                 $secretName,
                 [ref] $outBytes,
                 [ref] $errorCode)
-            
+
             $success | Should -BeTrue
             $errorCode | Should -Be 0
             [System.Text.Encoding]::UTF8.GetString($outBytes) | Should -BeExactly 'TestStringForBytes'
@@ -66,7 +67,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
                 $secretName,
                 [ref] $outInfo,
                 [ref] $errorCode)
-            
+
             $success | Should -BeTrue
             $errorCode | Should -Be 0
             $outInfo.Key | Should -BeExactly $secretName
@@ -77,7 +78,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
             $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::DeleteObject(
                 $secretName,
                 [ref] $errorCode)
-            
+
             $success | Should -BeTrue
             $errorCode | Should -Be 0
         }
@@ -85,9 +86,11 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
 
     Context "CredMan Store Vault String type" {
 
-        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
-        $stringToWrite = 'TestStringForString'
-        $errorCode = 0
+        BeforeAll {
+            $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+            $stringToWrite = 'TestStringForString'
+            $errorCode = 0
+        }
 
         It "Verifes string write to store" {
             $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::WriteObject(
@@ -105,7 +108,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
                 $secretName,
                 [ref] $outString,
                 [ref] $errorCode)
-            
+
             $success | Should -BeTrue
             $errorCode | Should -Be 0
             $outString | Should -BeExactly 'TestStringForString'
@@ -117,7 +120,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
                 $secretName,
                 [ref] $outInfo,
                 [ref] $errorCode)
-            
+
             $success | Should -BeTrue
             $errorCode | Should -Be 0
             $outInfo.Key | Should -BeExactly $secretName
@@ -128,7 +131,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
             $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::DeleteObject(
                 $secretName,
                 [ref] $errorCode)
-            
+
             $success | Should -BeTrue
             $errorCode | Should -Be 0
         }
@@ -136,10 +139,12 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
 
     Context "CredMan Store Vault SecureString type" {
 
-        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
-        $randomSecret = [System.IO.Path]::GetRandomFileName()
-        $secureStringToWrite = ConvertTo-SecureString -String $randomSecret -AsPlainText -Force
-        $errorCode = 0
+        BeforeAll {
+            $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+            $randomSecret = [System.IO.Path]::GetRandomFileName()
+            $secureStringToWrite = ConvertTo-SecureString -String $randomSecret -AsPlainText -Force
+            $errorCode = 0
+        }
 
         It "Verifies SecureString write to store" {
             $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::WriteObject(
@@ -157,7 +162,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
                 $secretName,
                 [ref] $outSecureString,
                 [ref] $errorCode)
-            
+
             $success | Should -BeTrue
             $errorCode | Should -Be 0
             [System.Net.NetworkCredential]::new('',$outSecureString).Password | Should -BeExactly $randomSecret
@@ -169,7 +174,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
                 $secretName,
                 [ref] $outInfo,
                 [ref] $errorCode)
-            
+
             $success | Should -BeTrue
             $errorCode | Should -Be 0
             $outInfo.Key | Should -BeExactly $secretName
@@ -180,7 +185,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
             $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::DeleteObject(
                 $secretName,
                 [ref] $errorCode)
-            
+
             $success | Should -BeTrue
             $errorCode | Should -Be 0
         }
@@ -188,9 +193,11 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
 
     Context "CredMan Store Vault PSCredential type" {
 
-        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
-        $randomSecret = [System.IO.Path]::GetRandomFileName()
-        $errorCode = 0
+        BeforeAll {
+            $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+            $randomSecret = [System.IO.Path]::GetRandomFileName()
+            $errorCode = 0
+        }
 
         It "Verifies PSCredential type write to store" {
             $cred = [pscredential]::new('UserL', (ConvertTo-SecureString $randomSecret -AsPlainText -Force))
@@ -209,7 +216,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
                 $secretName,
                 [ref] $outCred,
                 [ref] $errorCode)
-            
+
             $success | Should -BeTrue
             $errorCode | Should -Be 0
             $outCred.UserName | Should -BeExactly "UserL"
@@ -222,7 +229,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
                 $secretName,
                 [ref] $outInfo,
                 [ref] $errorCode)
-            
+
             $success | Should -BeTrue
             $errorCode | Should -Be 0
             $outInfo.Key | Should -BeExactly $secretName
@@ -233,7 +240,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
             $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::DeleteObject(
                 $secretName,
                 [ref] $errorCode)
-            
+
             $success | Should -BeTrue
             $errorCode | Should -Be 0
         }
@@ -241,10 +248,12 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
 
     Context "CredMan Store Vault Hashtable type" {
 
-        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
-        $randomSecretA = [System.IO.Path]::GetRandomFileName()
-        $randomSecretB = [System.IO.Path]::GetRandomFileName()
-        $errorCode = 0
+        BeforeAll {
+            $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+            $randomSecretA = [System.IO.Path]::GetRandomFileName()
+            $randomSecretB = [System.IO.Path]::GetRandomFileName()
+            $errorCode = 0
+        }
 
         It "Verifies Hashtable type write to store" {
             $ht = @{
@@ -269,7 +278,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
                 $secretName,
                 [ref] $outHT,
                 [ref] $errorCode)
-            
+
             $success | Should -BeTrue
             $errorCode | Should -Be 0
             $outHT.Blob.Count | Should -Be 2
@@ -285,7 +294,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
                 $secretName,
                 [ref] $outInfo,
                 [ref] $errorCode)
-            
+
             $success | Should -BeTrue
             $errorCode | Should -Be 0
             $outInfo.Key | Should -BeExactly $secretName
@@ -296,7 +305,7 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
             $success = [Microsoft.PowerShell.CredManStore.LocalCredManStore]::DeleteObject(
                 $secretName,
                 [ref] $errorCode)
-            
+
             $success | Should -BeTrue
             $errorCode | Should -Be 0
         }
