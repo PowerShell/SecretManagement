@@ -61,7 +61,10 @@ task BuildModule {
     New-Item -ItemType Directory -Force $ModuleOut | Out-Null
 
     Invoke-BuildExec { dotnet publish $CSharpSource --configuration $Configuration }
-    Invoke-BuildExec { dotnet publish $PSScriptRoot/ExtensionModules/CredManStore/src/code --configuration $Configuration }
+
+    # Hard code building this in release config since we aren't actually developing it,
+    # it's only for tests. The tests also hard code the path assuming release config.
+    Invoke-BuildExec { dotnet publish $PSScriptRoot/ExtensionModules/CredManStore/src/code --configuration Release }
 
     $CSharpArtifacts | ForEach-Object {
         $item = Join-Path $CSharpPublish $_
