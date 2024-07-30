@@ -1,7 +1,0 @@
-{
-    "cSpell.ignoreWords": [
-        "cmdlet",
-        "pscustomobject"
-    ],
-    "powershell.codeFormatting.addWhitespaceAroundPipe": true
-}
