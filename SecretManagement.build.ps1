@@ -1,13 +1,17 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
 [CmdletBinding()]
 param(
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Debug"
 )
 
+#Requires -Modules @{ ModuleName = "InvokeBuild"; ModuleVersion = "5.0.0" }
+
 $ProjectName = "SecretManagement"
-$FullModuleName = 'Microsoft.PowerShell.SecretManagement'
+$FullModuleName = "Microsoft.PowerShell.SecretManagement"
 $CSharpSource = Join-Path $PSScriptRoot src/code
-$CSharpPublish = Join-Path $PSScriptRoot artifacts/publish/$FullModuleName/$Configuration
+$CSharpPublish = Join-Path $PSScriptRoot artifacts/publish/$FullModuleName/$($Configuration.ToLower())
 $ModuleOut = Join-Path $PSScriptRoot module
 $PackageOut = Join-Path $PSScriptRoot out
 $HelpSource = Join-Path $PSScriptRoot help
@@ -37,7 +41,7 @@ task FindDotNet -Before Clean, Build {
 }
 
 task Clean {
-    Remove-BuildItem $ModuleOut, $PackageOut
+    Remove-BuildItem ./artifacts, $ModuleOut, $PackageOut
     Invoke-BuildExec { dotnet clean $CSharpSource }
 
     Remove-BuildItem "$HelpOut/$FullModuleName.dll-Help.xml"
@@ -46,14 +50,10 @@ task Clean {
     }
 }
 
-task BuildDocs {
-    if (-not (Test-Path -LiteralPath $HelpSource)) {
-        return
-    }
-
-    New-ExternalHelp -Path $HelpSource -OutputPath $HelpOut | Out-Null
+task BuildDocs -If { Test-Path -LiteralPath $HelpSource } {
+    New-ExternalHelp -Path $HelpSource -OutputPath $HelpOut
     foreach ($aboutTopic in $HelpAboutTopics) {
-        New-ExternalHelp -Path "$HelpSource\$aboutTopic.md" -OutputPath $HelpOut | Out-Null
+        New-ExternalHelp -Path "$HelpSource\$aboutTopic.md" -OutputPath $HelpOut
     }
 }
 
@@ -90,14 +90,19 @@ task PackageModule {
     try {
         Register-PSResourceRepository -Name $ProjectName -Uri $PackageOut -ErrorAction Stop
         $registerSuccessful = $true
-        Publish-PSResource -Path $ModuleOut -Repository $ProjectName
+        Publish-PSResource -Path $ModuleOut -Repository $ProjectName -Verbose
     } finally {
         Unregister-PSResourceRepository -Name $ProjectName
     }
 }
 
-task PackageLibrary {
-    Invoke-BuildExec { dotnet pack $CSharpSource --no-build --configuration $Configuration --no-restore --output $PackageOut }
+# AKA Microsoft.PowerShell.SecretManagement.Library
+task PackageLibrary -If { $Configuration -eq "Release" } {
+    Invoke-BuildExec { dotnet pack $CSharpSource --no-build --configuration $Configuration --output $PackageOut }
+}
+
+task Test {
+    Invoke-Pester -CI
 }
 
 task Build BuildModule, BuildDocs
