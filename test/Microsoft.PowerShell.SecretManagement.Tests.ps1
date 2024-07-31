@@ -450,30 +450,25 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" {
         }
 
         It "Verifies writing <_> type to script vault" {
-            Set-Secret -Name $SecretTestInfo['Name'] -Secret $SecretTestInfo['Value'] -Vault $SecretTestInfo['Vault'] -ErrorVariable err
-            $err.Count | Should -Be 0
+            Set-Secret -Name $SecretTestInfo['Name'] -Secret $SecretTestInfo['Value'] -Vault $SecretTestInfo['Vault'] -ErrorAction Stop
         }
 
         It "Verifies reading <_> type from script vault" {
-            $result = Get-Secret -Name $SecretTestInfo['Name'] -Vault $SecretTestInfo['Vault'] -ErrorVariable err
-            $err.Count | Should -Be 0
-
+            $result = Get-Secret -Name $SecretTestInfo['Name'] -Vault $SecretTestInfo['Vault'] -ErrorAction Stop
             $secretString = & $SecretTestInfo['Stringifier'] $SecretTestInfo['Value']
             $resultString = & $SecretTestInfo['Stringifier'] $result
             $resultString | Should -BeExactly $secretString
         }
 
         It "Verifies enumerating <_> type from script vault" {
-            $blobInfo = Get-SecretInfo -Name $SecretTestInfo['Name'] -Vault $SecretTestInfo['Vault'] -ErrorVariable err
-            $err.Count | Should -Be 0
+            $blobInfo = Get-SecretInfo -Name $SecretTestInfo['Name'] -Vault $SecretTestInfo['Vault'] -ErrorAction Stop
             $blobInfo.Name | Should -BeExactly $SecretTestInfo['Name']
             $blobInfo.Type | Should -BeExactly $SecretTestInfo['Kind']
             $blobInfo.VaultName | Should -BeExactly $SecretTestInfo['Vault']
         }
 
         It "Verifies removing <_> type from script vault" {
-            Remove-Secret -Name $SecretTestInfo['Name'] -Vault $SecretTestInfo['Vault'] -ErrorVariable err
-            $err.Count | Should -Be 0
+            Remove-Secret -Name $SecretTestInfo['Name'] -Vault $SecretTestInfo['Vault'] -ErrorAction Stop
             { Get-Secret -Name $SecretTestInfo['Name'] -Vault $SecretTestInfo['Vault'] -ErrorAction Stop } |
                 Should -Throw -ErrorId 'GetSecretNotFound,Microsoft.PowerShell.SecretManagement.GetSecretCommand'
         }
@@ -503,17 +498,18 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" {
         }
 
         It "Verifies reserved 'Verbose' keyword in VaultParameters throws expected error" {
-            { Register-SecretVault -Name ScriptTestVault -ModuleName $scriptModuleFilePath -VaultParameters @{ Verbose = $true } } | Should -Throw -ErrorId 'RegisterSecretVaultCommandCannotUseReservedName,Microsoft.PowerShell.SecretManagement.RegisterSecretVaultCommand'
+            { Register-SecretVault -Name ScriptTestVault -ModuleName $scriptModuleFilePath -VaultParameters @{ Verbose = $true } -ErrorAction Stop } |
+                Should -Throw -ErrorId 'RegisterSecretVaultCommandCannotUseReservedName,Microsoft.PowerShell.SecretManagement.RegisterSecretVaultCommand'
         }
 
         It "Should register the script vault extension successfully but with invalid parameters" {
             $additionalParameters = @{ Hello = "There" }
-            { Register-SecretVault -Name ScriptTestVault -ModuleName $scriptModuleFilePath -VaultParameters $additionalParameters -ErrorVariable err } | Should -Not -Throw
-            $err.Count | Should -Be 0
+            Register-SecretVault -Name ScriptTestVault -ModuleName $scriptModuleFilePath -VaultParameters $additionalParameters -ErrorAction Stop
         }
 
         It "Verifies Test-SecretVault fails with errors" {
-            Test-SecretVault -Name ScriptTestVault 2>$null | Should -BeFalse
+            { Test-SecretVault -Name ScriptTestVault -ErrorAction Stop } | 
+                Should -Throw -ErrorId 'Microsoft.PowerShell.Commands.WriteErrorException,Microsoft.PowerShell.SecretManagement.TestSecretVaultCommand'
         }
 
         It "Verifies the only script vault extension is designated as the default vault" {
@@ -522,19 +518,17 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" {
         }
 
         It "Verifies that a secret item added with default vault designated results in no error" {
-            { Set-Secret -Name TestDefaultItem -Secret $randomSecretD } | Should -Not -Throw
+            Set-Secret -Name TestDefaultItem -Secret $randomSecretD -ErrorAction Stop
         }
 
         It "Should successfully unregister script vault extension" {
-            { Unregister-SecretVault -Name ScriptTestVault -ErrorVariable err } | Should -Not -Throw
-            $err.Count | Should -Be 0
+            Unregister-SecretVault -Name ScriptTestVault -ErrorAction Stop
         }
 
         It "Should register the script vault extension successfully" {
             $additionalParameters = @{ AccessId = "AccessAT"; SubscriptionId = "1234567890" }
-            { Register-SecretVault -Name ScriptTestVault -ModuleName $scriptModuleFilePath -VaultParameters $additionalParameters `
-                -Description 'ScriptTestVaultDescription' -ErrorVariable err } | Should -Not -Throw
-            $err.Count | Should -Be 0
+            Register-SecretVault -Name ScriptTestVault -ModuleName $scriptModuleFilePath -VaultParameters $additionalParameters `
+                -Description 'ScriptTestVaultDescription' -ErrorAction Stop
         }
 
         It "Verifies description field for registered test vault" {
@@ -561,32 +555,29 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" {
         # Metadata is set through extension vault 'Set-SecretInfo' command, and not via a Metadata
         # parameter on 'Set-Secret' command.
         It "Verifies Set-Secret with metadata succeeds" {
-            { Set-Secret -Name TestDefaultMeta -Secret $randomSecretD -Metadata @{ Fail = $false } -ErrorVariable err } | Should -Not -Throw
-            $err.Count | Should -Be 0
+            Set-Secret -Name TestDefaultMeta -Secret $randomSecretD -Metadata @{ Fail = $false } -ErrorAction Stop
             $info = Get-SecretInfo -Name TestDefaultMeta
             $info.Metadata | Should -Not -BeNullOrEmpty
             $info.Metadata["Fail"] | Should -BeFalse
         }
 
         It "Verifes Set-SecretInfo function" {
-            { Set-SecretInfo -Name TestDefaultMeta -Metadata @{ Fail = $false; Data = "MyData" } -ErrorVariable err } | Should -Not -Throw
-            $err.Count | Should -Be 0
+            Set-SecretInfo -Name TestDefaultMeta -Metadata @{ Fail = $false; Data = "MyData" } -ErrorAction Stop
             $info = Get-SecretInfo -Name TestDefaultMeta
             $info.Metadata | Should -Not -BeNullOrEmpty
             $info.Metadata["Data"] | Should -BeExactly "MyData"
         }
 
         It "Verifies unsupported Set-SecretInfo fails with error" {
-            Set-SecretInfo -Name TestDefaultMeta -Metadata @{ Fail = $true } -ErrorVariable err 2>$null
-            $err | Should -HaveCount 1
-            $err[0].FullyQualifiedErrorId | Should -BeExactly 'SetSecretMetadataInvalidOperation,Microsoft.PowerShell.SecretManagement.SetSecretInfoCommand'
+            { Set-SecretInfo -Name TestDefaultMeta -Metadata @{ Fail = $true } -ErrorAction Stop } |
+                Should -Throw -ErrorId 'SetSecretMetadataInvalidOperation,Microsoft.PowerShell.SecretManagement.SetSecretInfoCommand'
         }
 
         It "Verifies Unlock-SecretVault command" {
             [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $StorePath
             [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-CliXml -Path $MetaStorePath
 
-            Unlock-SecretVault -Name ScriptTestVault -Password (ConvertTo-SecureString -String $randomSecretD -AsPlainText -Force) -ErrorVariable err 2>$null
+            Unlock-SecretVault -Name ScriptTestVault -Password (ConvertTo-SecureString -String $randomSecretD -AsPlainText -Force) -ErrorAction Stop
 
             # Verify vault 'Unlock-SecretVault' function was called.
             $dict = Import-Clixml -Path $StorePath
@@ -629,8 +620,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" {
             [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $StorePath
             [System.Collections.Generic.Dictionary[[string],[object]]]::new() | Export-Clixml -Path $MetaStorePath
 
-            { Unregister-SecretVault -Name ScriptTestVault -ErrorVariable err } | Should -Not -Throw
-            $err.Count | Should -Be 0
+            Unregister-SecretVault -Name ScriptTestVault -ErrorAction Stop
 
             $store = Import-Clixml -Path $StorePath
             $store['UnRegisterSecretVaultCalled'] | Should -BeTrue
