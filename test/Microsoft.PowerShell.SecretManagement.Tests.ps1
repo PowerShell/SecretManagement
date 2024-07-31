@@ -9,13 +9,10 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" {
     BeforeAll {
         $ProjectRoot = Split-Path $PSScriptRoot
         $ModulePath = Join-Path $ProjectRoot "module"
-        $ManifestPath = Join-Path $ModulePath 'Microsoft.PowerShell.SecretManagement.psd1'
+        $ManifestPath = Join-Path $ModulePath "Microsoft.PowerShell.SecretManagement.psd1"
 
-        $BasePath = Join-Path ([IO.Path]::GetTempPath()) "SecretManagementStorePath"
-        if (-not (Test-Path -Path $BasePath))
-        {
-            New-Item -ItemType Directory -Path $BasePath | Out-Null
-        }
+        $BasePath = Join-Path $TestDrive "SecretManagementStorePath"
+        New-Item -ItemType Directory -Path $BasePath -Force
 
         $StorePath = Join-Path $BasePath "StorePath.xml"
         $MetaStorePath = Join-Path $BasePath "MetaStorePath.xml"
@@ -23,8 +20,9 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" {
         # Script extension module
         $scriptModuleName = "TVaultScript"
         $implementingModuleName = "TVaultScript.Extension"
-        $scriptModulePath = Join-Path $testdrive $scriptModuleName
-        New-Item -ItemType Directory $scriptModulePath -Force | Out-Null
+        $scriptModulePath = Join-Path $TestDrive $scriptModuleName
+        New-Item -ItemType Directory $scriptModulePath -Force
+
         $scriptModuleFilePath = Join-Path $scriptModulePath "${scriptModuleName}.psd1"
         "@{{
             ModuleVersion = '1.0'
@@ -430,10 +428,6 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" {
         }
 
         Remove-Module -Name TVaultScript -Force -ErrorAction Ignore
-        if ($basePath -ne $null -and (Test-Path -Path $basePath))
-        {
-            Remove-Item -Path $basePath -Recurse -Force -ErrorAction SilentlyContinue
-        }
     }
 
     Context "Script extension vault <_> type tests" -ForEach $TestCases {
