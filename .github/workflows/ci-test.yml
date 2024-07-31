@@ -4,7 +4,6 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    # The branches below must be a subset of the branches above
     branches: [ main ]
   merge_group:
     types: [ checks_requested ]
@@ -18,7 +17,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       DOTNET_NOLOGO: true
-      DOTNET_CLI_TELEMETRY_OPTOUT: true
       DOTNET_GENERATE_ASPNET_CERTIFICATE: false
     steps:
       - uses: actions/checkout@v4
@@ -27,7 +25,7 @@ jobs:
           dotnet-version: 8.x
       - run: ./tools/installPSResources.ps1
         shell: pwsh
-      - run: ./build.ps1 -Build && Invoke-ModuleTests -Type Functional
+      - run: Invoke-Build -Configuration Release -Task Build, Package, Test
         shell: pwsh
       - uses: actions/upload-artifact@v4
         if: always()
@@ -38,4 +36,4 @@ jobs:
         if: always()
         with:
           name: SecretManagement-tests-${{ matrix.os }}
-          path:  test/result.pester.xml
+          path: testResults.xml

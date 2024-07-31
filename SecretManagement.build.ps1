@@ -102,7 +102,7 @@ task PackageLibrary -If { $Configuration -eq "Release" } {
 }
 
 task Test {
-    Invoke-Pester -CI
+    Invoke-Pester -CI -Output Diagnostic
 }
 
 task Build BuildModule, BuildDocs
