@@ -21,8 +21,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="$(ArtifactsPath)/../src/Microsoft.PowerShell.CredManStore.psd1" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="$(ArtifactsPath)/../Microsoft.PowerShell.CredManStore.Extension/Microsoft.PowerShell.CredManStore.Extension.psd1" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../Microsoft.PowerShell.CredManStore.psd1" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../Microsoft.PowerShell.CredManStore.Extension/Microsoft.PowerShell.CredManStore.Extension.psd1" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

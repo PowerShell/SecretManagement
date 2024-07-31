@@ -1,14 +1,14 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 
-Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
+Describe "Test Microsoft.PowerShell.SecretManagement module" {
     BeforeDiscovery {
         $TestCases = 'ByteArray', 'String', 'SecureString', 'PSCredential', 'Hashtable'
     }
 
     BeforeAll {
         $ProjectRoot = Split-Path $PSScriptRoot
-        $ModulePath = Join-Path $ProjectRoot $ModulePath
+        $ModulePath = Join-Path $ProjectRoot "module"
         $ManifestPath = Join-Path $ModulePath 'Microsoft.PowerShell.SecretManagement.psd1'
 
         $BasePath = Join-Path ([IO.Path]::GetTempPath()) "SecretManagementStorePath"
@@ -288,10 +288,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" -tags CI {
         $implementingModuleFilePath = Join-Path $implementingModulePath "${implementingModuleName}.psm1"
         $scriptImplementation | Out-File -FilePath $implementingModuleFilePath
 
-        if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement -ErrorAction Ignore))
-        {
-            Import-Module -Name $ManifestPath
-        }
+        Import-Module -Force -Name $ManifestPath
 
         $PreviousSecretVaults = Get-SecretVault
         $PreviousSecretVaults | Unregister-SecretVault

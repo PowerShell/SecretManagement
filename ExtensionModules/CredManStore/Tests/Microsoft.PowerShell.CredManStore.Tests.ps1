@@ -1,10 +1,11 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 
-Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
+Describe "Test Microsoft.PowerShell.CredManStore module" {
     BeforeAll {
-        $ModuleRoot = Split-Path $PSScriptRoot | Join-Path -ChildPath 'artifacts/publish/Microsoft.PowerShell.CredManStore/Release'
         $ProjectRoot = Split-Path $PSScriptRoot | Split-Path | Split-Path
+        $ModuleRoot = Join-Path $ProjectRoot "artifacts/publish/Microsoft.PowerShell.CredManStore/release"
+
         if (-not $IsWindows)
         {
             $defaultParameterValues = $PSDefaultParameterValues.Clone()
@@ -12,27 +13,18 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
             return
         }
 
-        if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement -ErrorAction Ignore))
-        {
-            Import-Module -Name Microsoft.PowerShell.SecretManagement
-        }
-
-        if (-not (Get-Module -Name Microsoft.PowerShell.CredManStore -ErrorAction Ignore))
-        {
-            Import-Module -Name $ModuleRoot\Microsoft.PowerShell.CredManStore.psd1
-        }
+        Import-Module -Force -Name $ProjectRoot/module/Microsoft.PowerShell.SecretManagement.psd1
+        Import-Module -Force -Name $ModuleRoot/Microsoft.PowerShell.CredManStore.psd1
     }
 
     AfterAll {
-
-        if (! $IsWindows)
+        if (-not $IsWindows)
         {
             $global:PSDefaultParameterValues = $defaultParameterValues
         }
     }
 
     Context "CredMan Store Vault Byte[] type" {
-
         BeforeAll {
             $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
             $bytesToWrite = [System.Text.Encoding]::UTF8.GetBytes('TestStringForBytes')
@@ -85,7 +77,6 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
     }
 
     Context "CredMan Store Vault String type" {
-
         BeforeAll {
             $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
             $stringToWrite = 'TestStringForString'
@@ -138,7 +129,6 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
     }
 
     Context "CredMan Store Vault SecureString type" {
-
         BeforeAll {
             $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
             $randomSecret = [System.IO.Path]::GetRandomFileName()
@@ -192,7 +182,6 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
     }
 
     Context "CredMan Store Vault PSCredential type" {
-
         BeforeAll {
             $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
             $randomSecret = [System.IO.Path]::GetRandomFileName()
@@ -247,7 +236,6 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -tags CI {
     }
 
     Context "CredMan Store Vault Hashtable type" {
-
         BeforeAll {
             $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
             $randomSecretA = [System.IO.Path]::GetRandomFileName()
