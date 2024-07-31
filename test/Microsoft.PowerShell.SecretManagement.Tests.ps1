@@ -341,7 +341,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" {
                         $value = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
                         return $value
                     } finally {
-                        [System.Runtime.InteropServices.Marshal]::FreeHGlobal($ptr)
+                        [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
                     }
                 }
             }

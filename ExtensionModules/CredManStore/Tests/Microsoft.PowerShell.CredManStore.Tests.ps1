@@ -1,27 +1,12 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 
-Describe "Test Microsoft.PowerShell.CredManStore module" {
+Describe "Test Microsoft.PowerShell.CredManStore module" -Skip:(-Not $IsWindows) {
     BeforeAll {
         $ProjectRoot = Split-Path $PSScriptRoot | Split-Path | Split-Path
         $ModuleRoot = Join-Path $ProjectRoot "artifacts/publish/Microsoft.PowerShell.CredManStore/release"
-
-        if (-not $IsWindows)
-        {
-            $defaultParameterValues = $PSDefaultParameterValues.Clone()
-            $PSDefaultParameterValues["It:Skip"] = $true
-            return
-        }
-
         Import-Module -Force -Name $ProjectRoot/module/Microsoft.PowerShell.SecretManagement.psd1
         Import-Module -Force -Name $ModuleRoot/Microsoft.PowerShell.CredManStore.psd1
-    }
-
-    AfterAll {
-        if (-not $IsWindows)
-        {
-            $global:PSDefaultParameterValues = $defaultParameterValues
-        }
     }
 
     Context "CredMan Store Vault Byte[] type" {
