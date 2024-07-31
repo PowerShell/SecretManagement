@@ -9,7 +9,7 @@ NestedModules = @('.\Microsoft.PowerShell.CredManStore.Extension')
 ModuleVersion = '1.0.0'
 
 # Supported PSEditions
-CompatiblePSEditions = @('Core')
+CompatiblePSEditions = @('Desktop', 'Core')
 
 # ID used to uniquely identify this module
 GUID = '4b4bc3ec-190a-493f-a869-5ebdb239895d'
