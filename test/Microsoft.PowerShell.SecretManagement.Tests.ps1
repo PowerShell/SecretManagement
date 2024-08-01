@@ -428,6 +428,7 @@ Describe "Test Microsoft.PowerShell.SecretManagement module" {
         }
 
         Remove-Module -Name TVaultScript -Force -ErrorAction Ignore
+        Remove-Module -Name Microsoft.PowerShell.SecretManagement -Force -ErrorAction Ignore
     }
 
     Context "Script extension vault <_> type tests" -ForEach $TestCases {

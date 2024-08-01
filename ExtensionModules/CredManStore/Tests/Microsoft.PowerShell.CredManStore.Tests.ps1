@@ -9,6 +9,11 @@ Describe "Test Microsoft.PowerShell.CredManStore module" -Skip:(-Not $IsWindows)
         Import-Module -Force -Name $ModuleRoot/Microsoft.PowerShell.CredManStore.psd1
     }
 
+    AfterAll {
+        Remove-Module -Name Microsoft.PowerShell.CredManStore -Force -ErrorAction Ignore
+        Remove-Module -Name Microsoft.PowerShell.SecretManagement -Force -ErrorAction Ignore
+    }
+
     Context "CredMan Store Vault Byte[] type" {
         BeforeAll {
             $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
