@@ -76,9 +76,8 @@ task BuildModule {
         Copy-Item -Force -LiteralPath $itemToCopy -Destination $ModuleOut
     }
 
-    $propsContent = Get-Content $PSScriptRoot/Directory.Build.props -Raw
-    $props = [xml]$propsContent
-    $moduleVersion = $props.Project.PropertyGroup.ModuleVersion
+    [xml]$xml = Get-Content Directory.Build.props
+    $moduleVersion = $xml.Project.PropertyGroup.ModuleVersion
     $manifestContent = Get-Content -LiteralPath $ManifestPath -Raw
     $newManifestContent = $manifestContent -replace '{{ModuleVersion}}', $moduleVersion
     Set-Content -LiteralPath "$ModuleOut/$FullModuleName.psd1" -Encoding utf8 -Value $newManifestContent
