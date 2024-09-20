@@ -8,31 +8,6 @@ param(
 
 #Requires -Modules @{ ModuleName = "InvokeBuild"; ModuleVersion = "5.0.0" }
 
-$ProjectName = "SecretManagement"
-$FullModuleName = "Microsoft.PowerShell.SecretManagement"
-$CSharpSource = Join-Path $PSScriptRoot src/code
-$CSharpPublish = Join-Path $PSScriptRoot artifacts/publish/$FullModuleName/$($Configuration.ToLower())
-$ModuleOut = Join-Path $PSScriptRoot module
-$PackageOut = Join-Path $PSScriptRoot out
-$HelpSource = Join-Path $PSScriptRoot help
-$HelpOut = Join-Path $ModuleOut en-US
-
-$CSharpArtifacts = @(
-    "$FullModuleName.dll",
-    "$FullModuleName.pdb",
-    "$FullModuleName.xml",
-    "System.Runtime.InteropServices.RuntimeInformation.dll")
-
-$BaseArtifacts = @(
-    "src/$FullModuleName.format.ps1xml",
-    "README.md",
-    "LICENSE",
-    "ThirdPartyNotices.txt")
-
-$ManifestPath = Join-Path $PSScriptRoot "src/$FullModuleName.psd1"
-
-$HelpAboutTopics = @()
-
 task FindDotNet -Before Clean, Build {
     Assert (Get-Command dotnet -ErrorAction SilentlyContinue) "The dotnet CLI was not found, please install it: https://aka.ms/dotnet-cli"
     $DotnetVersion = dotnet --version
@@ -41,63 +16,68 @@ task FindDotNet -Before Clean, Build {
 }
 
 task Clean {
-    Remove-BuildItem ./artifacts, $ModuleOut, $PackageOut
-    Invoke-BuildExec { dotnet clean $CSharpSource }
-
-    Remove-BuildItem "$HelpOut/$FullModuleName.dll-Help.xml"
-    foreach ($aboutTopic in $HelpAboutTopics) {
-        Remove-BuildItem "$HelpSource/$aboutTopic.help.txt"
-    }
+    Remove-BuildItem ./artifacts, ./module, ./out
+    Invoke-BuildExec { dotnet clean ./src/code }
 }
 
-task BuildDocs -If { Test-Path -LiteralPath $HelpSource } {
-    New-ExternalHelp -Path $HelpSource -OutputPath $HelpOut
-    foreach ($aboutTopic in $HelpAboutTopics) {
-        New-ExternalHelp -Path "$HelpSource\$aboutTopic.md" -OutputPath $HelpOut
-    }
+task BuildDocs -If { Test-Path -LiteralPath ./help } {
+    New-ExternalHelp -Path ./help -OutputPath ./module/en-US
 }
 
 task BuildModule {
-    New-Item -ItemType Directory -Force $ModuleOut | Out-Null
+    New-Item -ItemType Directory -Force ./module | Out-Null
 
-    Invoke-BuildExec { dotnet publish $CSharpSource --configuration $Configuration }
+    Invoke-BuildExec { dotnet publish ./src/code -c $Configuration }
 
     # Hard code building this in release config since we aren't actually developing it,
     # it's only for tests. The tests also hard code the path assuming release config.
-    Invoke-BuildExec { dotnet publish $PSScriptRoot/ExtensionModules/CredManStore/src/code --configuration Release }
+    Invoke-BuildExec { dotnet publish ./ExtensionModules/CredManStore/src/code -c Release }
+    
+    $FullModuleName = "Microsoft.PowerShell.SecretManagement"
+
+    $CSharpArtifacts = @(
+        "$FullModuleName.dll",
+        "$FullModuleName.pdb",
+        "$FullModuleName.xml",
+        "System.Runtime.InteropServices.RuntimeInformation.dll")
 
     $CSharpArtifacts | ForEach-Object {
-        $item = Join-Path $CSharpPublish $_
-        Copy-Item -Force -LiteralPath $item -Destination $ModuleOut
+        $item = "./artifacts/publish/$FullModuleName/$($Configuration.ToLower())/$_"
+        Copy-Item -Force -LiteralPath $item -Destination ./module
     }
+
+    $BaseArtifacts = @(
+        "src/$FullModuleName.format.ps1xml",
+        "README.md",
+        "LICENSE",
+        "ThirdPartyNotices.txt")
 
     $BaseArtifacts | ForEach-Object {
         $itemToCopy = Join-Path $PSScriptRoot $_
-        Copy-Item -Force -LiteralPath $itemToCopy -Destination $ModuleOut
+        Copy-Item -Force -LiteralPath $itemToCopy -Destination ./module
     }
 
     [xml]$xml = Get-Content Directory.Build.props
     $moduleVersion = $xml.Project.PropertyGroup.ModuleVersion
-    $manifestContent = Get-Content -LiteralPath $ManifestPath -Raw
+    $manifestContent = Get-Content -LiteralPath "./src/$FullModuleName.psd1" -Raw
     $newManifestContent = $manifestContent -replace '{{ModuleVersion}}', $moduleVersion
-    Set-Content -LiteralPath "$ModuleOut/$FullModuleName.psd1" -Encoding utf8 -Value $newManifestContent
+    Set-Content -LiteralPath "./module/$FullModuleName.psd1" -Encoding utf8 -Value $newManifestContent
 }
 
 task PackageModule {
-    New-Item -ItemType Directory -Force $PackageOut | Out-Null
+    New-Item -ItemType Directory -Force ./out | Out-Null
 
     try {
-        Register-PSResourceRepository -Name $ProjectName -Uri $PackageOut -ErrorAction Stop
-        $registerSuccessful = $true
-        Publish-PSResource -Path $ModuleOut -Repository $ProjectName -Verbose
+        Register-PSResourceRepository -Name SecretManagement -Uri ./out -ErrorAction Stop
+        Publish-PSResource -Path ./module -Repository SecretManagement -Verbose
     } finally {
-        Unregister-PSResourceRepository -Name $ProjectName
+        Unregister-PSResourceRepository -Name SecretManagement
     }
 }
 
 # AKA Microsoft.PowerShell.SecretManagement.Library
 task PackageLibrary -If { $Configuration -eq "Release" } {
-    Invoke-BuildExec { dotnet pack $CSharpSource --no-build --configuration $Configuration --output $PackageOut }
+    Invoke-BuildExec { dotnet pack ./src/code --no-build -c $Configuration -o ./out }
 }
 
 task Test {
