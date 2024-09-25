@@ -16,7 +16,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.PowerShell.SecretManagement.Library" PrivateAssets="All" />
+    <ProjectReference Include="../../../../src/code/Microsoft.PowerShell.SecretManagement.csproj" SkipGetTargetFrameworkProperties="True" />
     <PackageReference Include="PowerShellStandard.Library" PrivateAssets="All" />
   </ItemGroup>
 
