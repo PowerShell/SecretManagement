@@ -16,8 +16,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.PowerShell.SecretManagement.Library" Version="0.5.1-*" PrivateAssets="All" />
-    <PackageReference Include="PowerShellStandard.Library" Version="5.1.1-*" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.PowerShell.SecretManagement.Library" PrivateAssets="All" />
+    <PackageReference Include="PowerShellStandard.Library" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>
