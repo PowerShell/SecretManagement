@@ -1092,15 +1092,9 @@ namespace Microsoft.PowerShell.SecretManagement
             if (results == null) { return; }
 
             // Ensure each vaults results are sorted by secret name.
-            var sortedList = new SortedDictionary<string, SecretInformation>(StringComparer.OrdinalIgnoreCase);
-            foreach (var item in results)
-            {
-                sortedList.Add(
-                    key: item.Name,
-                    value: item);
-            }
+            Array.Sort(results, new SecretInformationComparer());
 
-            foreach (var item in sortedList.Values)
+            foreach (var item in results)
             {
                 WriteObject(item);
             }
