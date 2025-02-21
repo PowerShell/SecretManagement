@@ -1,0 +1,51 @@
+{
+    "$schema": "https://ev2schema.azure.net/schemas/2020-01-01/serviceModel.json",
+    "contentVersion": "1.0.0.0",
+    "ServiceMetadata": {
+      "ServiceGroup": "OneBranch-SecretManagement",
+      "Environment": "Test"
+    },
+    "ServiceResourceGroupDefinitions": [
+      {
+        "Name": "OneBranch-SecretManagement-RGDef",
+        "ServiceResourceDefinitions": [
+          {
+            "Name": "OneBranch-SecretManagement.Shell-SRDef",
+            "composedOf": {
+              "extension": {
+                "shell": [
+                  {
+                    "type": "Run",
+                    "properties": {
+                      "imageName": "adm-mariner-20-l",
+                      "imageVersion": "v5"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "ServiceResourceGroups": [
+      {
+        "AzureResourceGroupName": "default",
+        "Location": "East US",
+        "InstanceOf": "OneBranch-SecretManagement-RGDef",
+        "AzureSubscriptionId": "default",
+          "scopeTags": [
+            {
+              "name": "Global"
+            }
+          ],
+        "ServiceResources": [
+          {
+            "Name": "SecretManagementToACR",
+            "InstanceOf": "OneBranch-SecretManagement.Shell-SRDef",
+            "RolloutParametersPath": "SecretManagementToACR.Rollout.json"
+          }
+        ]
+      }
+    ]
+  }
