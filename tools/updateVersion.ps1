@@ -20,5 +20,4 @@ $f = $f -replace '^(?<prefix>\s+<ModuleVersion>)(.+)(?<suffix></ModuleVersion>)$
 $f | Set-Content -Path $Path
 git add $Path
 
-git commit --edit --message v${Version}: $Changes"
-"
+git commit --edit --message "v${Version}: $Changes"
