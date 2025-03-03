@@ -16,7 +16,7 @@ Install-PSResource -Verbose -TrustRepository -RequiredResource  @{
     InvokeBuild = @{
         version = "5.12.1"
         repository = $PSRepository
-      }
+    }
     platyPS = @{
         version = "0.14.2"
         repository = $PSRepository
