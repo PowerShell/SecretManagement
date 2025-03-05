@@ -324,6 +324,17 @@ namespace Microsoft.PowerShell.SecretManagement
 
         #endregion
     }
+    
+    /// <summary>
+    ///  Compares secret information by name.
+    /// </summary>
+    public class SecretInformationComparer : IComparer<SecretInformation>
+    {
+        public int Compare(SecretInformation x, SecretInformation y)
+        {
+            return string.Compare(x.Name, y.Name, StringComparison.Ordinal);
+        }
+    }
 
     #endregion
 
