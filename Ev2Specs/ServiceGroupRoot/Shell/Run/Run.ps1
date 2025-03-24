@@ -45,8 +45,8 @@ try {
     $moduleExists = Test-Path $secretManagementFileName
     Write-Verbose -Verbose "Module $secretManagementFileName exists: $moduleExists"
 
-    # Install PSResourceGet 1.1.0-preview2
-    Write-Verbose "Download PSResourceGet version 1.1.0-preview2"
+    # Install PSResourceGet 1.1.0
+    Write-Verbose "Download PSResourceGet version 1.1.0"
     Register-PSRepository -Name CFS -SourceLocation "https://pkgs.dev.azure.com/powershell/PowerShell/_packaging/powershell/nuget/v2" -InstallationPolicy Trusted
     Install-Module -Repository CFS -Name Microsoft.PowerShell.PSResourceGet -RequiredVersion '1.1.0' -Verbose
     Import-Module Microsoft.PowerShell.PSResourceGet
