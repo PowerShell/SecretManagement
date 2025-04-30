@@ -64,7 +64,13 @@ try {
 
     #Publish SecretManagement to ACR
     Write-Verbose -Verbose "Publish SecretManagement $secretManagementFileName to ACR $env:DESTINATION_ACR_NAME"
+    
+    # public
     $prefix = "public/psresource"
+    Publish-PSResource -Repository $env:DESTINATION_ACR_NAME -NupkgPath $secretManagementFileName -ModulePrefix $prefix -Confirm:$false 
+
+    # unlisted
+    $prefix = "unlisted/psresource"
     Publish-PSResource -Repository $env:DESTINATION_ACR_NAME -NupkgPath $secretManagementFileName -ModulePrefix $prefix -Confirm:$false 
 }
 catch {
