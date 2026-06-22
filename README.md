@@ -7,8 +7,7 @@
 > Passwordless authentication methods such as passkeys, single sign-on and federated credential systems such as Microsoft Entra ID, biometrics, and hardware security keys are the future — and they aren't something this project can meaningfully support in its current form.
 >
 > While we will no longer be adding features, we remain committed to addressing security issues in the module.
->
-> This repository will be archived in the coming weeks. Thank you for all of your contributions. 🙏
+> For any security issues, please see our [Security Policy](.github/SECURITY.md).
 
 PowerShell SecretManagement module provides a convenient way for a user to store and retrieve secrets.
 The secrets are stored in SecretManagement extension vaults.
@@ -351,7 +350,3 @@ Consequently, SecretManagement will not run under managed accounts.
 ## Code of Conduct
 
 Please see our [Code of Conduct](.github/CODE_OF_CONDUCT.md) before participating in this project.
-
-## Security Policy
-
-For any security issues, please see our [Security Policy](.github/SECURITY.md).
