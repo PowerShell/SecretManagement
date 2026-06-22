@@ -1,5 +1,15 @@
 # PowerShell SecretManagement module
 
+> [!IMPORTANT]
+> The PowerShell team has decided that `Microsoft.PowerShell.SecretManagement` is feature complete, so [1.1.2](https://www.powershellgallery.com/packages/Microsoft.PowerShell.SecretManagement/1.1.2) will be the last feature release.
+>
+> The nature of secrets has fundamentally changed since this project was designed.
+> Passwordless authentication methods such as passkeys, single sign-on and federated credential systems such as Microsoft Entra ID, biometrics, and hardware security keys are the future — and they aren't something this project can meaningfully support in its current form.
+>
+> While we will no longer be adding features, we remain committed to addressing security issues in the module.
+>
+> This repository will be archived in the coming weeks. Thank you for all of your contributions. 🙏
+
 PowerShell SecretManagement module provides a convenient way for a user to store and retrieve secrets.
 The secrets are stored in SecretManagement extension vaults.
 An extension vault is a PowerShell module that has been registered to SecretManagement, and exports five module functions required by SecretManagement.
